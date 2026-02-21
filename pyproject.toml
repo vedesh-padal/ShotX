@@ -1,0 +1,67 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "shotx"
+version = "0.1.0"
+description = "A free, open-source screenshot and screen capture tool for Linux — inspired by ShareX."
+readme = "README.md"
+license = "GPL-3.0-only"
+requires-python = ">=3.10"
+authors = [
+    { name = "Vedesh P" },
+]
+keywords = ["screenshot", "screen-capture", "linux", "sharex", "wayland", "x11"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: X11 Applications :: Qt",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Graphics :: Capture :: Screen Capture",
+]
+dependencies = [
+    "PySide6>=6.6",
+    "PyYAML>=6",
+    "Pillow>=10",
+    "dbus-next>=0.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7",
+    "pytest-cov>=4",
+    "ruff>=0.4",
+    "mypy>=1.0",
+]
+
+[project.scripts]
+shotx = "shotx.main:main"
+
+[project.urls]
+Homepage = "https://github.com/vedesh-padal/ShotX"
+Repository = "https://github.com/vedesh-padal/ShotX"
+Issues = "https://github.com/vedesh-padal/ShotX/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/shotx"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
