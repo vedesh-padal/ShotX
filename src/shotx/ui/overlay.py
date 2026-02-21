@@ -30,7 +30,7 @@ import logging
 from dataclasses import dataclass
 from enum import Enum, auto
 
-from PySide6.QtCore import QPoint, QRect, QSize, Qt, Signal, QTimer
+from PySide6.QtCore import QPoint, QRect, QRectF, QSize, Qt, Signal, QTimer
 from PySide6.QtGui import (
     QBrush,
     QColor,
@@ -84,6 +84,7 @@ class RegionOverlay(QWidget):
     """
 
     region_selected = Signal(QRect)
+    annotated_image_ready = Signal(QImage)  # Emitted with cropped+annotated QImage
     selection_cancelled = Signal()
     annotation_color_changed = Signal(str)  # Emitted with hex color for persistence
 
@@ -457,29 +458,35 @@ class RegionOverlay(QWidget):
         self.update()
 
     def _finish_annotation(self) -> None:
-        """Render the scene and complete capture."""
+        """Crop the selection, render annotations onto it, and emit the result."""
         if not self._scene or not self._view:
             return
             
         self._state = OverlayState.DONE
         
-        # Render the graphics scene on top of our isolated backdrop crop
-        # We will do this via the main _confirm_selection later. Right now we just complete the flow.
-        # But actually, the caller expects a QRect. We need to burn the vectors onto the backdrop
-        # before closing! Wait, shotx/app.py currently takes the QRect, then crops the backdrop _itself_!
-        # This means app.py needs the QImage, not just the QRect.
-        # Or, RegionOverlay must burn it into its OWN self._backdrop.
+        # 1. Crop the selection region from the clean backdrop
+        cropped = self._backdrop.copy(self._selection_rect)
         
-        # Let's burn the scene onto self._backdrop inside the selected rect
-        painter = QPainter(self._backdrop)
+        # 2. Render the annotation scene onto the cropped image
+        #    Scene coords (0,0) map to cropped image (0,0)
+        painter = QPainter(cropped)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
-        # Translate to the selection rect so the scene coordinates match up
-        painter.translate(self._selection_rect.topLeft())
-        self._scene.render(painter)
+        self._scene.render(
+            painter,
+            target=QRectF(cropped.rect()),
+            source=self._scene.sceneRect(),
+        )
         painter.end()
         
-        self._confirm_selection()
+        # 3. Emit annotated image and close
+        self.update()
+        QTimer.singleShot(
+            300,
+            lambda: (
+                self.annotated_image_ready.emit(cropped),
+                self.close(),
+            ),
+        )
 
     def _on_color_changed(self, color: QColor) -> None:
         """Update the scene color and notify callers for persistence."""

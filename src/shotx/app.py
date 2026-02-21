@@ -169,6 +169,7 @@ class ShotXApp:
         # Use QEventLoop to block until the overlay signals completion
         loop = QEventLoop()
         selected_rect: list[QRect] = []  # mutable container for closure
+        annotated_image: list[QImage] = []  # pre-cropped+annotated image
 
         def on_selected(rect: QRect) -> None:
             selected_rect.append(rect)
@@ -177,25 +178,32 @@ class ShotXApp:
         def on_cancelled() -> None:
             loop.quit()
 
+        def on_annotated(img: QImage) -> None:
+            annotated_image.append(img)
+            loop.quit()
+
         overlay.region_selected.connect(on_selected)
         overlay.selection_cancelled.connect(on_cancelled)
         overlay.annotation_color_changed.connect(_save_color)
+        overlay.annotated_image_ready.connect(on_annotated)
         overlay.show_fullscreen()
 
         loop.exec()  # Blocks until selection or cancel
 
         # Step 4: Process result
-        if not selected_rect:
+        if annotated_image:
+            # Annotations were burned — use the pre-cropped annotated image
+            cropped = annotated_image[0]
+        elif selected_rect:
+            rect = selected_rect[0]
+            if self._verbose:
+                print(f"Selected region: {rect.x()},{rect.y()} {rect.width()}x{rect.height()}")
+            cropped = backdrop.copy(rect)
+        else:
             if self._verbose:
                 print("Region selection cancelled")
             return False
 
-        rect = selected_rect[0]
-        if self._verbose:
-            print(f"Selected region: {rect.x()},{rect.y()} {rect.width()}x{rect.height()}")
-
-        # Step 5: Crop backdrop to selection
-        cropped = backdrop.copy(rect)
         if cropped.isNull():
             logger.error("Failed to crop backdrop to selected region")
             self._notify_error("Failed to crop selected region")
