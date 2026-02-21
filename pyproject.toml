@@ -9,9 +9,7 @@ description = "A free, open-source screenshot and screen capture tool for Linux 
 readme = "README.md"
 license = "GPL-3.0-only"
 requires-python = ">=3.10"
-authors = [
-    { name = "Vedesh P" },
-]
+authors = [{ name = "Vedesh Padal" }]
 keywords = ["screenshot", "screen-capture", "linux", "sharex", "wayland", "x11"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
@@ -25,20 +23,10 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Multimedia :: Graphics :: Capture :: Screen Capture",
 ]
-dependencies = [
-    "PySide6>=6.6",
-    "PyYAML>=6",
-    "Pillow>=10",
-    "dbus-next>=0.2",
-]
+dependencies = ["PySide6>=6.6", "PyYAML>=6", "Pillow>=10", "dbus-next>=0.2"]
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=7",
-    "pytest-cov>=4",
-    "ruff>=0.4",
-    "mypy>=1.0",
-]
+dev = ["pytest>=7", "pytest-cov>=4", "ruff>=0.4", "mypy>=1.0"]
 
 [project.scripts]
 shotx = "shotx.main:main"
