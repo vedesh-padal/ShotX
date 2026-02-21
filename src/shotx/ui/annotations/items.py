@@ -115,8 +115,13 @@ class ArrowItem(BaseAnnotationItem):
         self._end = QPointF(pos)
 
     def boundingRect(self) -> QRectF:
-        p = self.ARROW_SIZE + self.thickness
+        head_len = self._head_length()
+        p = head_len + self.thickness
         return QRectF(self._start, self._end).normalized().adjusted(-p, -p, p, p)
+
+    def _head_length(self) -> float:
+        """Arrow head length scales with pen thickness."""
+        return 10.0 + self.thickness * 2.0
 
     def paint(self, painter: QPainter, option, widget) -> None:
         painter.setPen(self._pen)
@@ -134,8 +139,8 @@ class ArrowItem(BaseAnnotationItem):
         # Unit vector from start → end
         ux, uy = dx / length, dy / length
 
-        # Arrow head dimensions
-        head_len = self.ARROW_SIZE
+        # Arrow head dimensions — scale with thickness
+        head_len = self._head_length()
         head_width = head_len * 0.5
 
         # Base of the arrowhead (point along the line, behind the tip)
@@ -230,4 +235,29 @@ class EditableTextItem(QGraphicsTextItem):
         self.setTextInteractionFlags(Qt.TextInteractionFlag.TextEditorInteraction)
         self.setFocus()
         super().mouseDoubleClickEvent(event)
+
+    def keyPressEvent(self, event) -> None:
+        """Handle Ctrl+Shift+Plus/Minus for font resizing."""
+        mods = event.modifiers()
+        ctrl_shift = (
+            Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier
+        )
+        if mods & ctrl_shift == ctrl_shift:
+            key = event.key()
+            if key in (Qt.Key.Key_Plus, Qt.Key.Key_Equal):
+                self._change_font_size(2)
+                event.accept()
+                return
+            elif key in (Qt.Key.Key_Minus, Qt.Key.Key_Underscore):
+                self._change_font_size(-2)
+                event.accept()
+                return
+        super().keyPressEvent(event)
+
+    def _change_font_size(self, delta: int) -> None:
+        """Adjust font size by delta, clamped to [8, 72]."""
+        font = self.font()
+        new_size = max(8, min(72, font.pointSize() + delta))
+        font.setPointSize(new_size)
+        self.setFont(font)
 
