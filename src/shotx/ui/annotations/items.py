@@ -17,7 +17,7 @@ import logging
 import math
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (
-    QColor, QFont, QPainter, QPainterPath, QPen, QPolygonF, QBrush,
+    QColor, QFont, QImage, QPainter, QPainterPath, QPen, QPolygonF, QBrush,
 )
 from PySide6.QtWidgets import QGraphicsItem, QGraphicsTextItem
 
@@ -261,3 +261,134 @@ class EditableTextItem(QGraphicsTextItem):
         font.setPointSize(new_size)
         self.setFont(font)
 
+
+# ---------------------------------------------------------------------------
+# Highlight (semi-transparent marker)
+# ---------------------------------------------------------------------------
+
+class HighlightItem(BaseAnnotationItem):
+    """A semi-transparent filled rectangle, like a highlighter pen."""
+
+    ALPHA = 80  # ~30% opacity
+
+    def __init__(self, start_pos: QPointF, color: QColor, thickness: int) -> None:
+        super().__init__(color, thickness)
+        self._start = QPointF(start_pos)
+        self._rect = QRectF(start_pos, start_pos)
+
+    def set_end_pos(self, pos: QPointF) -> None:
+        self.prepareGeometryChange()
+        self._rect = QRectF(self._start, pos).normalized()
+
+    def boundingRect(self) -> QRectF:
+        return self._rect
+
+    def paint(self, painter: QPainter, option, widget) -> None:
+        fill = QColor(self.color)
+        fill.setAlpha(self.ALPHA)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QBrush(fill))
+        painter.drawRect(self._rect)
+
+
+# ---------------------------------------------------------------------------
+# Step Number
+# ---------------------------------------------------------------------------
+
+class StepNumberItem(BaseAnnotationItem):
+    """A numbered circle for step-by-step guides.
+
+    Each instance gets the next number from a class-level counter.
+    The counter resets when the scene is cleared.
+    """
+
+    _counter: int = 0  # class-level auto-increment
+    RADIUS = 16
+
+    def __init__(self, pos: QPointF, color: QColor, thickness: int) -> None:
+        super().__init__(color, thickness)
+        StepNumberItem._counter += 1
+        self._number = StepNumberItem._counter
+        self._center = QPointF(pos)
+
+    @classmethod
+    def reset_counter(cls) -> None:
+        cls._counter = 0
+
+    def boundingRect(self) -> QRectF:
+        r = self.RADIUS + self.thickness
+        return QRectF(
+            self._center.x() - r, self._center.y() - r,
+            r * 2, r * 2,
+        )
+
+    def paint(self, painter: QPainter, option, widget) -> None:
+        r = self.RADIUS
+        # Filled circle
+        painter.setPen(QPen(self.color, self.thickness))
+        painter.setBrush(QBrush(self.color))
+        painter.drawEllipse(self._center, r, r)
+
+        # Number text (white on colored background)
+        painter.setPen(QPen(QColor(255, 255, 255)))
+        font = QFont("sans-serif", int(r * 0.9))
+        font.setBold(True)
+        painter.setFont(font)
+        painter.drawText(self.boundingRect(), Qt.AlignmentFlag.AlignCenter, str(self._number))
+
+
+# ---------------------------------------------------------------------------
+# Blur / Pixelate
+# ---------------------------------------------------------------------------
+
+class BlurItem(BaseAnnotationItem):
+    """A rectangle that pixelates the backdrop underneath.
+
+    The effect is achieved by downscaling the backdrop region to a
+    very small size (e.g. 8x8) then upscaling it back, producing
+    a mosaic / pixelation effect. This is done at paint time using
+    the stored backdrop reference.
+    """
+
+    PIXEL_SIZE = 8  # How many pixels wide each mosaic block is
+
+    def __init__(
+        self, start_pos: QPointF, color: QColor, thickness: int,
+        backdrop: QImage | None = None,
+    ) -> None:
+        super().__init__(color, thickness)
+        self._start = QPointF(start_pos)
+        self._rect = QRectF(start_pos, start_pos)
+        self._backdrop = backdrop
+
+    def set_end_pos(self, pos: QPointF) -> None:
+        self.prepareGeometryChange()
+        self._rect = QRectF(self._start, pos).normalized()
+
+    def boundingRect(self) -> QRectF:
+        p = self.thickness / 2.0
+        return self._rect.adjusted(-p, -p, p, p)
+
+    def paint(self, painter: QPainter, option, widget) -> None:
+        rect = self._rect.toRect()
+        if rect.isEmpty() or self._backdrop is None:
+            return
+
+        # Crop the backdrop region that this item covers
+        crop = self._backdrop.copy(rect)
+        if crop.isNull():
+            return
+
+        # Downscale to create pixelation, then upscale back
+        w, h = max(1, rect.width() // self.PIXEL_SIZE), max(1, rect.height() // self.PIXEL_SIZE)
+        tiny = crop.scaled(w, h, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.FastTransformation)
+        pixelated = tiny.scaled(rect.width(), rect.height(), Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.FastTransformation)
+
+        painter.drawImage(self._rect, pixelated)
+
+        # Optional: draw a subtle dashed border so user can see the region
+        pen = QPen(QColor(255, 255, 255, 60), 1)
+        pen.setStyle(Qt.PenStyle.DashLine)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRect(self._rect)

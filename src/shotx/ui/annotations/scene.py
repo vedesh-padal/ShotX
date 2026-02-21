@@ -12,7 +12,7 @@ from enum import Enum, auto
 from typing import Optional
 
 from PySide6.QtCore import Qt, QPointF
-from PySide6.QtGui import QColor, QUndoStack, QUndoCommand
+from PySide6.QtGui import QColor, QImage, QUndoStack, QUndoCommand
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsSceneMouseEvent
 
 from .items import (
@@ -22,6 +22,9 @@ from .items import (
     ArrowItem,
     FreehandItem,
     EditableTextItem,
+    HighlightItem,
+    StepNumberItem,
+    BlurItem,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,6 +40,8 @@ class AnnotationTool(Enum):
     TEXT = auto()
     FREEHAND = auto()
     BLUR = auto()
+    HIGHLIGHT = auto()
+    STEP_NUMBER = auto()
 
 
 # ---------------------------------------------------------------------------
@@ -46,13 +51,12 @@ class AnnotationTool(Enum):
 class AddItemCommand(QUndoCommand):
     """Undoable command that adds a graphics item to the scene."""
 
-    def __init__(self, scene: QGraphicsScene, item: BaseAnnotationItem) -> None:
+    def __init__(self, scene: QGraphicsScene, item) -> None:
         super().__init__("Draw shape")
         self._scene = scene
         self._item = item
 
     def redo(self) -> None:
-        # Item was already added during drawing; re-add only on redo
         if self._item.scene() is None:
             self._scene.addItem(self._item)
 
@@ -74,6 +78,9 @@ class AnnotationScene(QGraphicsScene):
         self.current_tool = AnnotationTool.RECTANGLE
         self.current_color = QColor(255, 0, 0)
         self.current_thickness = 4
+
+        # Backdrop crop for blur tool (set by overlay)
+        self.backdrop_crop: QImage | None = None
 
         self._active_item: Optional[BaseAnnotationItem] = None
 
@@ -101,8 +108,18 @@ class AnnotationScene(QGraphicsScene):
             self._active_item = ArrowItem(pos, color, thick)
         elif tool == AnnotationTool.FREEHAND:
             self._active_item = FreehandItem(pos, color, thick)
+        elif tool == AnnotationTool.HIGHLIGHT:
+            self._active_item = HighlightItem(pos, color, thick)
+        elif tool == AnnotationTool.BLUR:
+            self._active_item = BlurItem(pos, color, thick, backdrop=self.backdrop_crop)
         elif tool == AnnotationTool.TEXT:
             item = EditableTextItem(pos, color, thick)
+            self.addItem(item)
+            self.undo_stack.push(AddItemCommand(self, item))
+            event.accept()
+            return
+        elif tool == AnnotationTool.STEP_NUMBER:
+            item = StepNumberItem(pos, color, thick)
             self.addItem(item)
             self.undo_stack.push(AddItemCommand(self, item))
             event.accept()
@@ -131,7 +148,6 @@ class AnnotationScene(QGraphicsScene):
 
     def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         if self._active_item:
-            # Push onto undo stack so Ctrl+Z can remove it
             self.undo_stack.push(AddItemCommand(self, self._active_item))
             self._active_item = None
             event.accept()

@@ -422,10 +422,16 @@ class RegionOverlay(QWidget):
         # Load persisted color
         initial_color = QColor(self._last_annotation_color)
         
+        # Reset step number counter for this annotation session
+        from shotx.ui.annotations.items import StepNumberItem
+        StepNumberItem.reset_counter()
+        
         # 1. Create transparent QGraphicsView placed exactly over the selection
         self._scene = AnnotationScene(self)
         self._scene.setSceneRect(0, 0, self._selection_rect.width(), self._selection_rect.height())
         self._scene.current_color = initial_color
+        # Pass backdrop crop so blur tool can read pixels underneath
+        self._scene.backdrop_crop = self._backdrop.copy(self._selection_rect)
         
         self._view = QGraphicsView(self._scene, self)
         self._view.setGeometry(self._selection_rect)
