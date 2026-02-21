@@ -2,6 +2,12 @@
 
 This module is the CLI entry point for ShotX. It handles argument parsing
 and decides whether to launch the tray app or perform a one-shot capture.
+
+Usage:
+    shotx                       # Launch as system tray app
+    shotx --capture-fullscreen  # One-shot fullscreen capture
+    shotx --version             # Print version and exit
+    shotx --help                # Show help
 """
 
 from __future__ import annotations
@@ -29,12 +35,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--capture-region",
         action="store_true",
-        help="Capture a selected region and exit. (Coming soon)",
+        help="Capture a selected region and exit. (Coming in Phase 2)",
     )
     parser.add_argument(
         "--capture-window",
         action="store_true",
-        help="Capture the active window and exit. (Coming soon)",
+        help="Capture the active window and exit. (Coming in Phase 2)",
     )
     parser.add_argument(
         "--config-dir",
@@ -65,28 +71,34 @@ def main(argv: list[str] | None = None) -> int:
     """
     args = parse_args(argv)
 
-    if args.verbose:
-        print(f"ShotX v{_get_version()}")
-        print(f"Python {sys.version}")
+    # QApplication must be created before any Qt operations.
+    # We create it early because both tray and one-shot modes need it
+    # (one-shot needs it for QImage, clipboard, and screen access).
+    from PySide6.QtWidgets import QApplication
+
+    qt_app = QApplication.instance()
+    if qt_app is None:
+        qt_app = QApplication(sys.argv)
+    qt_app.setApplicationName("ShotX")
+    qt_app.setApplicationVersion(_get_version())
+
+    # Create the app controller
+    from shotx.app import ShotXApp
+
+    app = ShotXApp(config_dir=args.config_dir, verbose=args.verbose)
 
     # One-shot capture modes
     if args.capture_fullscreen:
-        # TODO: Implement in Commit 9 (app.py wiring)
-        print("Fullscreen capture not yet implemented.")
-        return 1
+        return app.run_oneshot("fullscreen")
 
     if args.capture_region:
-        print("Region capture will be available in a future update (Phase 2).")
-        return 1
+        return app.run_oneshot("region")
 
     if args.capture_window:
-        print("Window capture will be available in a future update (Phase 2).")
-        return 1
+        return app.run_oneshot("window")
 
     # Default: launch tray app
-    # TODO: Implement in Commit 9 (app.py wiring)
-    print("ShotX tray app not yet implemented. Use --capture-fullscreen for now.")
-    return 0
+    return app.run_tray()
 
 
 if __name__ == "__main__":

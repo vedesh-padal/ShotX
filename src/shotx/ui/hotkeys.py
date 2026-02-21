@@ -20,8 +20,8 @@ import logging
 from typing import Callable
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeySequence
-from PySide6.QtWidgets import QWidget, QShortcut
+from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtWidgets import QWidget
 
 logger = logging.getLogger(__name__)
 
