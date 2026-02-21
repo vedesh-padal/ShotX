@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import logging
 from PySide6.QtCore import Qt, Signal, QEvent
-from PySide6.QtGui import QCursor
+from PySide6.QtGui import QColor, QCursor
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout,
-    QPushButton, QButtonGroup, QLabel,
+    QPushButton, QButtonGroup, QLabel, QColorDialog,
 )
 
 from .scene import AnnotationTool
@@ -39,10 +39,22 @@ class AnnotationToolbar(QWidget):
     """A floating horizontal toolbar with annotation tools."""
     
     tool_selected = Signal(AnnotationTool)
+    color_changed = Signal(QColor)
+    thickness_changed = Signal(int)
     accept_requested = Signal()
     cancel_requested = Signal()
+    undo_requested = Signal()
+    redo_requested = Signal()
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    # Size constants
+    BTN_SIZE = 40
+    SEP_HEIGHT = 28
+
+    def __init__(
+        self,
+        initial_color: QColor | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         
         # No window flags — this is now a plain child widget of the overlay
@@ -69,12 +81,13 @@ class AnnotationToolbar(QWidget):
         self._hover_label = QLabel("", self)
         self._hover_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._hover_label.setStyleSheet(
-            "color: rgba(255, 255, 255, 180);"
-            "font-size: 11px;"
+            "color: rgba(255, 255, 255, 220);"
+            "font-size: 12px;"
+            "font-weight: bold;"
             "background: transparent;"
             "padding: 0px;"
         )
-        self._hover_label.setFixedHeight(16)
+        self._hover_label.setFixedHeight(18)
         outer_layout.addWidget(self._hover_label)
         
         self.tool_group = QButtonGroup(self)
@@ -83,6 +96,7 @@ class AnnotationToolbar(QWidget):
         # Tool buttons
         self._add_tool_btn("👆", "Select (Move/Resize)", AnnotationTool.SELECT, btn_layout)
         self._add_tool_btn("⬛", "Rectangle", AnnotationTool.RECTANGLE, btn_layout, checked=True)
+        self._add_tool_btn("⬭", "Ellipse", AnnotationTool.ELLIPSE, btn_layout)
         self._add_tool_btn("↗", "Arrow", AnnotationTool.ARROW, btn_layout)
         self._add_tool_btn("T", "Text", AnnotationTool.TEXT, btn_layout)
         self._add_tool_btn("✎", "Freehand", AnnotationTool.FREEHAND, btn_layout)
@@ -90,15 +104,50 @@ class AnnotationToolbar(QWidget):
         self.tool_group.idClicked.connect(self._on_tool_clicked)
         
         # Separator
-        sep = QWidget()
-        sep.setFixedWidth(1)
-        sep.setFixedHeight(20)
-        sep.setStyleSheet("background-color: rgba(255, 255, 255, 50);")
-        btn_layout.addWidget(sep)
+        self._add_separator(btn_layout)
+        
+        # Undo / Redo
+        self._add_action_btn("↩", "Undo (Ctrl+Z)", "#aaaaaa", btn_layout, self.undo_requested.emit)
+        self._add_action_btn("↪", "Redo (Ctrl+Y)", "#aaaaaa", btn_layout, self.redo_requested.emit)
+        
+        # Separator
+        self._add_separator(btn_layout)
+        
+        # Color swatch button
+        self._color_btn = _HoverButton("●", "Change Color", self.bg_widget)
+        self._color_btn.setFixedSize(self.BTN_SIZE, self.BTN_SIZE)
+        self._current_color = initial_color or QColor(255, 0, 0)
+        self._update_color_btn_style()
+        self._color_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self._color_btn.clicked.connect(self._pick_color)
+        self._color_btn.hovered.connect(self._show_hover)
+        self._color_btn.unhovered.connect(self._clear_hover)
+        btn_layout.addWidget(self._color_btn)
+        
+        # Separator
+        self._add_separator(btn_layout)
         
         # Action buttons
         self._add_action_btn("✔", "Accept & Save (Enter)", "#28a745", btn_layout, self.accept_requested.emit)
         self._add_action_btn("✕", "Cancel (Escape)", "#dc3545", btn_layout, self.cancel_requested.emit)
+
+        # Separator
+        self._add_separator(btn_layout)
+
+        # Thickness presets
+        self._thickness_group = QButtonGroup(self)
+        self._thickness_group.setExclusive(True)
+        for label, val in [("╌", 2), ("─", 4), ("━", 8)]:
+            btn = _HoverButton(label, f"Thickness: {val}px", self.bg_widget)
+            btn.setCheckable(True)
+            btn.setChecked(val == 4)  # default
+            btn.setFixedSize(self.BTN_SIZE, self.BTN_SIZE)
+            btn.setStyleSheet(self._button_style())
+            btn.hovered.connect(self._show_hover)
+            btn.unhovered.connect(self._clear_hover)
+            self._thickness_group.addButton(btn, id=val)
+            btn_layout.addWidget(btn)
+        self._thickness_group.idClicked.connect(lambda v: self.thickness_changed.emit(v))
 
     def _add_tool_btn(
         self, icon_text: str, hover_text: str, tool: AnnotationTool,
@@ -107,7 +156,7 @@ class AnnotationToolbar(QWidget):
         btn = _HoverButton(icon_text, hover_text, self.bg_widget)
         btn.setCheckable(True)
         btn.setChecked(checked)
-        btn.setFixedSize(32, 32)
+        btn.setFixedSize(self.BTN_SIZE, self.BTN_SIZE)
         btn.setStyleSheet(self._button_style())
         btn.hovered.connect(self._show_hover)
         btn.unhovered.connect(self._clear_hover)
@@ -120,7 +169,7 @@ class AnnotationToolbar(QWidget):
         layout: QHBoxLayout, callback,
     ) -> None:
         btn = _HoverButton(icon_text, hover_text, self.bg_widget)
-        btn.setFixedSize(32, 32)
+        btn.setFixedSize(self.BTN_SIZE, self.BTN_SIZE)
         btn.setStyleSheet(self._button_style(color=color))
         btn.hovered.connect(self._show_hover)
         btn.unhovered.connect(self._clear_hover)
@@ -132,8 +181,8 @@ class AnnotationToolbar(QWidget):
         QPushButton {{
             background-color: transparent;
             color: {color};
-            border-radius: 4px;
-            font-size: 16px;
+            border-radius: 6px;
+            font-size: 20px;
             font-weight: bold;
         }}
         QPushButton:hover {{
@@ -153,3 +202,32 @@ class AnnotationToolbar(QWidget):
 
     def _on_tool_clicked(self, tool_id: int) -> None:
         self.tool_selected.emit(AnnotationTool(tool_id))
+
+    def _add_separator(self, layout: QHBoxLayout) -> None:
+        sep = QWidget(self.bg_widget)
+        sep.setFixedWidth(1)
+        sep.setFixedHeight(self.SEP_HEIGHT)
+        sep.setStyleSheet("background-color: rgba(255, 255, 255, 50);")
+        layout.addWidget(sep)
+
+    def _pick_color(self) -> None:
+        color = QColorDialog.getColor(self._current_color, self, "Annotation Color")
+        if color.isValid():
+            self._current_color = color
+            self._update_color_btn_style()
+            self.color_changed.emit(color)
+
+    def _update_color_btn_style(self) -> None:
+        c = self._current_color.name()  # e.g. "#ff0000"
+        self._color_btn.setStyleSheet(f"""
+        QPushButton {{
+            background-color: transparent;
+            color: {c};
+            border-radius: 6px;
+            font-size: 26px;
+            font-weight: bold;
+        }}
+        QPushButton:hover {{
+            background-color: rgba(255, 255, 255, 30);
+        }}
+        """)

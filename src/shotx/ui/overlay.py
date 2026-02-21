@@ -85,6 +85,7 @@ class RegionOverlay(QWidget):
 
     region_selected = Signal(QRect)
     selection_cancelled = Signal()
+    annotation_color_changed = Signal(str)  # Emitted with hex color for persistence
 
     # --- Visual constants ---
     MASK_COLOR = QColor(0, 0, 0, 128)          # Semi-transparent black overlay
@@ -101,10 +102,12 @@ class RegionOverlay(QWidget):
         backdrop: QImage,
         regions: list[DetectRegion] | None = None,
         after_capture_action: str = "edit",
+        last_annotation_color: str = "#ff0000",
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self._after_capture_action = after_capture_action
+        self._last_annotation_color = last_annotation_color
 
         self._backdrop = backdrop
         self._backdrop_pixmap = QPixmap.fromImage(backdrop)
@@ -310,6 +313,12 @@ class RegionOverlay(QWidget):
                 else:
                     self._state = OverlayState.DONE
                     self._confirm_selection()
+        elif key == Qt.Key.Key_Z and event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            if self._state == OverlayState.ANNOTATING and self._scene:
+                self._scene.undo_stack.undo()
+        elif key == Qt.Key.Key_Y and event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            if self._state == OverlayState.ANNOTATING and self._scene:
+                self._scene.undo_stack.redo()
 
     # --- Private painting methods ---
 
@@ -409,9 +418,13 @@ class RegionOverlay(QWidget):
         """Lock the selection rectangle and prepare the QGraphicsScene for drawing."""
         logger.info("Starting annotation mode at %s", self._selection_rect)
         
+        # Load persisted color
+        initial_color = QColor(self._last_annotation_color)
+        
         # 1. Create transparent QGraphicsView placed exactly over the selection
         self._scene = AnnotationScene(self)
         self._scene.setSceneRect(0, 0, self._selection_rect.width(), self._selection_rect.height())
+        self._scene.current_color = initial_color
         
         self._view = QGraphicsView(self._scene, self)
         self._view.setGeometry(self._selection_rect)
@@ -421,12 +434,16 @@ class RegionOverlay(QWidget):
         self._view.show()
 
         # 2. Create and position the toolbar
-        self._toolbar = AnnotationToolbar(self)
+        self._toolbar = AnnotationToolbar(initial_color=initial_color, parent=self)
         
         # Connect signals
         self._toolbar.tool_selected.connect(lambda t: setattr(self._scene, 'current_tool', t))
         self._toolbar.accept_requested.connect(self._finish_annotation)
         self._toolbar.cancel_requested.connect(self._cancel_annotation)
+        self._toolbar.undo_requested.connect(self._scene.undo_stack.undo)
+        self._toolbar.redo_requested.connect(self._scene.undo_stack.redo)
+        self._toolbar.color_changed.connect(self._on_color_changed)
+        self._toolbar.thickness_changed.connect(lambda t: setattr(self._scene, 'current_thickness', t))
         
         # Position toolbar at top-center of the screen (like ShareX)
         tb_width = self._toolbar.sizeHint().width()
@@ -463,6 +480,13 @@ class RegionOverlay(QWidget):
         painter.end()
         
         self._confirm_selection()
+
+    def _on_color_changed(self, color: QColor) -> None:
+        """Update the scene color and notify callers for persistence."""
+        if self._scene:
+            self._scene.current_color = color
+        self._last_annotation_color = color.name()
+        self.annotation_color_changed.emit(color.name())
 
     def _cancel_annotation(self) -> None:
         """Close annotation mode and go back to IDLE/SELECTING."""

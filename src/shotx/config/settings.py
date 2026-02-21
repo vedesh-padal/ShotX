@@ -47,6 +47,7 @@ class CaptureSettings:
     play_sound: bool = False
     auto_detect_regions: bool = True
     after_capture_action: str = "edit"  # "edit" or "save"
+    last_annotation_color: str = "#ff0000"  # Persisted between sessions
 
     def __post_init__(self) -> None:
         if not self.output_dir:

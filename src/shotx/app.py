@@ -157,8 +157,14 @@ class ShotXApp:
         overlay = RegionOverlay(
             backdrop, 
             regions, 
-            after_capture_action=self.settings.capture.after_capture_action
+            after_capture_action=self.settings.capture.after_capture_action,
+            last_annotation_color=self.settings.capture.last_annotation_color,
         )
+
+        # Persist color changes back to settings
+        def _save_color(hex_color: str) -> None:
+            self.settings.capture.last_annotation_color = hex_color
+            self._settings_manager.save()
 
         # Use QEventLoop to block until the overlay signals completion
         loop = QEventLoop()
@@ -173,6 +179,7 @@ class ShotXApp:
 
         overlay.region_selected.connect(on_selected)
         overlay.selection_cancelled.connect(on_cancelled)
+        overlay.annotation_color_changed.connect(_save_color)
         overlay.show_fullscreen()
 
         loop.exec()  # Blocks until selection or cancel
