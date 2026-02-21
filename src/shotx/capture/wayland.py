@@ -1,14 +1,17 @@
 """Wayland capture backend.
 
-Captures screens on Wayland compositors using two strategies:
+Captures screens on Wayland compositors using a tiered strategy:
 
-1. **Instant capture** (primary): Uses Qt6's QScreen.grabWindow() which
-   internally uses the xdg-desktop-portal with interactive=false.
-   No dialog appears — the screenshot is taken instantly.
+1. **Portal capture** (primary): Calls xdg-desktop-portal's Screenshot
+   interface via D-Bus with interactive=false for instant capture.
+   This is the standard, secure method that works on all Wayland
+   compositors (GNOME, KDE, Sway, Hyprland, etc.).
 
-2. **Portal capture** (fallback): Calls xdg-desktop-portal's Screenshot
-   interface via D-Bus. This may show a compositor dialog depending on
-   the compositor's implementation.
+2. **grim** (fallback): Subprocess call to grim for wlroots-based
+   compositors where the portal may not be configured.
+
+3. **Qt grabWindow** (last resort): Tries Qt6's built-in grab, which
+   may work on some compositor/Qt combinations.
 
 Monitor and window enumeration use compositor-specific D-Bus interfaces
 where available (GNOME Shell Introspect, KDE's foreign-toplevel protocol).
@@ -16,13 +19,14 @@ where available (GNOME Shell Introspect, KDE's foreign-toplevel protocol).
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import subprocess
 import tempfile
 from pathlib import Path
+from urllib.parse import urlparse, unquote
 
-from PySide6.QtCore import QRect
 from PySide6.QtGui import QGuiApplication, QImage, QScreen
 
 from shotx.capture.backend import CaptureBackend, MonitorInfo, WindowInfo
@@ -44,59 +48,35 @@ class WaylandCaptureBackend(CaptureBackend):
         return session_type == "wayland" or bool(wayland_display)
 
     def capture_fullscreen(self, monitor_index: int | None = None) -> QImage | None:
-        """Capture the full screen using Qt6.
+        """Capture the full screen on Wayland.
 
-        Qt6 on Wayland uses the portal internally with interactive=false,
-        so this captures instantly without showing any dialog.
+        Tries methods in order:
+        1. xdg-desktop-portal Screenshot (D-Bus, interactive=false)
+        2. grim subprocess (wlroots compositors)
+        3. Qt6 grabWindow (last resort)
         """
-        app = QGuiApplication.instance()
-        if app is None:
-            logger.error("No QGuiApplication instance. Cannot capture on Wayland.")
-            return None
-
-        screens = app.screens()
-        if not screens:
-            logger.error("No screens found")
-            return None
-
-        if monitor_index is not None:
-            if 0 <= monitor_index < len(screens):
-                screen = screens[monitor_index]
-            else:
-                logger.error(
-                    "Monitor index %d out of range (have %d monitors)",
-                    monitor_index,
-                    len(screens),
-                )
-                return None
-        else:
-            screen = app.primaryScreen()
-
-        if screen is None:
-            logger.error("No primary screen available")
-            return None
-
-        # Try Qt6's built-in grab first
-        image = self._capture_via_qt(screen)
+        # Strategy 1: Portal (works on GNOME, KDE, most compositors)
+        image = self._capture_via_portal()
         if image is not None:
             return image
 
-        # Fallback: try grim (wlroots compositors)
-        logger.info("Qt capture returned empty, trying grim fallback")
-        return self._capture_via_grim(screen)
+        # Strategy 2: grim (wlroots: Sway, Hyprland, etc.)
+        logger.info("Portal capture failed, trying grim")
+        image = self._capture_via_grim(monitor_index)
+        if image is not None:
+            return image
+
+        # Strategy 3: Qt grabWindow (last resort)
+        logger.info("grim not available, trying Qt grabWindow")
+        return self._capture_via_qt(monitor_index)
 
     def capture_active_window(self) -> QImage | None:
         """Capture the active window.
 
-        On Wayland, direct window capture is restricted. We use the
-        xdg-desktop-portal Screenshot interface which allows the
-        compositor to handle window selection.
-
-        For Phase 1, this falls back to fullscreen capture.
-        In Phase 2, our custom overlay will handle window selection.
+        On Wayland, direct window capture is restricted. For Phase 1,
+        this falls back to fullscreen capture. Phase 2 will add proper
+        window detection via our custom overlay.
         """
-        # For now, delegate to fullscreen capture.
-        # Phase 2 will add proper window detection and cropping.
         logger.info("Active window capture falling back to fullscreen on Wayland")
         return self.capture_fullscreen()
 
@@ -128,60 +108,177 @@ class WaylandCaptureBackend(CaptureBackend):
     def get_windows(self) -> list[WindowInfo]:
         """Get window list from compositor.
 
-        On Wayland, window enumeration is restricted by design.
-        We try compositor-specific D-Bus interfaces:
+        Tries compositor-specific D-Bus interfaces:
         - GNOME: org.gnome.Shell.Introspect
-        - KDE/Sway: ext-foreign-toplevel-list (not yet implemented)
-
-        Returns empty list if unavailable. Phase 2 will expand this
-        with edge-detection fallback for auto-region detection.
+        - KDE/Sway: ext-foreign-toplevel-list (Phase 2)
         """
-        # Try GNOME Shell Introspect
         windows = self._get_windows_gnome()
         if windows:
             return windows
 
-        # Other compositor support will be added in Phase 2
         logger.debug("Window enumeration not available on this Wayland compositor")
         return []
 
     # --- Private capture methods ---
 
-    def _capture_via_qt(self, screen: QScreen) -> QImage | None:
-        """Capture screen using Qt6's grabWindow.
+    def _capture_via_portal(self) -> QImage | None:
+        """Capture screen using xdg-desktop-portal Screenshot D-Bus API.
 
-        On Wayland, Qt6 internally uses the xdg-desktop-portal
-        with interactive=false for instant capture.
+        Uses low-level D-Bus message construction to avoid dbus_next's
+        high-level proxy introspection, which fails on some portal
+        property names containing hyphens (e.g., 'power-saver-enabled').
+
+        How it works:
+        1. Construct a Screenshot method call with interactive=true
+        2. Send it on the session bus — compositor shows its native picker
+        3. Listen for the Response signal with the screenshot URI
+        4. Load the image from the file URI
+
+        Note: GNOME denies interactive=false for non-privileged apps
+        (response code 2). Using interactive=true shows the compositor's
+        native screenshot dialog. In Phase 2, our custom overlay will
+        capture the screen directly, bypassing the portal dialog.
         """
         try:
-            # grabWindow(0) captures the entire screen
-            pixmap = screen.grabWindow(0)
-            if pixmap.isNull():
-                logger.warning("Qt grabWindow returned null pixmap")
+            from dbus_next.aio import MessageBus
+            from dbus_next import Message, MessageType, Variant
+
+            async def _take_screenshot() -> str | None:
+                bus = await MessageBus().connect()
+                unique_name = bus.unique_name
+
+                # Build a predictable request token so we know which
+                # object path the Response signal will arrive on.
+                # The portal creates: /org/freedesktop/portal/desktop/request/{sender}/{token}
+                token = "shotx_screenshot"
+                sender_part = unique_name.lstrip(":").replace(".", "_")
+                expected_request_path = (
+                    f"/org/freedesktop/portal/desktop/request/{sender_part}/{token}"
+                )
+
+                # Set up signal listener BEFORE making the call
+                response_future: asyncio.Future[str | None] = asyncio.get_event_loop().create_future()
+
+                def on_message(msg: Message) -> None:
+                    if response_future.done():
+                        return
+                    if (
+                        msg.message_type == MessageType.SIGNAL
+                        and msg.member == "Response"
+                        and msg.path == expected_request_path
+                    ):
+                        # Signal body: (uint32 response, dict results)
+                        response_code = msg.body[0]
+                        results = msg.body[1]
+                        if response_code == 0:
+                            uri = results.get("uri")
+                            if isinstance(uri, Variant):
+                                uri = uri.value
+                            response_future.set_result(str(uri) if uri else None)
+                        else:
+                            response_future.set_result(None)
+
+                bus.add_message_handler(on_message)
+
+                # Add match rule to receive the signal
+                await bus.call(
+                    Message(
+                        destination="org.freedesktop.DBus",
+                        path="/org/freedesktop/DBus",
+                        interface="org.freedesktop.DBus",
+                        member="AddMatch",
+                        signature="s",
+                        body=[
+                            f"type='signal',interface='org.freedesktop.portal.Request',"
+                            f"member='Response',path='{expected_request_path}'"
+                        ],
+                    )
+                )
+
+                # Construct the Screenshot method call manually
+                # Signature: Screenshot(parent_window: s, options: a{sv})
+                # interactive=True because GNOME denies non-interactive
+                # screenshots from non-privileged apps
+                options = {
+                    "interactive": Variant("b", True),
+                    "handle_token": Variant("s", token),
+                }
+
+                reply = await bus.call(
+                    Message(
+                        destination="org.freedesktop.portal.Desktop",
+                        path="/org/freedesktop/portal/desktop",
+                        interface="org.freedesktop.portal.Screenshot",
+                        member="Screenshot",
+                        signature="sa{sv}",
+                        body=["", options],
+                    )
+                )
+
+                if reply.message_type == MessageType.ERROR:
+                    logger.warning("Portal Screenshot call failed: %s", reply.body)
+                    bus.disconnect()
+                    return None
+
+                # Wait for the Response signal
+                try:
+                    uri = await asyncio.wait_for(response_future, timeout=60.0)
+                except asyncio.TimeoutError:
+                    logger.warning("Portal screenshot timed out after 10s")
+                    uri = None
+
+                bus.remove_message_handler(on_message)
+                bus.disconnect()
+                return uri
+
+            # Run async D-Bus call
+            loop = asyncio.new_event_loop()
+            try:
+                uri = loop.run_until_complete(_take_screenshot())
+            finally:
+                loop.close()
+
+            if uri is None:
+                logger.warning("Portal returned no URI")
                 return None
 
-            image = pixmap.toImage()
+            # Convert file:// URI to local path
+            parsed = urlparse(uri)
+            file_path = Path(unquote(parsed.path))
+
+            if not file_path.exists():
+                logger.error("Portal screenshot file not found: %s", file_path)
+                return None
+
+            # Load as QImage
+            image = QImage(str(file_path))
             if image.isNull():
-                logger.warning("Qt pixmap.toImage() returned null image")
+                logger.error("Failed to load portal screenshot as QImage")
                 return None
 
-            logger.debug(
-                "Captured %dx%d image via Qt from screen '%s'",
+            logger.info(
+                "Captured %dx%d image via xdg-desktop-portal",
                 image.width(),
                 image.height(),
-                screen.name(),
             )
+
+            # Clean up the temp file created by the portal
+            try:
+                file_path.unlink()
+            except OSError:
+                pass
+
             return image
 
         except Exception as e:
-            logger.error("Qt capture failed: %s", e)
+            logger.warning("Portal capture failed: %s", e)
             return None
 
-    def _capture_via_grim(self, screen: QScreen) -> QImage | None:
+    def _capture_via_grim(self, monitor_index: int | None = None) -> QImage | None:
         """Fallback capture using grim (for wlroots-based compositors).
 
-        grim is a simple screenshot tool for Wayland that works with
-        wlr-screencopy-unstable-v1 protocol (used by Sway, Hyprland, etc.).
+        grim works with wlr-screencopy-unstable-v1 protocol
+        (Sway, Hyprland, river, etc.).
         """
         try:
             # Check if grim is available
@@ -195,48 +292,82 @@ class WaylandCaptureBackend(CaptureBackend):
                 logger.debug("grim not found in PATH")
                 return None
 
+            # Get screen name for specific monitor
+            screen_name = None
+            if monitor_index is not None:
+                app = QGuiApplication.instance()
+                if app:
+                    screens = app.screens()
+                    if 0 <= monitor_index < len(screens):
+                        screen_name = screens[monitor_index].name()
+
             # Capture to a temporary file
             with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
                 tmp_path = tmp.name
 
             try:
                 cmd = ["grim"]
-                # If specific output, add -o flag
-                if screen.name():
-                    cmd.extend(["-o", screen.name()])
+                if screen_name:
+                    cmd.extend(["-o", screen_name])
                 cmd.append(tmp_path)
 
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
-                )
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
 
                 if result.returncode != 0:
-                    logger.warning("grim capture failed: %s", result.stderr)
+                    logger.warning("grim failed: %s", result.stderr)
                     return None
 
                 image = QImage(tmp_path)
                 if image.isNull():
-                    logger.warning("Failed to load grim output as QImage")
                     return None
 
-                logger.debug("Captured %dx%d image via grim", image.width(), image.height())
+                logger.info("Captured %dx%d image via grim", image.width(), image.height())
                 return image
 
             finally:
-                # Clean up temp file
                 Path(tmp_path).unlink(missing_ok=True)
 
-        except FileNotFoundError:
-            logger.debug("grim not installed")
+        except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+            logger.debug("grim unavailable: %s", e)
             return None
-        except subprocess.TimeoutExpired:
-            logger.warning("grim capture timed out")
+
+    def _capture_via_qt(self, monitor_index: int | None = None) -> QImage | None:
+        """Last-resort capture using Qt6 grabWindow.
+
+        This rarely works on Wayland (returns null on most compositors)
+        but is kept as a fallback for edge cases.
+        """
+        app = QGuiApplication.instance()
+        if app is None:
             return None
+
+        screens = app.screens()
+        if not screens:
+            return None
+
+        if monitor_index is not None and 0 <= monitor_index < len(screens):
+            screen = screens[monitor_index]
+        else:
+            screen = app.primaryScreen()
+
+        if screen is None:
+            return None
+
+        try:
+            pixmap = screen.grabWindow(0)
+            if pixmap.isNull():
+                logger.debug("Qt grabWindow returned null (expected on Wayland)")
+                return None
+
+            image = pixmap.toImage()
+            if image.isNull():
+                return None
+
+            logger.info("Captured %dx%d via Qt grabWindow", image.width(), image.height())
+            return image
+
         except Exception as e:
-            logger.error("grim capture failed: %s", e)
+            logger.debug("Qt capture failed: %s", e)
             return None
 
     # --- Private window enumeration methods ---
