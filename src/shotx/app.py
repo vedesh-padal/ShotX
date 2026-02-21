@@ -154,7 +154,11 @@ class ShotXApp:
                 print(f"Detected {len(regions)} regions ({len(windows)} windows)")
 
         # Step 3: Show overlay and wait for selection
-        overlay = RegionOverlay(backdrop, regions)
+        overlay = RegionOverlay(
+            backdrop, 
+            regions, 
+            after_capture_action=self.settings.capture.after_capture_action
+        )
 
         # Use QEventLoop to block until the overlay signals completion
         loop = QEventLoop()

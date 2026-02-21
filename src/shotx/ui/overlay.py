@@ -43,7 +43,10 @@ from PySide6.QtGui import (
     QPixmap,
     QRegion,
 )
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QWidget, QGraphicsView
+
+from .annotations.scene import AnnotationScene, AnnotationTool
+from .annotations.toolbar import AnnotationToolbar
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +57,7 @@ class OverlayState(Enum):
     IDLE = auto()       # Waiting for user interaction
     HOVERING = auto()   # Mouse moving, auto-detect regions highlight
     SELECTING = auto()  # Mouse pressed, dragging selection
+    ANNOTATING = auto() # Selection done, drawing tools active
     DONE = auto()       # Selection confirmed
     CANCELLED = auto()  # User pressed Escape
 
@@ -96,9 +100,11 @@ class RegionOverlay(QWidget):
         self,
         backdrop: QImage,
         regions: list[DetectRegion] | None = None,
+        after_capture_action: str = "edit",
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
+        self._after_capture_action = after_capture_action
 
         self._backdrop = backdrop
         self._backdrop_pixmap = QPixmap.fromImage(backdrop)
@@ -111,6 +117,11 @@ class RegionOverlay(QWidget):
         # State
         self._state = OverlayState.IDLE
         self._mouse_pos = QPoint(0, 0)
+
+        # Annotation Sub-components
+        self._view: QGraphicsView | None = None
+        self._scene: AnnotationScene | None = None
+        self._toolbar: AnnotationToolbar | None = None
 
         # Selection rectangle (from drag)
         self._selection_start = QPoint(0, 0)
@@ -164,7 +175,7 @@ class RegionOverlay(QWidget):
         self._paint_mask(painter)
 
         # Layer 3: Auto-detect region highlight (hover)
-        if self._hovered_region and self._state != OverlayState.SELECTING:
+        if self._hovered_region and self._state in (OverlayState.IDLE, OverlayState.HOVERING):
             self._paint_region_highlight(painter, self._hovered_region)
 
         # Layer 4: Selection rectangle
@@ -183,6 +194,10 @@ class RegionOverlay(QWidget):
 
     def mousePressEvent(self, event) -> None:
         """Start selection on left click."""
+        if self._state == OverlayState.ANNOTATING:
+            # Let the QGraphicsView handle mouse events inside the annotation editor
+            return
+
         if event.button() == Qt.MouseButton.LeftButton:
             # We don't snap immediately. We just record the start position.
             # Start manual drag selection
@@ -197,6 +212,9 @@ class RegionOverlay(QWidget):
     def mouseMoveEvent(self, event) -> None:
         """Update selection rectangle or hover detection."""
         self._mouse_pos = event.position().toPoint()
+
+        if self._state == OverlayState.ANNOTATING:
+            return
 
         if self._state == OverlayState.SELECTING:
             # Update selection rectangle from drag
@@ -238,9 +256,6 @@ class RegionOverlay(QWidget):
                 if self._hovered_region:
                     # They clicked on an auto-detected region
                     self._selection_rect = self._hovered_region.rect
-                    self._state = OverlayState.DONE
-                    self._confirm_selection()
-                    return
                 else:
                     # Empty click, cancel or reset
                     self._state = OverlayState.IDLE
@@ -248,24 +263,53 @@ class RegionOverlay(QWidget):
                     self.update()
                     return
 
-            # Real manual drag completed
-            self._state = OverlayState.DONE
-            self._confirm_selection()
+            # Selection is fully decided. Determine next phase (edit or save)
+            action = self._after_capture_action
+            if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
+                # Force edit mode if Shift is held
+                action = "edit"
+
+            if action == "edit":
+                self._state = OverlayState.ANNOTATING
+                self._start_annotation()
+            else:
+                self._state = OverlayState.DONE
+                self._confirm_selection()
 
     def keyPressEvent(self, event) -> None:
         """Handle keyboard shortcuts."""
         key = event.key()
 
         if key == Qt.Key.Key_Escape:
-            self._cancel()
+            if self._state == OverlayState.ANNOTATING:
+                # Cancel annotation — destroy view, toolbar, scene
+                self._cancel_annotation()
+            else:
+                self._cancel()
         elif key == Qt.Key.Key_Return or key == Qt.Key.Key_Enter:
             if not self._selection_rect.isNull() and self._selection_rect.isValid():
-                self._confirm_selection()
+                if self._state == OverlayState.ANNOTATING:
+                    # Finishing annotation — burn vectors onto backdrop
+                    self._finish_annotation()
+                elif self._state != OverlayState.DONE:
+                    self._state = OverlayState.DONE
+                    self._confirm_selection()
         elif key == Qt.Key.Key_A and event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-            # Ctrl+A: select entire screen
-            self._selection_rect = QRect(0, 0, self.width(), self.height())
-            self._state = OverlayState.DONE
-            self._confirm_selection()
+            if self._state != OverlayState.ANNOTATING:
+                # Ctrl+A: select entire screen
+                self._selection_rect = QRect(0, 0, self.width(), self.height())
+                
+                # Check for shift modifier here too
+                action = self._after_capture_action
+                if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
+                    action = "edit"
+                
+                if action == "edit":
+                    self._state = OverlayState.ANNOTATING
+                    self._start_annotation()
+                else:
+                    self._state = OverlayState.DONE
+                    self._confirm_selection()
 
     # --- Private painting methods ---
 
@@ -360,6 +404,81 @@ class RegionOverlay(QWidget):
         painter.drawLine(x, 0, x, self.height())
 
     # --- Private logic methods ---
+
+    def _start_annotation(self) -> None:
+        """Lock the selection rectangle and prepare the QGraphicsScene for drawing."""
+        logger.info("Starting annotation mode at %s", self._selection_rect)
+        
+        # 1. Create transparent QGraphicsView placed exactly over the selection
+        self._scene = AnnotationScene(self)
+        self._scene.setSceneRect(0, 0, self._selection_rect.width(), self._selection_rect.height())
+        
+        self._view = QGraphicsView(self._scene, self)
+        self._view.setGeometry(self._selection_rect)
+        self._view.setStyleSheet("background: transparent; border: none;")
+        self._view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._view.show()
+
+        # 2. Create and position the toolbar
+        self._toolbar = AnnotationToolbar(self)
+        
+        # Connect signals
+        self._toolbar.tool_selected.connect(lambda t: setattr(self._scene, 'current_tool', t))
+        self._toolbar.accept_requested.connect(self._finish_annotation)
+        self._toolbar.cancel_requested.connect(self._cancel_annotation)
+        
+        # Position toolbar at top-center of the screen (like ShareX)
+        tb_width = self._toolbar.sizeHint().width()
+        x = (self.width() - tb_width) // 2
+        y = 8  # 8px down from top edge
+            
+        self._toolbar.move(x, y)
+        self._toolbar.show()
+
+        # Re-paint overlay to clean up crosshairs and lock selection
+        self.update()
+
+    def _finish_annotation(self) -> None:
+        """Render the scene and complete capture."""
+        if not self._scene or not self._view:
+            return
+            
+        self._state = OverlayState.DONE
+        
+        # Render the graphics scene on top of our isolated backdrop crop
+        # We will do this via the main _confirm_selection later. Right now we just complete the flow.
+        # But actually, the caller expects a QRect. We need to burn the vectors onto the backdrop
+        # before closing! Wait, shotx/app.py currently takes the QRect, then crops the backdrop _itself_!
+        # This means app.py needs the QImage, not just the QRect.
+        # Or, RegionOverlay must burn it into its OWN self._backdrop.
+        
+        # Let's burn the scene onto self._backdrop inside the selected rect
+        painter = QPainter(self._backdrop)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Translate to the selection rect so the scene coordinates match up
+        painter.translate(self._selection_rect.topLeft())
+        self._scene.render(painter)
+        painter.end()
+        
+        self._confirm_selection()
+
+    def _cancel_annotation(self) -> None:
+        """Close annotation mode and go back to IDLE/SELECTING."""
+        if self._view:
+            self._view.deleteLater()
+            self._view = None
+        if self._toolbar:
+            self._toolbar.deleteLater()
+            self._toolbar = None
+        if self._scene:
+            self._scene.deleteLater()
+            self._scene = None
+            
+        self._state = OverlayState.IDLE
+        self._selection_rect = QRect()
+        self.update()
 
     def _find_region_at(self, x: int, y: int) -> DetectRegion | None:
         """Find the smallest auto-detect region containing the point.

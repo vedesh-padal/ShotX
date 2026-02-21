@@ -46,6 +46,7 @@ class CaptureSettings:
     show_notification: bool = True
     play_sound: bool = False
     auto_detect_regions: bool = True
+    after_capture_action: str = "edit"  # "edit" or "save"
 
     def __post_init__(self) -> None:
         if not self.output_dir:
@@ -59,6 +60,14 @@ class CaptureSettings:
                 f"Must be one of: {', '.join(sorted(valid_formats))}"
             )
         self.image_format = self.image_format.lower()
+
+        # Validate after_capture_action
+        valid_actions = {"edit", "save"}
+        if self.after_capture_action not in valid_actions:
+            raise ValueError(
+                f"Invalid after_capture_action '{self.after_capture_action}'. "
+                f"Must be one of: {', '.join(valid_actions)}"
+            )
 
         # Validate JPEG quality
         if not 1 <= self.jpeg_quality <= 100:

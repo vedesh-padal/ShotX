@@ -81,6 +81,7 @@ def main(argv: list[str] | None = None) -> int:
         qt_app = QApplication(sys.argv)
     qt_app.setApplicationName("ShotX")
     qt_app.setApplicationVersion(_get_version())
+    qt_app.setStyleSheet("QToolTip { color: white; background-color: #2b2b2b; border: 1px solid #555; }")
 
     # Create the app controller
     from shotx.app import ShotXApp
