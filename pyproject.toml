@@ -27,6 +27,9 @@ dependencies = ["PySide6>=6.6", "PyYAML>=6", "Pillow>=10", "dbus-next>=0.2"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7", "pytest-cov>=4", "ruff>=0.4", "mypy>=1.0"]
+# Sub-region auto-detection via AT-SPI2 accessibility API.
+# Requires system headers: sudo apt install libgirepository1.0-dev libcairo2-dev pkg-config
+atspi = ["PyGObject>=3.42"]
 
 [project.scripts]
 shotx = "shotx.main:main"
