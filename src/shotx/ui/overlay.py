@@ -30,7 +30,7 @@ import logging
 from dataclasses import dataclass
 from enum import Enum, auto
 
-from PySide6.QtCore import QPoint, QRect, QSize, Qt, Signal
+from PySide6.QtCore import QPoint, QRect, QSize, Qt, Signal, QTimer
 from PySide6.QtGui import (
     QBrush,
     QColor,
@@ -184,19 +184,11 @@ class RegionOverlay(QWidget):
     def mousePressEvent(self, event) -> None:
         """Start selection on left click."""
         if event.button() == Qt.MouseButton.LeftButton:
-            pos = event.position().toPoint()
-
-            # If hovering over an auto-detect region, select it immediately
-            if self._hovered_region and self._state == OverlayState.HOVERING:
-                self._selection_rect = self._hovered_region.rect
-                self._state = OverlayState.DONE
-                self._confirm_selection()
-                return
-
+            # We don't snap immediately. We just record the start position.
             # Start manual drag selection
             self._state = OverlayState.SELECTING
-            self._selection_start = pos
-            self._selection_rect = QRect(pos, QSize(0, 0))
+            self._selection_start = event.position().toPoint()
+            self._selection_rect = QRect(self._selection_start, QSize(0, 0))
             self.update()
 
         elif event.button() == Qt.MouseButton.RightButton:
@@ -239,13 +231,24 @@ class RegionOverlay(QWidget):
                 self._selection_start, event.position().toPoint()
             ).normalized()
 
-            # Ignore tiny selections (accidental clicks)
-            if self._selection_rect.width() < 5 or self._selection_rect.height() < 5:
-                self._state = OverlayState.IDLE
-                self._selection_rect = QRect()
-                self.update()
-                return
+            # Check if this was just a click without dragging
+            is_click = self._selection_rect.width() < 5 and self._selection_rect.height() < 5
 
+            if is_click:
+                if self._hovered_region:
+                    # They clicked on an auto-detected region
+                    self._selection_rect = self._hovered_region.rect
+                    self._state = OverlayState.DONE
+                    self._confirm_selection()
+                    return
+                else:
+                    # Empty click, cancel or reset
+                    self._state = OverlayState.IDLE
+                    self._selection_rect = QRect()
+                    self.update()
+                    return
+
+            # Real manual drag completed
             self._state = OverlayState.DONE
             self._confirm_selection()
 
@@ -380,8 +383,19 @@ class RegionOverlay(QWidget):
                 self._selection_rect.width(),
                 self._selection_rect.height(),
             )
-            self.region_selected.emit(self._selection_rect)
-        self.close()
+            # Make sure we redraw immediately so the user sees the final box
+            self.update()
+
+            # Emit signal and close after a short delay for UX
+            QTimer.singleShot(
+                300,
+                lambda: (
+                    self.region_selected.emit(self._selection_rect),
+                    self.close()
+                )
+            )
+        else:
+            self.close()
 
     def _cancel(self) -> None:
         """Cancel selection and close."""

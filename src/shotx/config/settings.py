@@ -45,6 +45,7 @@ class CaptureSettings:
     save_to_file: bool = True
     show_notification: bool = True
     play_sound: bool = False
+    auto_detect_regions: bool = True
 
     def __post_init__(self) -> None:
         if not self.output_dir:
@@ -177,7 +178,7 @@ class SettingsManager:
 
         with open(self.settings_path, "w") as f:
             f.write("# ShotX Configuration\n")
-            f.write("# https://github.com/vedeshp/shotx\n\n")
+            f.write("# https://github.com/vedesh-padal/shotx\n\n")
             yaml.dump(data, f, default_flow_style=False, sort_keys=False)
 
         self._settings = settings

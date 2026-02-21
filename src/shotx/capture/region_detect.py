@@ -133,7 +133,7 @@ def _get_atspi_regions() -> list[DetectRegion]:
 
                         # Recursively collect child regions
                         _collect_accessible_regions(
-                            window, app_name, regions, depth=1, max_depth=4
+                            window, app_name, regions, depth=1, max_depth=3
                         )
                     except Exception:
                         continue
@@ -180,7 +180,6 @@ def _collect_accessible_regions(
             Atspi.Role.WINDOW,
             Atspi.Role.FRAME,
             Atspi.Role.PANEL,
-            Atspi.Role.FILLER,
             Atspi.Role.PAGE_TAB,
             Atspi.Role.PAGE_TAB_LIST,
             Atspi.Role.SCROLL_PANE,
@@ -207,28 +206,57 @@ def _collect_accessible_regions(
         }
 
         if role in visual_roles:
-            # Get bounding rectangle
-            try:
-                component = node.get_component_iface()
-                if component is not None:
-                    extent = component.get_extents(Atspi.CoordType.SCREEN)
-                    x, y, w, h = extent.x, extent.y, extent.width, extent.height
+            # Check if it is actually painted on screen
+            state_set = node.get_state_set()
+            if not state_set:
+                return
+            states = state_set.get_states()
+            if Atspi.StateType.SHOWING not in states:
+                # If it's not showing, don't include it
+                pass
+            else:
+                # Get bounding rectangle
+                try:
+                    component = node.get_component_iface()
+                    if component is not None:
+                        extent = component.get_extents(Atspi.CoordType.SCREEN)
+                        x, y, w, h = extent.x, extent.y, extent.width, extent.height
 
-                    # Filter out zero-size or off-screen regions
-                    if w > 10 and h > 10 and x >= 0 and y >= 0:
-                        name = node.get_name() or ""
-                        role_name = node.get_role_name() or ""
-                        label = f"{app_name}: {name}" if name else f"{app_name}: {role_name}"
+                        # Filter out zero-size, off-screen regions, or entire screen regions
+                        # We also filter out thin lines (e.g. 1px borders) passing as panels
+                        if w > 20 and h > 20 and x >= 0 and y >= 0 and not (w >= 1900 and h >= 1000):
+                            # Filter out duplicate bounding boxes (e.g. a frame and its panel
+                            # often have the exact same size and position)
+                            new_rect = QRect(x, y, w, h)
+                            is_duplicate = False
+                            
+                            # Check against existing regions.
+                            # If we find a region that is very close in size and position, it's a wrapper.
+                            for r in regions:
+                                if abs(r.rect.x() - x) < 5 and abs(r.rect.y() - y) < 5 and \
+                                   abs(r.rect.width() - w) < 5 and abs(r.rect.height() - h) < 5:
+                                    is_duplicate = True
+                                    # We prefer the one with the higher depth (more specific child)
+                                    if depth > r.depth:
+                                        r.rect = new_rect
+                                        r.label = f"{app_name}: {node.get_name() or node.get_role_name() or ''}"
+                                        r.depth = depth
+                                    break
+                            
+                            if not is_duplicate:
+                                name = node.get_name() or ""
+                                role_name = node.get_role_name() or ""
+                                label = f"{app_name}: {name}" if name else f"{app_name}: {role_name}"
 
-                        regions.append(
-                            DetectRegion(
-                                rect=QRect(x, y, w, h),
-                                label=label,
-                                depth=depth,
-                            )
-                        )
-            except Exception:
-                pass  # Some nodes don't have Component interface
+                                regions.append(
+                                    DetectRegion(
+                                        rect=new_rect,
+                                        label=label,
+                                        depth=depth,
+                                    )
+                                )
+                except Exception:
+                    pass  # Some nodes don't have Component interface
 
         # Recurse into children
         child_count = node.get_child_count()

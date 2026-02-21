@@ -141,16 +141,17 @@ class ShotXApp:
         # Our cropped region will overwrite it as the most recent entry.
 
         # Step 2: Collect detectable regions
-        try:
-            windows = self.backend.get_windows()
-        except Exception as e:
-            logger.warning("Window enumeration failed: %s", e)
-            windows = []
+        regions = []
+        windows = []
+        if self.settings.capture.auto_detect_regions:
+            try:
+                windows = self.backend.get_windows()
+            except Exception as e:
+                logger.warning("Window enumeration failed: %s", e)
 
-        regions = build_detect_regions(windows, include_atspi=True)
-
-        if self._verbose:
-            print(f"Detected {len(regions)} regions ({len(windows)} windows)")
+            regions = build_detect_regions(windows, include_atspi=True)
+            if self._verbose:
+                print(f"Detected {len(regions)} regions ({len(windows)} windows)")
 
         # Step 3: Show overlay and wait for selection
         overlay = RegionOverlay(backdrop, regions)
