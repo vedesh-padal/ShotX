@@ -13,11 +13,16 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
 
+from PySide6.QtCore import QEventLoop, QRect
+from PySide6.QtGui import QImage
+
 from shotx.capture import create_capture_backend, CaptureBackend
+from shotx.capture.region_detect import build_detect_regions
 from shotx.config import SettingsManager, AppSettings
 from shotx.output.clipboard import copy_image_to_clipboard
 from shotx.output.file_saver import save_image
 from shotx.ui.notification import notify_capture_success, notify_error
+from shotx.ui.overlay import RegionOverlay
 
 logger = logging.getLogger(__name__)
 
@@ -97,9 +102,100 @@ class ShotXApp:
         if self._verbose:
             print(f"Captured {image.width()}x{image.height()} image")
 
+        return self._save_and_notify(image, capture_type="fullscreen")
+
+    def capture_region(self) -> bool:
+        """Capture a user-selected region of the screen.
+
+        Workflow:
+        1. Grab a fullscreen screenshot (backdrop for the overlay)
+        2. Collect detectable regions (windows + AT-SPI2 widgets)
+        3. Show the selection overlay
+        4. Wait for user to select a region or cancel
+        5. Crop the backdrop to the selected region
+        6. Save + clipboard + notify
+
+        Returns:
+            True if capture succeeded.
+        """
+        logger.info("Starting region capture")
+
+        # Step 1: Grab fullscreen backdrop
+        try:
+            backdrop = self.backend.capture_fullscreen()
+        except Exception as e:
+            logger.error("Backdrop capture failed: %s", e)
+            self._notify_error(f"Capture failed: {e}")
+            return False
+
+        if backdrop is None or backdrop.isNull():
+            logger.error("Backdrop capture returned no image")
+            self._notify_error("Could not capture screen for region selection")
+            return False
+
+        if self._verbose:
+            print(f"Backdrop captured: {backdrop.width()}x{backdrop.height()}")
+
+        # Note: GNOME's portal also copies the fullscreen screenshot to
+        # clipboard. We can't prevent this (no portal option exists).
+        # Our cropped region will overwrite it as the most recent entry.
+
+        # Step 2: Collect detectable regions
+        try:
+            windows = self.backend.get_windows()
+        except Exception as e:
+            logger.warning("Window enumeration failed: %s", e)
+            windows = []
+
+        regions = build_detect_regions(windows, include_atspi=True)
+
+        if self._verbose:
+            print(f"Detected {len(regions)} regions ({len(windows)} windows)")
+
+        # Step 3: Show overlay and wait for selection
+        overlay = RegionOverlay(backdrop, regions)
+
+        # Use QEventLoop to block until the overlay signals completion
+        loop = QEventLoop()
+        selected_rect: list[QRect] = []  # mutable container for closure
+
+        def on_selected(rect: QRect) -> None:
+            selected_rect.append(rect)
+            loop.quit()
+
+        def on_cancelled() -> None:
+            loop.quit()
+
+        overlay.region_selected.connect(on_selected)
+        overlay.selection_cancelled.connect(on_cancelled)
+        overlay.show_fullscreen()
+
+        loop.exec()  # Blocks until selection or cancel
+
+        # Step 4: Process result
+        if not selected_rect:
+            if self._verbose:
+                print("Region selection cancelled")
+            return False
+
+        rect = selected_rect[0]
+        if self._verbose:
+            print(f"Selected region: {rect.x()},{rect.y()} {rect.width()}x{rect.height()}")
+
+        # Step 5: Crop backdrop to selection
+        cropped = backdrop.copy(rect)
+        if cropped.isNull():
+            logger.error("Failed to crop backdrop to selected region")
+            self._notify_error("Failed to crop selected region")
+            return False
+
+        # Step 6: Save + clipboard + notify (same pipeline as fullscreen)
+        return self._save_and_notify(cropped, capture_type="region")
+
+    def _save_and_notify(self, image: QImage, capture_type: str = "capture") -> bool:
+        """Common save → clipboard → notify pipeline."""
         saved_path = None
 
-        # Save to file
         if self.settings.capture.save_to_file:
             saved_path = save_image(
                 image=image,
@@ -107,7 +203,7 @@ class ShotXApp:
                 filename_pattern=self.settings.capture.filename_pattern,
                 image_format=self.settings.capture.image_format,
                 jpeg_quality=self.settings.capture.jpeg_quality,
-                capture_type="fullscreen",
+                capture_type=capture_type,
             )
             if saved_path:
                 self.last_saved_path = saved_path
@@ -116,13 +212,11 @@ class ShotXApp:
             else:
                 logger.warning("Failed to save screenshot to file")
 
-        # Copy to clipboard
         if self.settings.capture.copy_to_clipboard:
             success = copy_image_to_clipboard(image)
             if self._verbose and success:
                 print("Copied to clipboard")
 
-        # Show notification
         if self.settings.capture.show_notification:
             tray_icon = self._tray.tray_icon if self._tray else None
             notify_capture_success(tray_icon, saved_path)
@@ -173,11 +267,12 @@ class ShotXApp:
             success = self.capture_fullscreen()
             return 0 if success else 1
         elif capture_type == "region":
-            print("Region capture will be available in Phase 2.")
-            return 1
+            success = self.capture_region()
+            return 0 if success else 1
         elif capture_type == "window":
-            print("Window capture will be available in Phase 2.")
-            return 1
+            # Window capture uses the same overlay — user clicks a window
+            success = self.capture_region()
+            return 0 if success else 1
         else:
             print(f"Unknown capture type: {capture_type}")
             return 1

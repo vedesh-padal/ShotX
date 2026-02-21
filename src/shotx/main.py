@@ -35,12 +35,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--capture-region",
         action="store_true",
-        help="Capture a selected region and exit. (Coming in Phase 2)",
+        help="Capture a selected region and exit.",
     )
     parser.add_argument(
         "--capture-window",
         action="store_true",
-        help="Capture the active window and exit. (Coming in Phase 2)",
+        help="Capture the active window and exit.",
     )
     parser.add_argument(
         "--config-dir",

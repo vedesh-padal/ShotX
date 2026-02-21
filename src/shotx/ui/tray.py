@@ -86,14 +86,12 @@ class TrayIcon:
 
         capture_region = QAction("📐 Capture Region", self._menu)
         capture_region.setShortcut("Ctrl+Print")
-        capture_region.setEnabled(False)  # Phase 2
-        capture_region.setToolTip("Coming in Phase 2")
+        capture_region.triggered.connect(self._on_capture_region)
         self._menu.addAction(capture_region)
 
         capture_window = QAction("🪟 Capture Window", self._menu)
         capture_window.setShortcut("Alt+Print")
-        capture_window.setEnabled(False)  # Phase 2
-        capture_window.setToolTip("Coming in Phase 2")
+        capture_window.triggered.connect(self._on_capture_region)  # Same overlay
         self._menu.addAction(capture_window)
 
         self._menu.addSeparator()
@@ -140,6 +138,10 @@ class TrayIcon:
     def _on_capture_fullscreen(self) -> None:
         """Trigger fullscreen capture."""
         self._app.capture_fullscreen()
+
+    def _on_capture_region(self) -> None:
+        """Trigger region capture overlay."""
+        self._app.capture_region()
 
     def _on_open_folder(self) -> None:
         """Open the screenshots folder in file manager."""

@@ -46,3 +46,6 @@ htmlcov/
 
 # ShotX runtime
 screenshots/
+
+# misc
+scripts/test_screencast.py
