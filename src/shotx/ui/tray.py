@@ -103,6 +103,10 @@ class TrayIcon:
         capture_color.triggered.connect(self._on_capture_color_picker)
         self._menu.addAction(capture_color)
 
+        capture_ruler = QAction("📏 Screen Ruler", self._menu)
+        capture_ruler.triggered.connect(self._on_capture_ruler)
+        self._menu.addAction(capture_ruler)
+
         self._menu.addSeparator()
 
         # Recording actions
@@ -177,6 +181,10 @@ class TrayIcon:
     def _on_capture_color_picker(self) -> None:
         """Trigger Color Picker overlay."""
         QTimer.singleShot(300, self._app.capture_color_picker)
+
+    def _on_capture_ruler(self) -> None:
+        """Trigger Screen Ruler overlay."""
+        QTimer.singleShot(300, self._app.capture_ruler)
 
     def _on_record_mp4(self) -> None:
         self._app.start_recording("mp4")

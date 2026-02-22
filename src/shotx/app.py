@@ -383,6 +383,36 @@ class ShotXApp(QObject):
             
         return True
 
+    def capture_ruler(self) -> bool:
+        """Launch the screen ruler overlay to measure distances."""
+        logger.info("Starting Screen Ruler")
+        
+        try:
+            backdrop = self.backend.capture_fullscreen()
+        except Exception as e:
+            logger.error("Backdrop capture failed: %s", e)
+            self._notify_error(f"Capture failed: {e}")
+            return False
+            
+        if backdrop is None or backdrop.isNull():
+            return False
+            
+        from shotx.ui.ruler import RulerOverlay
+        from PySide6.QtCore import QEventLoop
+        
+        overlay = RulerOverlay(backdrop)
+        loop = QEventLoop()
+        
+        def on_cancelled() -> None:
+            loop.quit()
+            
+        overlay.cancelled.connect(on_cancelled)
+        
+        overlay.show()
+        loop.exec()
+        
+        return True
+
     # --- Recording Commands ---
 
     def start_recording(self, recording_format: str = "mp4") -> bool:
@@ -718,6 +748,8 @@ class ShotXApp(QObject):
             success = self.capture_ocr()
         elif capture_type == "color_picker":
             success = self.capture_color_picker()
+        elif capture_type == "ruler":
+            success = self.capture_ruler()
         else:
             print(f"Unknown capture type: {capture_type}")
             return 1

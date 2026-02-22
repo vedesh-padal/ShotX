@@ -53,6 +53,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Open magnifier to extract a pixel's exact color code to clipboard.",
     )
     parser.add_argument(
+        "--ruler",
+        action="store_true",
+        help="Open screen ruler to measure pixel distances and boundaries.",
+    )
+    parser.add_argument(
         "--tray",
         action="store_true",
         help="Launch the system tray app (default behavior).",
@@ -118,6 +123,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.color_picker:
         return app.run_oneshot("color_picker")
+
+    if args.ruler:
+        return app.run_oneshot("ruler")
 
     # Default: launch tray app
     return app.run_tray()
