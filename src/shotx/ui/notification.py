@@ -128,7 +128,7 @@ def _send_dbus_notification(title: str, body: str, icon: str, urgency: int = 1, 
             title,                               # summary
             body,                                # body
             dbus_actions,                        # actions
-            {"urgency": GLib.Variant("y", urgency)},  # hints (0=low, 1=normal, 2=critical)
+            {"urgency": GLib.Variant("y", urgency), "transient": GLib.Variant("b", False)},  # hints (0=low, 1=normal, 2=critical)
             5000 if urgency < 2 else 10000       # expire_timeout
         )),
         None,                                    # reply_type
@@ -162,12 +162,12 @@ def notify_capture_success(
             message = "Copied to clipboard"
 
     try:
-        # Urgency 2 = Critical (Needed on GNOME to bypass focus-stealing prevention)
+        # Urgency 1 = Normal (Allows timeout to work, transient=False keeps it in history)
         _send_dbus_notification(
             title="ShotX \u2014 Screenshot captured",
             body=message,
             icon="camera-photo",
-            urgency=2,
+            urgency=1,
             file_path=str(file_path) if file_path else None
         )
         logger.debug("Native raw DBus notification shown for capture.")
@@ -240,12 +240,12 @@ def notify_info(
         default_action: Optional target path when the notification body is clicked.
     """
     try:
-        # Urgency 2 = Critical
+        # Urgency 1 = Normal
         _send_dbus_notification(
             title=title,
             body=message,
             icon="dialog-information",
-            urgency=2,
+            urgency=1,
             file_path=file_path,
             actions_dict=actions_dict,
             default_action=default_action,
