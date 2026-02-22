@@ -352,8 +352,9 @@ class ShotXApp(QObject):
     def _save_and_notify(self, image: QImage, capture_type: str = "capture") -> bool:
         """Common pipeline: save → local clipboard → upload background worker → notify."""
         saved_path = None
+        workflow = self.settings.workflow.after_capture
 
-        if self.settings.capture.save_to_file:
+        if "save_to_file" in workflow:
             saved_path = save_image(
                 image=image,
                 output_dir=self.settings.capture.output_dir,
@@ -369,15 +370,13 @@ class ShotXApp(QObject):
             else:
                 logger.warning("Failed to save screenshot to file")
 
-        # By default, copy the image data itself to clipboard.
-        # If upload succeeds and URL copying is enabled, it will overwrite this later.
-        if self.settings.capture.copy_to_clipboard:
+        if "copy_to_clipboard" in workflow:
             success = copy_image_to_clipboard(image)
             if self._verbose and success:
                 print("Copied image to clipboard")
 
         # Kick off upload in the background if enabled and we actually saved a file
-        if self.settings.upload.enabled and saved_path:
+        if "upload_image" in workflow and saved_path:
             self._start_background_upload(saved_path)
         else:
             # If not uploading, show standard success notification now

@@ -41,8 +41,6 @@ class CaptureSettings:
     filename_pattern: str = "ShotX_{date}_{time}"
     image_format: str = "png"  # png, jpg, webp
     jpeg_quality: int = 95
-    copy_to_clipboard: bool = True
-    save_to_file: bool = True
     show_notification: bool = True
     play_sound: bool = False
     auto_detect_regions: bool = True
@@ -145,12 +143,22 @@ class UploadSettings:
 
 
 @dataclass
+class WorkflowSettings:
+    """Configurable pipeline of actions to execute sequentially after a capture."""
+    after_capture: list[str] = field(default_factory=lambda: [
+        "save_to_file",
+        "copy_to_clipboard",
+    ])
+
+
+@dataclass
 class AppSettings:
     """Top-level application settings container."""
 
     capture: CaptureSettings = field(default_factory=CaptureSettings)
     hotkeys: HotkeySettings = field(default_factory=HotkeySettings)
     upload: UploadSettings = field(default_factory=UploadSettings)
+    workflow: WorkflowSettings = field(default_factory=WorkflowSettings)
     first_run: bool = True
 
     def to_dict(self) -> dict[str, Any]:
@@ -167,10 +175,23 @@ class AppSettings:
         capture_data = data.get("capture", {})
         hotkey_data = data.get("hotkeys", {})
         upload_data = data.get("upload", {})
+        workflow_data = data.get("workflow", {})
+
+        # Backward compatibility for old boolean-based capture/upload settings
+        if "workflow" not in data:
+            after_cap = []
+            if capture_data.get("save_to_file", True):
+                after_cap.append("save_to_file")
+            if capture_data.get("copy_to_clipboard", True):
+                after_cap.append("copy_to_clipboard")
+            if upload_data.get("enabled", False):
+                after_cap.append("upload_image")
+            workflow_data["after_capture"] = after_cap
 
         # Filter to only known fields to avoid TypeError on unexpected keys
         capture_fields = {f.name for f in CaptureSettings.__dataclass_fields__.values()}
         hotkey_fields = {f.name for f in HotkeySettings.__dataclass_fields__.values()}
+        workflow_fields = {f.name for f in WorkflowSettings.__dataclass_fields__.values()}
         
         # Upload fields need special dictionary handling for sub-configs
         upload_fields = {f.name for f in UploadSettings.__dataclass_fields__.values()}
@@ -186,6 +207,9 @@ class AppSettings:
         )
         hotkeys = HotkeySettings(
             **{k: v for k, v in hotkey_data.items() if k in hotkey_fields}
+        )
+        workflow = WorkflowSettings(
+            **{k: v for k, v in workflow_data.items() if k in workflow_fields}
         )
         
         imgur_data = upload_data.get("imgur", {})
@@ -217,6 +241,7 @@ class AppSettings:
             capture=capture,
             hotkeys=hotkeys,
             upload=upload,
+            workflow=workflow,
             first_run=data.get("first_run", True),
         )
 
