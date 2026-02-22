@@ -132,3 +132,55 @@ class ImgBBUploader(UploaderBackend):
 
         logger.info("ImgBB upload successful: %s", link)
         return link
+
+
+class TmpfilesUploader(UploaderBackend):
+    """Uploads images to tmpfiles.org via their public REST API.
+    
+    This service is entirely anonymous, requires zero authentication, 
+    and automatically deletes the image after a set period.
+    """
+
+    def upload(self, file_path: Path) -> str:
+        if not file_path.exists():
+            raise UploadError(f"File not found: {file_path}")
+
+        logger.info("Uploading %s to tmpfiles.org...", file_path.name)
+
+        try:
+            mime_type, _ = mimetypes.guess_type(file_path.name)
+            content_type = mime_type or "application/octet-stream"
+            
+            with open(file_path, "rb") as f:
+                # tmpfiles expects the 'file' parameter
+                files = {"file": (file_path.name, f, content_type)}
+                
+                with httpx.Client(timeout=30.0) as client:
+                    response = client.post(
+                        "https://tmpfiles.org/api/v1/upload",
+                        files=files,
+                    )
+        except httpx.RequestError as e:
+            raise UploadError(f"Network error while uploading to tmpfiles.org: {e}")
+
+        try:
+            payload = response.json()
+        except ValueError:
+            raise UploadError(f"Invalid JSON response from tmpfiles.org: {response.text[:100]}")
+
+        if not response.is_success or payload.get("status") != "success":
+            err_msg = payload.get("message", "Unknown tmpfiles.org error")
+            raise UploadError(f"Tmpfiles API Error ({response.status_code}): {err_msg}")
+
+        # The API returns a viewer link: https://tmpfiles.org/12345/image.png
+        link = payload.get("data", {}).get("url")
+        if not link:
+            raise UploadError("Tmpfiles API succeeded but returned no image URL.")
+
+        # ShotX users usually want the direct image link for embedding
+        # tmpfiles transforms `tmpfiles.org/ID/name` to `tmpfiles.org/dl/ID/name` for direct links
+        if "tmpfiles.org/" in link and "tmpfiles.org/dl/" not in link:
+            link = link.replace("tmpfiles.org/", "tmpfiles.org/dl/")
+
+        logger.info("tmpfiles.org upload successful: %s", link)
+        return link

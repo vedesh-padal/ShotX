@@ -13,7 +13,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 
-from PySide6.QtCore import QEventLoop, QRect, QThreadPool
+from PySide6.QtCore import QEventLoop, QRect, QThreadPool, QObject, Slot
 from PySide6.QtGui import QImage
 
 from shotx.capture import create_capture_backend, CaptureBackend
@@ -25,7 +25,7 @@ from shotx.output.file_saver import save_image
 from shotx.ui.notification import notify_capture_success, notify_error, notify_info, init_notifications
 from shotx.ui.overlay import RegionOverlay
 from shotx.upload.worker import UploadWorker
-from shotx.upload.image_hosts import ImgurUploader, ImgBBUploader
+from shotx.upload.image_hosts import ImgurUploader, ImgBBUploader, TmpfilesUploader
 from shotx.upload.s3 import S3Uploader
 from shotx.upload.ftp import FtpUploader, SftpUploader
 from shotx.upload.custom import CustomUploader, SxcuParser
@@ -35,7 +35,7 @@ from shotx.upload.base import UploaderBackend, UploadError
 logger = logging.getLogger(__name__)
 
 
-class ShotXApp:
+class ShotXApp(QObject):
     """Main application controller.
 
     Owns and coordinates all components:
@@ -49,6 +49,7 @@ class ShotXApp:
     """
 
     def __init__(self, config_dir: str | None = None, verbose: bool = False) -> None:
+        super().__init__()
         self._verbose = verbose
         self._setup_logging()
 
@@ -419,12 +420,14 @@ class ShotXApp:
                     f"Make sure '{sxcu_name}.sxcu' exists in {sxcu_dir}"
                 )
             return CustomUploader(sxcu_data)
-        else:
-            # Default to Imgur
+        elif uploader_target == "imgur":
             return ImgurUploader(
                 client_id=self.settings.upload.imgur.client_id,
                 access_token=self.settings.upload.imgur.access_token,
             )
+        else:
+            # Default to Tmpfiles.org
+            return TmpfilesUploader()
 
     def _start_background_upload(self, file_path: Path) -> None:
         """Dispatches the upload to the global QThreadPool."""
@@ -441,12 +444,14 @@ class ShotXApp:
         
         self._thread_pool.start(worker)
 
+    @Slot(str)
     def _on_upload_started(self, file_path: str) -> None:
         # Optional: Show an "Uploading..." notification here, 
         # but ShareX usually is silent until it succeeds to avoid spam.
         if self._verbose:
             print(f"Began background upload for: {file_path}")
 
+    @Slot(str, str)
     def _on_upload_success(self, file_path: str, url: str) -> None:
         """Called by the background thread when upload finishes cleanly."""
         
@@ -471,17 +476,20 @@ class ShotXApp:
             
         if self.settings.capture.show_notification:
             tray_icon = self._tray.tray_icon if self._tray else None
-            # Standard notify success, but the clipboard will have the URL now
-            notify_info(tray_icon, "Upload Successful", f"Link copied to clipboard:\n{final_url}")
+            # Standard notify success, but we pass the URL as file_path so the notification 
+            # gets an 'Open' action button. This forces GNOME Wayland to recognize it as 
+            # a high-priority interactive dialog rather than silently hiding it in the tray.
+            notify_info(tray_icon, "Upload Successful", f"Link copied to clipboard:\n{final_url}", file_path=final_url)
             
+    @Slot(str, str)
     def _on_upload_error(self, file_path: str, error_msg: str) -> None:
         """Called by the background thread on upload failure."""
         # Because Qt's QSystemTrayIcon cannot distinguish WHICH stacked notification
         # was clicked by the user, we must combine the Error state and the Saved state
         # into a single notification. This allows them to see the error, see the path,
         # AND click the notification to open the local file.
-        # GNOME often collapses double newlines in notification bodies, so we keep it tight
-        combined_msg = f"{error_msg.strip()}\n\u21b3 Fallback local save: {file_path}"
+        # GNOME often collapses single newlines in notification bodies, so we force double newlines
+        combined_msg = f"{error_msg.strip()}\n\n↳ Fallback local save:\n{file_path}"
         
         tray_icon = self._tray.tray_icon if self._tray else None
         

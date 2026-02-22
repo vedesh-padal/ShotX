@@ -133,7 +133,7 @@ class UrlShortenerConfig:
 class UploadSettings:
     """Settings related to the upload engine."""
     enabled: bool = False
-    default_uploader: str = "imgur"
+    default_uploader: str = "tmpfiles"
     copy_url_to_clipboard: bool = True
     
     imgur: ImgurConfig = field(default_factory=ImgurConfig)
