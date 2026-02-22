@@ -58,6 +58,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Open screen ruler to measure pixel distances and boundaries.",
     )
     parser.add_argument(
+        "--qr-scan",
+        action="store_true",
+        help="Select a region and scan for a QR code.",
+    )
+    parser.add_argument(
+        "--qr-generate",
+        action="store_true",
+        help="Generate a QR code from the current clipboard text.",
+    )
+    parser.add_argument(
+        "--qr-scan-clipboard",
+        action="store_true",
+        help="Scan the current clipboard image for a QR code.",
+    )
+    parser.add_argument(
         "--tray",
         action="store_true",
         help="Launch the system tray app (default behavior).",
@@ -126,6 +141,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.ruler:
         return app.run_oneshot("ruler")
+
+    if args.qr_scan:
+        return app.run_oneshot("qr_scan")
+
+    if args.qr_generate:
+        return app.run_oneshot("qr_generate")
+
+    if args.qr_scan_clipboard:
+        return app.run_oneshot("qr_scan_clipboard")
 
     # Default: launch tray app
     return app.run_tray()

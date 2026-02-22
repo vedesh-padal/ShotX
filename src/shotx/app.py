@@ -413,6 +413,157 @@ class ShotXApp(QObject):
         
         return True
 
+    def capture_qr_scan(self) -> bool:
+        """Select a region and scan it for a QR code."""
+        logger.info("Starting QR scan capture")
+        try:
+            backdrop = self.backend.capture_fullscreen()
+        except Exception as e:
+            logger.error("Backdrop capture failed: %s", e)
+            self._notify_error(f"Capture failed: {e}")
+            return False
+
+        if backdrop is None or backdrop.isNull():
+            return False
+
+        from shotx.ui.overlay import RegionOverlay
+        from PySide6.QtCore import QEventLoop, QRect
+
+        overlay = RegionOverlay(backdrop, after_capture_action="capture")
+        loop = QEventLoop()
+
+        selected_region = []
+
+        def on_region_selected(rect: QRect) -> None:
+            selected_region.append(rect)
+            loop.quit()
+
+        def on_cancelled() -> None:
+            loop.quit()
+
+        overlay.region_selected.connect(on_region_selected)
+        overlay.selection_cancelled.connect(on_cancelled)
+
+        overlay.show()
+        loop.exec()
+
+        if not selected_region:
+            return False
+
+        rect = selected_region[0]
+        if rect.width() < 2 or rect.height() < 2:
+            return False
+
+        # Crop image
+        cropped = backdrop.copy(rect)
+
+        # Run QR scan
+        from shotx.tools.qr import scan_qr, ZBarError
+        try:
+            text = scan_qr(cropped)
+        except ZBarError as e:
+            self._notify_error(str(e))
+            return False
+        except Exception as e:
+            logger.error("QR scan failed: %s", e)
+            self._notify_error(f"QR Scan Exception: {e}")
+            return False
+
+        if text:
+            from shotx.output.clipboard import copy_text_to_clipboard
+            if copy_text_to_clipboard(text):
+                from shotx.ui.notification import notify_info
+                tray_icon = self._tray.tray_icon if self._tray else None
+                notify_info(
+                    tray_icon,
+                    "QR Code Scanned",
+                    f"Decoded text copied to clipboard:\n{text[:50]}{'...' if len(text) > 50 else ''}",
+                    show_open_button=False,
+                )
+            else:
+                self._notify_error("Failed to copy decoded text to clipboard")
+        else:
+            self._notify_error("No QR code detected in region")
+
+        return True
+
+    def generate_qr_from_clipboard(self) -> bool:
+        """Read clipboard and generate a QR code from it."""
+        from shotx.output.clipboard import get_text_from_clipboard
+        text = get_text_from_clipboard()
+
+        if not text:
+            self._notify_error("Clipboard is empty or does not contain text.")
+            return False
+
+        from shotx.tools.qr import generate_qr
+        try:
+            qimg = generate_qr(text)
+        except Exception as e:
+            logger.error("QR generation failed: %s", e)
+            self._notify_error(f"QR Generation Error: {e}")
+            return False
+
+        if not qimg or qimg.isNull():
+            return False
+
+        # Copy the generated QR image to clipboard
+        from shotx.output.clipboard import copy_image_to_clipboard
+        copy_image_to_clipboard(qimg)
+
+        # Notify the user
+        from shotx.ui.notification import notify_info
+        tray_icon = self._tray.tray_icon if self._tray else None
+        notify_info(
+            tray_icon,
+            "QR Code Generated",
+            f"Image copied to clipboard.\nContent: {text[:40]}{'...' if len(text) > 40 else ''}",
+            show_open_button=False,
+        )
+
+        from shotx.ui.qr_display import QRDisplayOverlay
+        self._qr_overlay = QRDisplayOverlay(qimg, text)
+        self._qr_overlay.show()
+        return True
+
+    def scan_qr_from_clipboard(self) -> bool:
+        """Read image from clipboard and scan it for a QR code."""
+        from shotx.output.clipboard import get_image_from_clipboard
+        img = get_image_from_clipboard()
+
+        if not img or img.isNull():
+            self._notify_error("Clipboard is empty or does not contain an image.")
+            return False
+
+        from shotx.tools.qr import scan_qr, ZBarError
+        try:
+            text = scan_qr(img)
+        except ZBarError as e:
+            self._notify_error(str(e))
+            return False
+        except Exception as e:
+            logger.error("QR scan from clipboard failed: %s", e)
+            self._notify_error(f"QR Scan Error: {e}")
+            return False
+
+        if text:
+            from shotx.output.clipboard import copy_text_to_clipboard
+            if copy_text_to_clipboard(text):
+                from shotx.ui.notification import notify_info
+                tray_icon = self._tray.tray_icon if self._tray else None
+                notify_info(
+                    tray_icon,
+                    "QR Code Scanned (Clipboard)",
+                    f"Decoded text copied to clipboard:\n{text[:50]}{'...' if len(text) > 50 else ''}",
+                    show_open_button=False,
+                )
+            else:
+                self._notify_error("Failed to copy decoded text to clipboard")
+        else:
+            self._notify_error("No QR code detected in clipboard image")
+
+        return True
+
     # --- Recording Commands ---
 
     def start_recording(self, recording_format: str = "mp4") -> bool:
@@ -750,6 +901,12 @@ class ShotXApp(QObject):
             success = self.capture_color_picker()
         elif capture_type == "ruler":
             success = self.capture_ruler()
+        elif capture_type == "qr_scan":
+            success = self.capture_qr_scan()
+        elif capture_type == "qr_generate":
+            success = self.generate_qr_from_clipboard()
+        elif capture_type == "qr_scan_clipboard":
+            success = self.scan_qr_from_clipboard()
         else:
             print(f"Unknown capture type: {capture_type}")
             return 1

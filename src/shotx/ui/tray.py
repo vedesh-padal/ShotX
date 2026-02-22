@@ -109,6 +109,21 @@ class TrayIcon:
 
         self._menu.addSeparator()
 
+        qr_scan = QAction("🔍 QR Code Scanner", self._menu)
+        qr_scan.triggered.connect(self._on_qr_scan)
+        self._menu.addAction(qr_scan)
+
+        qr_generate = QAction("🖼️ Generate QR from Clipboard", self._menu)
+        qr_generate.triggered.connect(self._on_qr_generate)
+        self._menu.addAction(qr_generate)
+
+        qr_scan_clipboard = QAction("📋 Scan QR from Clipboard Image", self._menu)
+        qr_scan_clipboard_shortcut = " (Img)"
+        qr_scan_clipboard.triggered.connect(self._on_qr_scan_clipboard)
+        self._menu.addAction(qr_scan_clipboard)
+
+        self._menu.addSeparator()
+
         # Recording actions
         self._record_mp4_action = QAction("📹 Record Screen (MP4)", self._menu)
         self._record_mp4_action.triggered.connect(self._on_record_mp4)
@@ -185,6 +200,19 @@ class TrayIcon:
     def _on_capture_ruler(self) -> None:
         """Trigger Screen Ruler overlay."""
         QTimer.singleShot(300, self._app.capture_ruler)
+
+    def _on_qr_scan(self) -> None:
+        """Trigger QR code scanner."""
+        QTimer.singleShot(300, self._app.capture_qr_scan)
+
+    def _on_qr_generate(self) -> None:
+        """Trigger QR generation from clipboard."""
+        # No delay needed for generation as it doesn't capture screen
+        self._app.generate_qr_from_clipboard()
+
+    def _on_qr_scan_clipboard(self) -> None:
+        """Trigger QR scan from clipboard image."""
+        self._app.scan_qr_from_clipboard()
 
     def _on_record_mp4(self) -> None:
         self._app.start_recording("mp4")
