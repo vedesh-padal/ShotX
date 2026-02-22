@@ -13,17 +13,24 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
 
-from PySide6.QtCore import QEventLoop, QRect
+from PySide6.QtCore import QEventLoop, QRect, QThreadPool
 from PySide6.QtGui import QImage
 
 from shotx.capture import create_capture_backend, CaptureBackend
 from shotx.capture.recorder import ScreenRecorder
 from shotx.capture.region_detect import build_detect_regions
 from shotx.config import SettingsManager, AppSettings
-from shotx.output.clipboard import copy_image_to_clipboard
+from shotx.output.clipboard import copy_image_to_clipboard, copy_text_to_clipboard
 from shotx.output.file_saver import save_image
-from shotx.ui.notification import notify_capture_success, notify_error
+from shotx.ui.notification import notify_capture_success, notify_error, notify_info
 from shotx.ui.overlay import RegionOverlay
+from shotx.upload.worker import UploadWorker
+from shotx.upload.image_hosts import ImgurUploader, ImgBBUploader
+from shotx.upload.s3 import S3Uploader
+from shotx.upload.ftp import FtpUploader, SftpUploader
+from shotx.upload.custom import CustomUploader, SxcuParser
+from shotx.upload.shortener import ShortenerWorker
+from shotx.upload.base import UploaderBackend, UploadError
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +70,9 @@ class ShotXApp:
             audio=self.settings.capture.capture_audio,
         )
         self._current_recording_format = "mp4"
+
+        # Thread pool for background tasks (e.g. uploading)
+        self._thread_pool = QThreadPool.globalInstance()
 
     @property
     def settings(self) -> AppSettings:
@@ -339,7 +349,7 @@ class ShotXApp:
         return True
 
     def _save_and_notify(self, image: QImage, capture_type: str = "capture") -> bool:
-        """Common save → clipboard → notify pipeline."""
+        """Common pipeline: save → local clipboard → upload background worker → notify."""
         saved_path = None
 
         if self.settings.capture.save_to_file:
@@ -358,16 +368,120 @@ class ShotXApp:
             else:
                 logger.warning("Failed to save screenshot to file")
 
+        # By default, copy the image data itself to clipboard.
+        # If upload succeeds and URL copying is enabled, it will overwrite this later.
         if self.settings.capture.copy_to_clipboard:
             success = copy_image_to_clipboard(image)
             if self._verbose and success:
-                print("Copied to clipboard")
+                print("Copied image to clipboard")
 
-        if self.settings.capture.show_notification:
-            tray_icon = self._tray.tray_icon if self._tray else None
-            notify_capture_success(tray_icon, saved_path)
+        # Kick off upload in the background if enabled and we actually saved a file
+        if self.settings.upload.enabled and saved_path:
+            self._start_background_upload(saved_path)
+        else:
+            # If not uploading, show standard success notification now
+            if self.settings.capture.show_notification:
+                tray_icon = self._tray.tray_icon if self._tray else None
+                notify_capture_success(tray_icon, saved_path)
 
         return True
+
+    def _get_uploader_for_current_settings(self) -> UploaderBackend:
+        """Instantiate the correct uploader based on config."""
+        uploader_target = self.settings.upload.default_uploader.lower()
+        if uploader_target == "imgbb":
+            return ImgBBUploader(api_key=self.settings.upload.imgbb.api_key)
+        elif uploader_target == "s3":
+            s3_config = self.settings.upload.s3
+            return S3Uploader(
+                endpoint_url=s3_config.endpoint_url if s3_config.endpoint_url else None,
+                access_key=s3_config.access_key,
+                secret_key=s3_config.secret_key,
+                bucket_name=s3_config.bucket_name,
+                public_url_format=s3_config.public_url_format if s3_config.public_url_format else None,
+            )
+        elif uploader_target == "ftp":
+            return FtpUploader(config=self.settings.upload.ftp)
+        elif uploader_target == "sftp":
+            return SftpUploader(config=self.settings.upload.sftp)
+        elif uploader_target.startswith("custom:"):
+            # Format: 'custom:myserver' looks for `myserver.sxcu`
+            sxcu_name = uploader_target.split(":", 1)[1]
+            from shotx.config.settings import _default_config_dir
+            sxcu_dir = Path(_default_config_dir()) / "uploaders"
+            sxcu_path = sxcu_dir / f"{sxcu_name}.sxcu"
+            
+            try:
+                sxcu_data = SxcuParser.load(sxcu_path)
+            except FileNotFoundError:
+                raise UploadError(
+                    f"Custom uploader '{sxcu_name}' not found. "
+                    f"Make sure '{sxcu_name}.sxcu' exists in {sxcu_dir}"
+                )
+            return CustomUploader(sxcu_data)
+        else:
+            # Default to Imgur
+            return ImgurUploader(
+                client_id=self.settings.upload.imgur.client_id,
+                access_token=self.settings.upload.imgur.access_token,
+            )
+
+    def _start_background_upload(self, file_path: Path) -> None:
+        """Dispatches the upload to the global QThreadPool."""
+        try:
+            uploader = self._get_uploader_for_current_settings()
+        except UploadError as e:
+            self._notify_error(str(e))
+            return
+            
+        worker = UploadWorker(uploader, file_path)
+        worker.signals.started.connect(self._on_upload_started)
+        worker.signals.success.connect(self._on_upload_success)
+        worker.signals.error.connect(self._on_upload_error)
+        
+        self._thread_pool.start(worker)
+
+    def _on_upload_started(self, file_path: str) -> None:
+        # Optional: Show an "Uploading..." notification here, 
+        # but ShareX usually is silent until it succeeds to avoid spam.
+        if self._verbose:
+            print(f"Began background upload for: {file_path}")
+
+    def _on_upload_success(self, file_path: str, url: str) -> None:
+        """Called by the background thread when upload finishes cleanly."""
+        
+        # Interceptor: If URL shortener is enabled, pipe it through another worker
+        if self.settings.upload.shortener.enabled:
+            provider = self.settings.upload.shortener.provider
+            if self._verbose:
+                print(f"Shortening URL via {provider}...")
+                
+            shortener = ShortenerWorker(url, provider)
+            shortener.signals.success.connect(lambda short_url: self._finalize_upload_success(short_url))
+            self._thread_pool.start(shortener)
+        else:
+            self._finalize_upload_success(url)
+            
+    def _finalize_upload_success(self, final_url: str) -> None:
+        """Final step of upload: clipboard and notification."""
+        if self.settings.upload.copy_url_to_clipboard:
+            copy_text_to_clipboard(final_url)
+            if self._verbose:
+                print(f"Copied URL to clipboard: {final_url}")
+            
+        if self.settings.capture.show_notification:
+            tray_icon = self._tray.tray_icon if self._tray else None
+            # Standard notify success, but the clipboard will have the URL now
+            notify_info(tray_icon, "Upload Successful", f"Link copied to clipboard:\n{final_url}")
+            
+    def _on_upload_error(self, file_path: str, error_msg: str) -> None:
+        """Called by the background thread on upload failure."""
+        self._notify_error(error_msg)
+        
+        # We still want to notify them the local capture was saved, even if upload failed
+        if self.settings.capture.show_notification:
+            tray_icon = self._tray.tray_icon if self._tray else None
+            notify_capture_success(tray_icon, Path(file_path))
 
     def run_tray(self) -> int:
         """Run ShotX as a system tray application.

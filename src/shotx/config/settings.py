@@ -89,11 +89,68 @@ class HotkeySettings:
 
 
 @dataclass
+class ImgurConfig:
+    client_id: str = ""
+    access_token: str = ""
+
+@dataclass
+class ImgBBConfig:
+    api_key: str = ""
+
+@dataclass
+class S3Config:
+    endpoint_url: str = ""
+    access_key: str = ""
+    secret_key: str = ""
+    bucket_name: str = ""
+    public_url_format: str = ""
+
+@dataclass
+class FtpConfig:
+    host: str = ""
+    port: int = 21
+    username: str = ""
+    password: str = ""
+    remote_dir: str = "/"
+    public_url_format: str = ""
+
+@dataclass
+class SftpConfig:
+    host: str = ""
+    port: int = 22
+    username: str = ""
+    password: str = ""
+    key_file: str = ""
+    remote_dir: str = "/"
+    public_url_format: str = ""
+
+@dataclass
+class UrlShortenerConfig:
+    enabled: bool = False
+    provider: str = "tinyurl"  # "tinyurl", "isgd", "vgd"
+
+@dataclass
+class UploadSettings:
+    """Settings related to the upload engine."""
+    enabled: bool = False
+    default_uploader: str = "imgur"
+    copy_url_to_clipboard: bool = True
+    
+    imgur: ImgurConfig = field(default_factory=ImgurConfig)
+    imgbb: ImgBBConfig = field(default_factory=ImgBBConfig)
+    s3: S3Config = field(default_factory=S3Config)
+    ftp: FtpConfig = field(default_factory=FtpConfig)
+    sftp: SftpConfig = field(default_factory=SftpConfig)
+    shortener: UrlShortenerConfig = field(default_factory=UrlShortenerConfig)
+
+
+@dataclass
 class AppSettings:
     """Top-level application settings container."""
 
     capture: CaptureSettings = field(default_factory=CaptureSettings)
     hotkeys: HotkeySettings = field(default_factory=HotkeySettings)
+    upload: UploadSettings = field(default_factory=UploadSettings)
     first_run: bool = True
 
     def to_dict(self) -> dict[str, Any]:
@@ -109,10 +166,20 @@ class AppSettings:
         """
         capture_data = data.get("capture", {})
         hotkey_data = data.get("hotkeys", {})
+        upload_data = data.get("upload", {})
 
         # Filter to only known fields to avoid TypeError on unexpected keys
         capture_fields = {f.name for f in CaptureSettings.__dataclass_fields__.values()}
         hotkey_fields = {f.name for f in HotkeySettings.__dataclass_fields__.values()}
+        
+        # Upload fields need special dictionary handling for sub-configs
+        upload_fields = {f.name for f in UploadSettings.__dataclass_fields__.values()}
+        imgur_fields = {f.name for f in ImgurConfig.__dataclass_fields__.values()}
+        imgbb_fields = {f.name for f in ImgBBConfig.__dataclass_fields__.values()}
+        s3_fields = {f.name for f in S3Config.__dataclass_fields__.values()}
+        ftp_fields = {f.name for f in FtpConfig.__dataclass_fields__.values()}
+        sftp_fields = {f.name for f in SftpConfig.__dataclass_fields__.values()}
+        shortener_fields = {f.name for f in UrlShortenerConfig.__dataclass_fields__.values()}
 
         capture = CaptureSettings(
             **{k: v for k, v in capture_data.items() if k in capture_fields}
@@ -120,10 +187,36 @@ class AppSettings:
         hotkeys = HotkeySettings(
             **{k: v for k, v in hotkey_data.items() if k in hotkey_fields}
         )
+        
+        imgur_data = upload_data.get("imgur", {})
+        imgbb_data = upload_data.get("imgbb", {})
+        s3_data = upload_data.get("s3", {})
+        ftp_data = upload_data.get("ftp", {})
+        sftp_data = upload_data.get("sftp", {})
+        shortener_data = upload_data.get("shortener", {})
+        
+        imgur_config = ImgurConfig(**{k: v for k, v in imgur_data.items() if k in imgur_fields})
+        imgbb_config = ImgBBConfig(**{k: v for k, v in imgbb_data.items() if k in imgbb_fields})
+        s3_config = S3Config(**{k: v for k, v in s3_data.items() if k in s3_fields})
+        ftp_config = FtpConfig(**{k: v for k, v in ftp_data.items() if k in ftp_fields})
+        sftp_config = SftpConfig(**{k: v for k, v in sftp_data.items() if k in sftp_fields})
+        shortener_config = UrlShortenerConfig(**{k: v for k, v in shortener_data.items() if k in shortener_fields})
+        
+        upload_kwargs = {k: v for k, v in upload_data.items() if k in upload_fields and isinstance(v, (str, bool, int))}
+        upload = UploadSettings(
+            imgur=imgur_config,
+            imgbb=imgbb_config,
+            s3=s3_config,
+            ftp=ftp_config,
+            sftp=sftp_config,
+            shortener=shortener_config,
+            **upload_kwargs
+        )
 
         return cls(
             capture=capture,
             hotkeys=hotkeys,
+            upload=upload,
             first_run=data.get("first_run", True),
         )
 
