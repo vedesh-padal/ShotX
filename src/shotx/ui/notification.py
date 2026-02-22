@@ -56,19 +56,33 @@ def _on_action_invoked(conn, sender, obj_path, iface, signal, params, user_data)
     try:
         notif_id, action_name = params.unpack()
         
-        if notif_id in _notification_paths and action_name == "default":
-            file_path_str = _notification_paths[notif_id]
-            logger.debug(f"Action clicked for notification ID {notif_id}, opening {file_path_str}")
-            import subprocess
-            subprocess.run(["xdg-open", file_path_str], check=True)
+        if notif_id in _notification_paths:
+            actions_dict = _notification_paths[notif_id]
+            
+            # If they clicked the banner body itself
+            if action_name == "default":
+                target_path = actions_dict.get("default")
+            else:
+                target_path = actions_dict.get(action_name)
+                
+            if target_path:
+                logger.debug(f"Action '{action_name}' clicked for notification ID {notif_id}, opening {target_path}")
+                import subprocess
+                subprocess.run(["xdg-open", target_path], check=True)
             
             # Optionally clean up the dictionary
             del _notification_paths[notif_id]
     except Exception as e:
         logger.error(f"Error handling DBus action click: {e}")
 
-def _send_dbus_notification(title: str, body: str, icon: str, urgency: int = 1, file_path: str = None) -> None:
-    """Helper to send a raw DBus message."""
+def _send_dbus_notification(title: str, body: str, icon: str, urgency: int = 1, file_path: str = None, actions_dict: dict[str, str] = None, default_action: str = None) -> None:
+    """Helper to send a raw DBus message.
+    
+    Args:
+        actions_dict: A dict mapping "Action Key" -> "Target Path/URL". 
+                      The key is internal (e.g. "open_web"), the value is the path.
+                      To set display labels, we generate the DBus array implicitly below.
+    """
     global _dbus_conn
     if _dbus_conn is None:
         init_notifications()
@@ -76,7 +90,29 @@ def _send_dbus_notification(title: str, body: str, icon: str, urgency: int = 1, 
     if _dbus_conn is None:
         raise Exception("DBus connection not available.")
 
-    actions = ["default", "Open"] if file_path else []
+    # The DBus 'actions' parameter is an array of strings:
+    # [ "action1_key", "Action 1 Label", "action2_key", "Action 2 Label" ]
+    dbus_actions = []
+    
+    # Store the actual paths we want to open
+    path_mapping = {}
+    
+    if default_action:
+        # Natively, "default" is the magic key for clicking the notification body
+        path_mapping["default"] = default_action
+        
+    if actions_dict:
+        for action_label, target_path in actions_dict.items():
+            # Create a safe, spaces-removed internal key
+            action_key = action_label.lower().replace(" ", "_")
+            dbus_actions.extend([action_key, action_label])
+            path_mapping[action_key] = target_path
+            
+    # Legacy fallback: if file_path is passed, act like a simple single-button notification
+    elif file_path:
+        dbus_actions.extend(["open", "Open"])
+        path_mapping["default"] = file_path
+        path_mapping["open"] = file_path
     
     # Send the raw Notification DBus call
     res = _dbus_conn.call_sync(
@@ -90,7 +126,7 @@ def _send_dbus_notification(title: str, body: str, icon: str, urgency: int = 1, 
             icon,                                # app_icon
             title,                               # summary
             body,                                # body
-            actions,                             # actions
+            dbus_actions,                        # actions
             {"urgency": GLib.Variant("y", urgency)},  # hints (0=low, 1=normal, 2=critical)
             5000 if urgency < 2 else 10000       # expire_timeout
         )),
@@ -102,8 +138,8 @@ def _send_dbus_notification(title: str, body: str, icon: str, urgency: int = 1, 
     
     notif_id = res.unpack()[0]
     
-    if file_path:
-        _notification_paths[notif_id] = file_path
+    if path_mapping:
+        _notification_paths[notif_id] = path_mapping
 
 
 def notify_capture_success(
@@ -188,6 +224,8 @@ def notify_info(
     title: str,
     message: str,
     file_path: str | None = None,
+    actions_dict: dict[str, str] | None = None,
+    default_action: str | None = None,
 ) -> None:
     """Show an informational notification.
 
@@ -196,6 +234,8 @@ def notify_info(
         title: The info title.
         message: The info message.
         file_path: Optional file path or URL to make the notification clickable.
+        actions_dict: Optional mapping of "Label" -> "Target Path/URL".
+        default_action: Optional target path when the notification body is clicked.
     """
     try:
         # Urgency 2 = Critical
@@ -204,7 +244,9 @@ def notify_info(
             body=message,
             icon="dialog-information",
             urgency=2,
-            file_path=file_path
+            file_path=file_path,
+            actions_dict=actions_dict,
+            default_action=default_action
         )
         logger.debug("Native raw DBus info notification shown.")
     except Exception as e:

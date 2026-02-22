@@ -462,12 +462,12 @@ class ShotXApp(QObject):
                 print(f"Shortening URL via {provider}...")
                 
             shortener = ShortenerWorker(url, provider)
-            shortener.signals.success.connect(lambda short_url: self._finalize_upload_success(short_url))
+            shortener.signals.success.connect(lambda short_url: self._finalize_upload_success(file_path, short_url))
             self._thread_pool.start(shortener)
         else:
-            self._finalize_upload_success(url)
+            self._finalize_upload_success(file_path, url)
             
-    def _finalize_upload_success(self, final_url: str) -> None:
+    def _finalize_upload_success(self, file_path: str, final_url: str) -> None:
         """Final step of upload: clipboard and notification."""
         if self.settings.upload.copy_url_to_clipboard:
             copy_text_to_clipboard(final_url)
@@ -476,10 +476,21 @@ class ShotXApp(QObject):
             
         if self.settings.capture.show_notification:
             tray_icon = self._tray.tray_icon if self._tray else None
-            # Standard notify success, but we pass the URL as file_path so the notification 
-            # gets an 'Open' action button. This forces GNOME Wayland to recognize it as 
-            # a high-priority interactive dialog rather than silently hiding it in the tray.
-            notify_info(tray_icon, "Upload Successful", f"Link copied to clipboard:\n{final_url}", file_path=final_url)
+            
+            # Create a multi-action Split Button array
+            actions = {
+                "📂 View Local": file_path,
+                "🌐 Open Link": final_url
+            }
+            
+            # Map the default body click specifically to the Local File
+            notify_info(
+                tray_icon=tray_icon, 
+                title="Upload Successful", 
+                message=f"Link copied to clipboard:\n{final_url}", 
+                actions_dict=actions,
+                default_action=file_path
+            )
             
     @Slot(str, str)
     def _on_upload_error(self, file_path: str, error_msg: str) -> None:
