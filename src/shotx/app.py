@@ -575,6 +575,11 @@ class ShotXApp:
             format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
             datefmt="%H:%M:%S",
         )
+        # Silence extremely noisy third-party debug loggers
+        if self._verbose:
+            logging.getLogger("httpcore").setLevel(logging.INFO)
+            logging.getLogger("httpx").setLevel(logging.INFO)
+            logging.getLogger("asyncio").setLevel(logging.INFO)
 
     def _notify_error(self, message: str) -> None:
         """Show error via notification or stderr."""
