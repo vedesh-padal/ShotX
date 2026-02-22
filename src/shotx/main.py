@@ -73,6 +73,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Scan the current clipboard image for a QR code.",
     )
     parser.add_argument(
+        "--hash",
+        action="store_true",
+        help="Open hash checker tool.",
+    )
+    parser.add_argument(
         "--tray",
         action="store_true",
         help="Launch the system tray app (default behavior).",
@@ -150,6 +155,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.qr_scan_clipboard:
         return app.run_oneshot("qr_scan_clipboard")
+
+    if args.hash:
+        return app.run_oneshot("hash")
 
     # Default: launch tray app
     return app.run_tray()

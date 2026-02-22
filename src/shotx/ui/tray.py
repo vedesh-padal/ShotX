@@ -122,6 +122,10 @@ class TrayIcon:
         qr_scan_clipboard.triggered.connect(self._on_qr_scan_clipboard)
         self._menu.addAction(qr_scan_clipboard)
 
+        hash_tool = QAction("🔍 Hash Checker", self._menu)
+        hash_tool.triggered.connect(self._on_hash_checker)
+        self._menu.addAction(hash_tool)
+
         self._menu.addSeparator()
 
         # Recording actions
@@ -213,6 +217,10 @@ class TrayIcon:
     def _on_qr_scan_clipboard(self) -> None:
         """Trigger QR scan from clipboard image."""
         self._app.scan_qr_from_clipboard()
+
+    def _on_hash_checker(self) -> None:
+        """Trigger hash checker tool."""
+        self._app.open_hash_checker()
 
     def _on_record_mp4(self) -> None:
         self._app.start_recording("mp4")

@@ -526,6 +526,13 @@ class ShotXApp(QObject):
         self._qr_overlay.show()
         return True
 
+    def open_hash_checker(self) -> bool:
+        """Open the hash checker tool dialog."""
+        from shotx.ui.hash_dialog import HashDialog
+        self._hash_dialog = HashDialog()
+        self._hash_dialog.show()
+        return True
+
     def scan_qr_from_clipboard(self) -> bool:
         """Read image from clipboard and scan it for a QR code."""
         from shotx.output.clipboard import get_image_from_clipboard
@@ -907,6 +914,8 @@ class ShotXApp(QObject):
             success = self.generate_qr_from_clipboard()
         elif capture_type == "qr_scan_clipboard":
             success = self.scan_qr_from_clipboard()
+        elif capture_type == "hash":
+            success = self.open_hash_checker()
         else:
             print(f"Unknown capture type: {capture_type}")
             return 1
