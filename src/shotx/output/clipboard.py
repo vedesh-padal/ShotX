@@ -62,6 +62,19 @@ def copy_text_to_clipboard(text: str) -> bool:
     Returns:
         True if the copy succeeded, False otherwise.
     """
+    if not text:
+        logger.error("Cannot copy empty text to clipboard")
+        return False
+
+    # Try subprocess-based clipboard (persists after exit)
+    if _copy_text_via_subprocess(text):
+        return True
+
+    # Fall back to Qt clipboard (works when app stays alive, e.g. tray mode)
+    return _copy_text_via_qt(text)
+
+def _copy_text_via_qt(text: str) -> bool:
+    """Copy text via Qt's QClipboard."""
     app = QGuiApplication.instance()
     if app is None:
         logger.error("No QGuiApplication instance — cannot access clipboard")
@@ -74,7 +87,7 @@ def copy_text_to_clipboard(text: str) -> bool:
 
     try:
         clipboard.setText(text)
-        logger.debug("Text copied to clipboard: %s", text[:80])
+        logger.debug("Text copied to clipboard via Qt: %s", text[:80])
         return True
     except Exception as e:
         logger.error("Failed to copy text to clipboard: %s", e)
@@ -129,6 +142,41 @@ def _copy_image_via_subprocess(image: QImage) -> bool:
 
     logger.debug(
         "No subprocess clipboard tool found (wl-copy, xclip, xsel). "
+        "Falling back to Qt clipboard."
+    )
+    return False
+
+
+def _copy_text_via_subprocess(text: str) -> bool:
+    """Try to copy text via subprocess clipboard tools.
+
+    Attempts tools in order: wl-copy (Wayland), xclip (X11), xsel (X11).
+    These tools fork daemon processes that keep serving the clipboard
+    data after our threaded background upload completes.
+    """
+    text_data = text.encode("utf-8")
+    session_type = os.environ.get("XDG_SESSION_TYPE", "").lower().strip()
+
+    # On Wayland, try wl-copy first
+    if session_type == "wayland" or os.environ.get("WAYLAND_DISPLAY"):
+        if _try_clipboard_cmd(["wl-copy", "--type", "text/plain"], text_data):
+            return True
+
+    # On X11 (or as fallback), try xclip then xsel
+    if _try_clipboard_cmd(
+        ["xclip", "-selection", "clipboard", "-target", "text/plain", "-i"],
+        text_data,
+    ):
+        return True
+
+    if _try_clipboard_cmd(
+        ["xsel", "--clipboard", "--input"],
+        text_data,
+    ):
+        return True
+
+    logger.debug(
+        "No subprocess tools found for text copy. "
         "Falling back to Qt clipboard."
     )
     return False
