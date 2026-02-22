@@ -192,7 +192,7 @@ class TrayIcon:
         open_folder(output_dir)
 
     def _on_notification_clicked(self) -> None:
-        """Handle notification click — open the last captured file."""
+        """Handle fallback Qt notification clicks (if DBus failed)."""
         last_file = self._app.last_saved_path
         if last_file and last_file.exists():
             from shotx.ui.notification import open_file

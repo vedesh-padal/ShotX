@@ -7,13 +7,103 @@ or its containing folder.
 from __future__ import annotations
 
 import logging
-import subprocess
+import logging
 import threading
 from pathlib import Path
 
 from PySide6.QtWidgets import QSystemTrayIcon
+from PySide6.QtCore import QTimer
+
+# Import PyGObject for native DBus notifications
+import gi
+gi.require_version('Gio', '2.0')
+from gi.repository import Gio, GLib
 
 logger = logging.getLogger(__name__)
+
+# Raw DBus connection (safe to mix with Qt, unlike Gio.Application)
+_dbus_conn = None
+_notification_paths: dict[int, str] = {}
+
+def init_notifications():
+    """Initialize DBus connection and signal listener on the main thread."""
+    global _dbus_conn
+    
+    if _dbus_conn is not None:
+        return
+        
+    try:
+        # Get the session bus
+        _dbus_conn = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        
+        # Subscribe to notification clicks
+        _dbus_conn.signal_subscribe(
+            "org.freedesktop.Notifications",
+            "org.freedesktop.Notifications",
+            "ActionInvoked",
+            "/org/freedesktop/Notifications",
+            None,
+            Gio.DBusSignalFlags.NONE,
+            _on_action_invoked,
+            None
+        )
+        logger.debug("Raw DBus notification listener initialized.")
+    except Exception as e:
+        logger.error(f"Failed to initialize raw DBus connection: {e}")
+
+def _on_action_invoked(conn, sender, obj_path, iface, signal, params, user_data):
+    """Callback when ANY notification action is clicked on the system."""
+    try:
+        notif_id, action_name = params.unpack()
+        
+        if notif_id in _notification_paths and action_name == "default":
+            file_path_str = _notification_paths[notif_id]
+            logger.debug(f"Action clicked for notification ID {notif_id}, opening {file_path_str}")
+            import subprocess
+            subprocess.run(["xdg-open", file_path_str], check=True)
+            
+            # Optionally clean up the dictionary
+            del _notification_paths[notif_id]
+    except Exception as e:
+        logger.error(f"Error handling DBus action click: {e}")
+
+def _send_dbus_notification(title: str, body: str, icon: str, urgency: int = 1, file_path: str = None) -> None:
+    """Helper to send a raw DBus message."""
+    global _dbus_conn
+    if _dbus_conn is None:
+        init_notifications()
+        
+    if _dbus_conn is None:
+        raise Exception("DBus connection not available.")
+
+    actions = ["default", "Open"] if file_path else []
+    
+    # Send the raw Notification DBus call
+    res = _dbus_conn.call_sync(
+        "org.freedesktop.Notifications",         # bus_name
+        "/org/freedesktop/Notifications",        # object_path
+        "org.freedesktop.Notifications",         # interface_name
+        "Notify",                                # method_name
+        GLib.Variant("(susssasa{sv}i)", (
+            "ShotX",                             # app_name
+            0,                                   # replaces_id
+            icon,                                # app_icon
+            title,                               # summary
+            body,                                # body
+            actions,                             # actions
+            {"urgency": GLib.Variant("y", urgency)},  # hints (0=low, 1=normal, 2=critical)
+            5000 if urgency < 2 else 10000       # expire_timeout
+        )),
+        None,                                    # reply_type
+        Gio.DBusCallFlags.NONE,
+        -1,
+        None
+    )
+    
+    notif_id = res.unpack()[0]
+    
+    if file_path:
+        _notification_paths[notif_id] = file_path
 
 
 def notify_capture_success(
@@ -21,86 +111,76 @@ def notify_capture_success(
     file_path: Path | None,
     message: str | None = None,
 ) -> None:
-    """Show a notification that a screenshot was captured.
+    """Show a native DBus interactive notification on Linux.
 
     Args:
-        tray_icon: System tray icon for showing notifications.
-        file_path: Path to the saved screenshot (may be None if only clipboard).
+        tray_icon: Fallback sys tray for older DEs.
+        file_path: Path to the saved screenshot.
         message: Custom message override.
     """
-    if tray_icon is None:
-        logger.debug("No tray icon, skipping notification")
-        return
-
     if message is None:
         if file_path:
-            message = f"Saved to {file_path.name}"
+            message = f"Saved to:\n{file_path}"
         else:
             message = "Copied to clipboard"
 
-    # Try interactive native notification if we have a file path
-    if file_path:
-        def _interactive_worker() -> None:
-            try:
-                result = subprocess.run(
-                    [
-                        "notify-send",
-                        "-a", "ShotX",
-                        "-i", "camera-photo",
-                        "ShotX — Capture",
-                        message,
-                        "--action=open=View Image",
-                        "--action=folder=Show in Folder",
-                        "-t", "5000",
-                    ],
-                    capture_output=True,
-                    text=True,
-                )
-                action = result.stdout.strip()
-                if action == "open":
-                    open_file(file_path)
-                elif action == "folder":
-                    open_folder(file_path)
-            except (FileNotFoundError, Exception) as e:
-                logger.debug("notify-send with actions failed: %s", e)
-                # Fallback to Qt notification without actions
-                tray_icon.showMessage(
-                    "ShotX — Screenshot captured",
-                    message,
-                    QSystemTrayIcon.MessageIcon.Information,
-                    3000,
-                )
-                
-        threading.Thread(target=_interactive_worker, daemon=True).start()
-    else:
-        # Standard Qt notification for clipboard-only
-        tray_icon.showMessage(
-            "ShotX — Screenshot captured",
-            message,
-            QSystemTrayIcon.MessageIcon.Information,
-            3000,
+    try:
+        # Urgency 2 = Critical (Needed on GNOME to bypass focus-stealing prevention)
+        _send_dbus_notification(
+            title="ShotX \u2014 Screenshot captured",
+            body=message,
+            icon="camera-photo",
+            urgency=2,
+            file_path=str(file_path) if file_path else None
         )
+        logger.debug("Native raw DBus notification shown for capture.")
+    except Exception as e:
+        logger.warning(f"Native Gio notifications failed, falling back to Qt: {e}")
+        if tray_icon:
+            QTimer.singleShot(0, lambda: tray_icon.showMessage(
+                "ShotX \u2014 Screenshot captured",
+                message,
+                QSystemTrayIcon.MessageIcon.Information,
+                3000,
+            ))
 
-    logger.debug("Notification shown: %s", message)
+    logger.debug("Notification task completed: %s", message)
 
 
 def notify_error(
     tray_icon: QSystemTrayIcon | None,
     message: str,
+    file_path: Path | None = None,
 ) -> None:
-    """Show an error notification."""
-    if tray_icon is None:
-        logger.error("Notification (no tray): %s", message)
-        return
+    """Show an error notification.
 
-    tray_icon.showMessage(
-        "ShotX — Error",
-        message,
-        QSystemTrayIcon.MessageIcon.Critical,
-        5000,  # 5 seconds
-    )
-
+    Args:
+        tray_icon: Fallback sys tray for older DEs.
+        message: The error message.
+        file_path: Optional path to make the notification clickable.
+    """
     logger.error("Error notification: %s", message)
+
+    try:
+        # Urgency 2 = Critical
+        _send_dbus_notification(
+            title="ShotX \u2014 Error",
+            body=message,
+            icon="dialog-error",
+            urgency=2,
+            file_path=str(file_path) if file_path else None
+        )
+        logger.debug("Native raw DBus error notification shown.")
+    except Exception as e:
+        logger.warning(f"Native Gio notifications failed, falling back to Qt: {e}")
+        if tray_icon:
+            # We don't use singleShot here because errors might be called from main thread
+            tray_icon.showMessage(
+                "ShotX \u2014 Error",
+                message,
+                QSystemTrayIcon.MessageIcon.Critical,
+                5000,  # 5 seconds
+            )
 
 
 def notify_info(
@@ -108,18 +188,32 @@ def notify_info(
     title: str,
     message: str,
 ) -> None:
-    """Show an informational notification."""
-    if tray_icon is None:
-        logger.info("Notification (no tray): %s - %s", title, message)
-        return
+    """Show a general info notification.
 
-    tray_icon.showMessage(
-        title,
-        message,
-        QSystemTrayIcon.MessageIcon.Information,
-        5000,  # 5 seconds
-    )
-
+    Args:
+        tray_icon: Fallback sys tray for older DEs.
+        title: Notification title.
+        message: The info message.
+    """
+    try:
+        # Urgency 2 = Critical
+        _send_dbus_notification(
+            title=title,
+            body=message,
+            icon="dialog-information",
+            urgency=2,
+            file_path=None
+        )
+        logger.debug("Native raw DBus info notification shown.")
+    except Exception as e:
+        logger.warning(f"Native Gio notifications failed, falling back to Qt: {e}")
+        if tray_icon:
+            tray_icon.showMessage(
+                title,
+                message,
+                QSystemTrayIcon.MessageIcon.Information,
+                5000,
+            )
     logger.info("Info notification %s: %s", title, message)
 
 

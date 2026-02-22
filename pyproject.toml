@@ -31,6 +31,7 @@ dependencies = [
     "httpx>=0.28.1",
     "boto3>=1.42.54",
     "paramiko>=4.0.0",
+    "pygobject>=3.54.5",
 ]
 
 [project.optional-dependencies]

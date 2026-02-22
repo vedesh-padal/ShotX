@@ -133,3 +133,23 @@ Collected during development. Use for README, GitHub Wiki, and troubleshooting d
 | grim                          | Screenshot on wlroots compositors | Optional (Sway/Hyprland)           |
 | wf-recorder                   | Screen Recording on Wayland       | Optional (Wayland wlroots)         |
 | ffmpeg                        | Screen Recording / GIF Generation | Optional (X11 recording & all GIF) |
+
+---
+
+## GNOME Wayland & Qt System Tray Notifications
+
+### Qt `messageClicked` Signal Dropped
+
+- **Issue:** On GNOME Wayland, Qt `QSystemTrayIcon.showMessage()` properly displays notifications via the FreeDesktop standard, but GNOME intentionally swallows the `messageClicked` callback. It never returns the DBus click signal back to the Qt application event loop. Thus, notifications become completely dead logic black holes—you can click them, but Qt never, ever knows.
+
+### Focus-Stealing Prevention (Silent Notifications)
+
+- **Secondary Issue:** Background applications lacking active window focus will have their notifications silently dumped into the GNOME tray by default, bypassing the visual pop-down banner entirely.
+
+### PyGObject Native DBus Workaround
+
+- **Solution:** We completely uncoupled notifications from `QSystemTrayIcon` in `notification.py`.
+- **Implementation:**
+    1. We import `gi.repository.Gio` (PyGObject) to pipe raw zero-overhead DBus calls directly to `org.freedesktop.Notifications.Notify` using `Gio.DBusConnection.call_sync()`.
+    2. We physically subscribe a global Python handler to `ActionInvoked` DBus signals and dynamically match the returned DBus `notification_id` to our saved screenshot file paths.
+    3. To defeat the GNOME focus limitation, we explicitly inject `{"urgency": 2}` (Critical) hints into all of our DBus payloads so that ShotX notifications are strictly displayed as pop-down banners immediately upon capture.

@@ -11,7 +11,7 @@ import logging
 import sys
 from pathlib import Path
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 
 from PySide6.QtCore import QEventLoop, QRect, QThreadPool
 from PySide6.QtGui import QImage
@@ -22,7 +22,7 @@ from shotx.capture.region_detect import build_detect_regions
 from shotx.config import SettingsManager, AppSettings
 from shotx.output.clipboard import copy_image_to_clipboard, copy_text_to_clipboard
 from shotx.output.file_saver import save_image
-from shotx.ui.notification import notify_capture_success, notify_error, notify_info
+from shotx.ui.notification import notify_capture_success, notify_error, notify_info, init_notifications
 from shotx.ui.overlay import RegionOverlay
 from shotx.upload.worker import UploadWorker
 from shotx.upload.image_hosts import ImgurUploader, ImgBBUploader
@@ -476,22 +476,35 @@ class ShotXApp:
             
     def _on_upload_error(self, file_path: str, error_msg: str) -> None:
         """Called by the background thread on upload failure."""
-        self._notify_error(error_msg)
+        # Because Qt's QSystemTrayIcon cannot distinguish WHICH stacked notification
+        # was clicked by the user, we must combine the Error state and the Saved state
+        # into a single notification. This allows them to see the error, see the path,
+        # AND click the notification to open the local file.
+        # GNOME often collapses double newlines in notification bodies, so we keep it tight
+        combined_msg = f"{error_msg.strip()}\n\u21b3 Fallback local save: {file_path}"
         
-        # We still want to notify them the local capture was saved, even if upload failed
-        if self.settings.capture.show_notification:
-            tray_icon = self._tray.tray_icon if self._tray else None
-            notify_capture_success(tray_icon, Path(file_path))
+        tray_icon = self._tray.tray_icon if self._tray else None
+        
+        # Route this through our central notify_error pipeline so it uses native DBus!
+        # Pass the Path(file_path) so the Notification becomes clickable as a fallback
+        notify_error(tray_icon, combined_msg, file_path=Path(file_path))
+            
+        if self._verbose:
+            print(f"Upload Error: {error_msg}")
 
     def run_tray(self) -> int:
         """Run ShotX as a system tray application.
 
-        Creates the tray icon with context menu and enters the Qt
-        event loop. The app stays running until Quit is selected.
-
         Returns:
             Exit code (0 = success).
         """
+        import signal
+        
+        # FIX: PySide6 completely masks Python SIGINTs (Ctrl+C) while deep inside the C++ 
+        # event loop. Restoring the default signal handler forces immediate termination.
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+        init_notifications()
         # Prevent running without a display
         app = QApplication.instance()
         if app is None:
@@ -583,6 +596,7 @@ class ShotXApp:
 
     def _notify_error(self, message: str) -> None:
         """Show error via notification or stderr."""
+        self._last_notification_type = "error"
         tray_icon = self._tray.tray_icon if self._tray else None
         notify_error(tray_icon, message)
         if self._verbose:
