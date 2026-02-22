@@ -75,7 +75,7 @@ def _on_action_invoked(conn, sender, obj_path, iface, signal, params, user_data)
     except Exception as e:
         logger.error(f"Error handling DBus action click: {e}")
 
-def _send_dbus_notification(title: str, body: str, icon: str, urgency: int = 1, file_path: str = None, actions_dict: dict[str, str] = None, default_action: str = None) -> None:
+def _send_dbus_notification(title: str, body: str, icon: str, urgency: int = 1, file_path: str = None, actions_dict: dict[str, str] = None, default_action: str = None, show_open_button: bool = True) -> None:
     """Helper to send a raw DBus message.
     
     Args:
@@ -110,9 +110,10 @@ def _send_dbus_notification(title: str, body: str, icon: str, urgency: int = 1, 
             
     # Legacy fallback: if file_path is passed, act like a simple single-button notification
     elif file_path:
-        dbus_actions.extend(["open", "Open"])
+        if show_open_button:
+            dbus_actions.extend(["open", "Open"])
+            path_mapping["open"] = file_path
         path_mapping["default"] = file_path
-        path_mapping["open"] = file_path
     
     # Send the raw Notification DBus call
     res = _dbus_conn.call_sync(
@@ -226,6 +227,7 @@ def notify_info(
     file_path: str | None = None,
     actions_dict: dict[str, str] | None = None,
     default_action: str | None = None,
+    show_open_button: bool = True,
 ) -> None:
     """Show an informational notification.
 
@@ -246,7 +248,8 @@ def notify_info(
             urgency=2,
             file_path=file_path,
             actions_dict=actions_dict,
-            default_action=default_action
+            default_action=default_action,
+            show_open_button=show_open_button,
         )
         logger.debug("Native raw DBus info notification shown.")
     except Exception as e:

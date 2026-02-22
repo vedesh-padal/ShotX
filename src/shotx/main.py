@@ -43,6 +43,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Capture the active window and exit.",
     )
     parser.add_argument(
+        "--ocr",
+        action="store_true",
+        help="Select a region and extract Text (OCR) to clipboard.",
+    )
+    parser.add_argument(
         "--tray",
         action="store_true",
         help="Launch the system tray app (default behavior).",
@@ -102,6 +107,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.capture_window:
         return app.run_oneshot("window")
+
+    if args.ocr:
+        return app.run_oneshot("ocr")
 
     # Default: launch tray app
     return app.run_tray()

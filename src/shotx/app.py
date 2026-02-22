@@ -231,6 +231,95 @@ class ShotXApp(QObject):
         # Step 6: Save + clipboard + notify (same pipeline as fullscreen)
         return self._save_and_notify(cropped, capture_type="region")
 
+    def capture_ocr(self) -> bool:
+        """Capture a region and apply Tesseract OCR to extract text."""
+        logger.info("Starting OCR capture")
+        
+        # Step 1: Capture fullscreen backdrop
+        try:
+            backdrop = self.backend.capture_fullscreen()
+        except Exception as e:
+            logger.error("Backdrop capture failed: %s", e)
+            self._notify_error(f"Capture failed: {e}")
+            return False
+            
+        if backdrop is None or backdrop.isNull():
+            return False
+            
+        # Step 2: Overlay for region selection
+        windows = []
+        regions = []
+        if self.settings.capture.auto_detect_regions:
+            try:
+                from shotx.capture.detect import get_windows, build_detect_regions
+                windows = get_windows(self.backend.name)
+                regions = build_detect_regions(windows, include_atspi=True)
+            except Exception:
+                pass
+
+        from shotx.ui.overlay import RegionOverlay
+        from PySide6.QtCore import QEventLoop, QRect
+
+        overlay = RegionOverlay(backdrop, regions, after_capture_action="save")
+        loop = QEventLoop()
+        selected_rect: list[QRect] = []
+
+        def on_selected(rect: QRect) -> None:
+            selected_rect.append(rect)
+            loop.quit()
+
+        def on_cancelled() -> None:
+            loop.quit()
+
+        overlay.region_selected.connect(on_selected)
+        overlay.selection_cancelled.connect(on_cancelled)
+        overlay.show_fullscreen()
+        loop.exec()
+
+        if not selected_rect:
+            return False
+
+        cropped = backdrop.copy(selected_rect[0])
+        if cropped.isNull():
+            return False
+
+        # Step 3: Run OCR
+        from shotx.tools.ocr import extract_text, TesseractNotFoundError
+        try:
+            text = extract_text(cropped)
+        except TesseractNotFoundError:
+            self._notify_error("Tesseract missing. Please install 'tesseract-ocr'.")
+            return False
+        except Exception as e:
+            logger.error("OCR failed: %s", e)
+            self._notify_error(f"OCR Exception: {e}")
+            return False
+
+        # Step 4: Clipboard & Notify
+        if text:
+            from shotx.output.clipboard import copy_text_to_clipboard
+            success = copy_text_to_clipboard(text)
+            if success:
+                from shotx.ui.notification import notify_info
+                tray_icon = self._tray.tray_icon if self._tray else None
+                notify_info(
+                    tray_icon,
+                    "OCR Extraction Complete",
+                    f"Copied {len(text)} characters to clipboard.",
+                    file_path=None,               # No Open button
+                    actions_dict=None,
+                    default_action=None,
+                    show_open_button=False,
+                )
+                if self._verbose:
+                    print(f"Extracted Text:\n{text}")
+            else:
+                self._notify_error("Failed to copy OCR text to clipboard")
+        else:
+            self._notify_error("No text detected in region")
+            
+        return True
+
     # --- Recording Commands ---
 
     def start_recording(self, recording_format: str = "mp4") -> bool:
@@ -562,6 +651,8 @@ class ShotXApp(QObject):
         elif capture_type == "window":
             # Window capture uses the same overlay — user clicks a window
             success = self.capture_region()
+        elif capture_type == "ocr":
+            success = self.capture_ocr()
         else:
             print(f"Unknown capture type: {capture_type}")
             return 1

@@ -95,6 +95,10 @@ class TrayIcon:
         capture_window.triggered.connect(self._on_capture_region)  # Same overlay
         self._menu.addAction(capture_window)
 
+        capture_ocr = QAction("📝 Extract Text (OCR)", self._menu)
+        capture_ocr.triggered.connect(self._on_capture_ocr)
+        self._menu.addAction(capture_ocr)
+
         self._menu.addSeparator()
 
         # Recording actions
@@ -161,6 +165,10 @@ class TrayIcon:
     def _on_capture_region(self) -> None:
         """Trigger region capture overlay."""
         QTimer.singleShot(300, self._app.capture_region)
+
+    def _on_capture_ocr(self) -> None:
+        """Trigger OCR region capture."""
+        QTimer.singleShot(300, self._app.capture_ocr)
 
     def _on_record_mp4(self) -> None:
         self._app.start_recording("mp4")
