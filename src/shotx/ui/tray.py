@@ -154,11 +154,12 @@ class TrayIcon:
 
     def _on_capture_fullscreen(self) -> None:
         """Trigger fullscreen capture."""
-        self._app.capture_fullscreen()
+        # 300ms delay to give the Qt Menu time to hide before the compositor snaps
+        QTimer.singleShot(300, self._app.capture_fullscreen)
 
     def _on_capture_region(self) -> None:
         """Trigger region capture overlay."""
-        self._app.capture_region()
+        QTimer.singleShot(300, self._app.capture_region)
 
     def _on_record_mp4(self) -> None:
         self._app.start_recording("mp4")

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import subprocess
+import threading
 from pathlib import Path
 
 from PySide6.QtWidgets import QSystemTrayIcon
@@ -37,12 +38,48 @@ def notify_capture_success(
         else:
             message = "Copied to clipboard"
 
-    tray_icon.showMessage(
-        "ShotX — Screenshot captured",
-        message,
-        QSystemTrayIcon.MessageIcon.Information,
-        3000,  # 3 seconds
-    )
+    # Try interactive native notification if we have a file path
+    if file_path:
+        def _interactive_worker() -> None:
+            try:
+                result = subprocess.run(
+                    [
+                        "notify-send",
+                        "-a", "ShotX",
+                        "-i", "camera-photo",
+                        "ShotX — Capture",
+                        message,
+                        "--action=open=View Image",
+                        "--action=folder=Show in Folder",
+                        "-t", "5000",
+                    ],
+                    capture_output=True,
+                    text=True,
+                )
+                action = result.stdout.strip()
+                if action == "open":
+                    open_file(file_path)
+                elif action == "folder":
+                    open_folder(file_path)
+            except (FileNotFoundError, Exception) as e:
+                logger.debug("notify-send with actions failed: %s", e)
+                # Fallback to Qt notification without actions
+                tray_icon.showMessage(
+                    "ShotX — Screenshot captured",
+                    message,
+                    QSystemTrayIcon.MessageIcon.Information,
+                    3000,
+                )
+                
+        threading.Thread(target=_interactive_worker, daemon=True).start()
+    else:
+        # Standard Qt notification for clipboard-only
+        tray_icon.showMessage(
+            "ShotX — Screenshot captured",
+            message,
+            QSystemTrayIcon.MessageIcon.Information,
+            3000,
+        )
 
     logger.debug("Notification shown: %s", message)
 
