@@ -48,6 +48,8 @@ class CaptureSettings:
     auto_detect_regions: bool = True
     after_capture_action: str = "edit"  # "edit" or "save"
     last_annotation_color: str = "#ff0000"  # Persisted between sessions
+    video_fps: int = 30
+    capture_audio: bool = False
 
     def __post_init__(self) -> None:
         if not self.output_dir:

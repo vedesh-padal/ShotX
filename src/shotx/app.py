@@ -17,6 +17,7 @@ from PySide6.QtCore import QEventLoop, QRect
 from PySide6.QtGui import QImage
 
 from shotx.capture import create_capture_backend, CaptureBackend
+from shotx.capture.recorder import ScreenRecorder
 from shotx.capture.region_detect import build_detect_regions
 from shotx.config import SettingsManager, AppSettings
 from shotx.output.clipboard import copy_image_to_clipboard
@@ -55,6 +56,13 @@ class ShotXApp:
 
         # Track last saved file (for notification click → open)
         self.last_saved_path: Path | None = None
+
+        # Screen recorder (FFmpeg / wf-recorder wrapper)
+        self._recorder = ScreenRecorder(
+            fps=self.settings.capture.video_fps,
+            audio=self.settings.capture.capture_audio,
+        )
+        self._current_recording_format = "mp4"
 
     @property
     def settings(self) -> AppSettings:
@@ -211,6 +219,124 @@ class ShotXApp:
 
         # Step 6: Save + clipboard + notify (same pipeline as fullscreen)
         return self._save_and_notify(cropped, capture_type="region")
+
+    # --- Recording Commands ---
+
+    def start_recording(self, recording_format: str = "mp4") -> bool:
+        """Start a screen recording session (interactive region selection)."""
+        try:
+            self._recorder.check_dependencies()
+        except Exception as e:
+            self._notify_error(str(e))
+            return False
+
+        if self._recorder.is_recording:
+            return False
+            
+        self._current_recording_format = recording_format
+
+        # Step 1: Capture backdrop for Region overlay
+        backdrop = self.backend.capture_fullscreen()
+        if not backdrop:
+            self._notify_error("Failed to capture screen for region selection")
+            return False
+
+        # Step 2: Get detect regions
+        regions = None
+        if self.settings.capture.auto_detect_regions:
+            try:
+                windows = self.backend.get_windows()
+                regions = build_detect_regions(windows, include_atspi=True)
+            except Exception as e:
+                logger.warning("Window enumeration failed: %s", e)
+                regions = []
+
+        # Step 3: Show overlay (force 'save' action to skip annotations)
+        overlay = RegionOverlay(backdrop, regions, after_capture_action="save")
+        loop = QEventLoop()
+        selected_rect: list[QRect] = []
+
+        def on_selected(rect: QRect) -> None:
+            selected_rect.append(rect)
+            loop.quit()
+
+        def on_cancelled() -> None:
+            loop.quit()
+
+        overlay.region_selected.connect(on_selected)
+        overlay.selection_cancelled.connect(on_cancelled)
+        overlay.show_fullscreen()
+        loop.exec()
+
+        if not selected_rect:
+            if self._verbose:
+                print("Recording region selection cancelled")
+            return False
+
+        rect = selected_rect[0]
+
+        # Step 4: Determine output path
+        from shotx.output.file_saver import expand_filename_pattern
+        output_dir = Path(self.settings.capture.output_dir).expanduser()
+        output_dir.mkdir(parents=True, exist_ok=True)
+        filename = f"{expand_filename_pattern(self.settings.capture.filename_pattern, capture_type='recording')}.mp4"
+        output_path = output_dir / filename
+
+        # Step 5: Start recording process
+        self._recorder.start_recording(output_path, rect)
+        
+        # Notify tray to update UI state
+        if self._tray:
+            self._tray.set_recording_state(True)
+            
+        if self._verbose:
+            print(f"Started recording to {output_path}")
+            
+        return True
+
+    def stop_recording(self) -> bool:
+        """Stop the active recording and process files (e.g. GIF)."""
+        if not self._recorder.is_recording:
+            return False
+            
+        video_path = self._recorder.stop_recording()
+        
+        if self._tray:
+            self._tray.set_recording_state(False)
+            
+        if not video_path or not video_path.exists():
+            self._notify_error("Failed to save recording")
+            return False
+            
+        final_path = video_path
+
+        # If GIF requested, do post-processing conversion
+        if self._current_recording_format == "gif":
+            from shotx.output.file_saver import expand_filename_pattern
+            gif_filename = f"{expand_filename_pattern(self.settings.capture.filename_pattern, capture_type='recording')}.gif"
+            gif_path = video_path.parent / gif_filename
+            
+            result_path = self._recorder.create_gif_from_video(video_path, gif_path)
+            if result_path and result_path.exists():
+                # Delete temp MP4
+                try:
+                    video_path.unlink()
+                except OSError:
+                    pass
+                final_path = result_path
+            else:
+                self._notify_error("Failed to convert recording to GIF")
+
+        self.last_saved_path = final_path
+        
+        if self._verbose:
+            print(f"Saved recording to {final_path}")
+            
+        if self.settings.capture.show_notification:
+            tray_icon = self._tray.tray_icon if self._tray else None
+            notify_capture_success(tray_icon, str(final_path))
+            
+        return True
 
     def _save_and_notify(self, image: QImage, capture_type: str = "capture") -> bool:
         """Common save → clipboard → notify pipeline."""

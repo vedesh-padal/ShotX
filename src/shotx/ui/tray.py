@@ -96,6 +96,23 @@ class TrayIcon:
 
         self._menu.addSeparator()
 
+        # Recording actions
+        self._record_mp4_action = QAction("📹 Record Screen (MP4)", self._menu)
+        self._record_mp4_action.triggered.connect(self._on_record_mp4)
+        self._menu.addAction(self._record_mp4_action)
+
+        self._record_gif_action = QAction("🎞️ Record Screen (GIF)", self._menu)
+        self._record_gif_action.triggered.connect(self._on_record_gif)
+        self._menu.addAction(self._record_gif_action)
+
+        self._stop_record_action = QAction("🛑 Stop Recording", self._menu)
+        self._stop_record_action.triggered.connect(self._on_stop_record)
+        self._stop_record_action.setVisible(False)
+        self._stop_record_action.setShortcut("Shift+Print") # Basic stop hotkey
+        self._menu.addAction(self._stop_record_action)
+
+        self._menu.addSeparator()
+
         # File actions
         open_folder_action = QAction("📂 Open Screenshots Folder", self._menu)
         open_folder_action.triggered.connect(self._on_open_folder)
@@ -142,6 +159,29 @@ class TrayIcon:
     def _on_capture_region(self) -> None:
         """Trigger region capture overlay."""
         self._app.capture_region()
+
+    def _on_record_mp4(self) -> None:
+        self._app.start_recording("mp4")
+
+    def _on_record_gif(self) -> None:
+        self._app.start_recording("gif")
+        
+    def _on_stop_record(self) -> None:
+        self._app.stop_recording()
+
+    def set_recording_state(self, is_recording: bool) -> None:
+        """Update tray menu for recording state."""
+        self._record_mp4_action.setVisible(not is_recording)
+        self._record_gif_action.setVisible(not is_recording)
+        self._stop_record_action.setVisible(is_recording)
+        
+        if is_recording:
+            # Try to grab a standard recording icon
+            icon = QIcon.fromTheme("media-record")
+            if not icon.isNull():
+                self._tray.setIcon(icon)
+        else:
+            self._setup_icon()
 
     def _on_open_folder(self) -> None:
         """Open the screenshots folder in file manager."""

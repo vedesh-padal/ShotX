@@ -43,6 +43,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Capture the active window and exit.",
     )
     parser.add_argument(
+        "--tray",
+        action="store_true",
+        help="Launch the system tray app (default behavior).",
+    )
+    parser.add_argument(
         "--config-dir",
         type=str,
         default=None,

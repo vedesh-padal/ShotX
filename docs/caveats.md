@@ -35,6 +35,25 @@ Collected during development. Use for README, GitHub Wiki, and troubleshooting d
 
 ---
 
+## Screen Recording
+
+### Subprocess Wrapper Strategy
+
+- Since continuously pulling frames from Wayland requires complex PipeWire negotiation (which GNOME usually restricts behind a user-prompting portal anyway), ShotX delegates screen recording to proven CLI tools via `subprocess.Popen`.
+
+### Record Backends
+
+- **X11:** Uses `ffmpeg -f x11grab`. Works flawlessly for both region and fullscreen recording.
+- **Wayland (wlroots):** Uses `wf-recorder` (which uses the `wlr-screencopy` protocol). Works flawlessly on Sway, Hyprland, etc.
+- **Wayland (GNOME):** GNOME heavily restricts programmatic region recording (`wf-recorder` relies on `wlr-screencopy` which GNOME Mutter refuses to implement). The only way to record on GNOME is via the XDG Desktop Portal and PipeWire. However, GNOME's portal forces a disruptive security popup ("Share this screen with ShotX?") on _every single recording_, breaking the "instant capture" UX goal.
+    - **Decision:** Because of the massive architectural complexity (GStreamer/PipeWire in Python) and the poor resultant UX, this feature is pushed to **Phase 9**. For now, GNOME Wayland users receive a helpful warning advising them to use GNOME's built-in recorder (`Ctrl+Shift+Alt+R`) or switch to an X11 session.
+
+### GIF Recording
+
+- ShotX records an MP4 stream first to a temporary file, then runs an `ffmpeg` post-processing pass using `palettegen` and `paletteuse` to generate highly optimized, high-quality GIFs.
+
+---
+
 ## Clipboard
 
 ### Wayland Clipboard Ownership Model
@@ -105,10 +124,12 @@ Collected during development. Use for README, GitHub Wiki, and troubleshooting d
 
 ### Runtime Dependencies (for end users)
 
-| Dependency                    | Purpose                           | Required?                |
-| ----------------------------- | --------------------------------- | ------------------------ |
-| PySide6                       | UI framework                      | Yes                      |
-| dbus-next                     | Portal D-Bus communication        | Yes (Wayland)            |
-| xclip / wl-copy               | Persistent clipboard in CLI mode  | Recommended              |
-| python3-gi + gir1.2-atspi-2.0 | Sub-region auto-detection         | Optional                 |
-| grim                          | Screenshot on wlroots compositors | Optional (Sway/Hyprland) |
+| Dependency                    | Purpose                           | Required?                          |
+| ----------------------------- | --------------------------------- | ---------------------------------- |
+| PySide6                       | UI framework                      | Yes                                |
+| dbus-next                     | Portal D-Bus communication        | Yes (Wayland)                      |
+| xclip / wl-copy               | Persistent clipboard in CLI mode  | Recommended                        |
+| python3-gi + gir1.2-atspi-2.0 | Sub-region auto-detection         | Optional                           |
+| grim                          | Screenshot on wlroots compositors | Optional (Sway/Hyprland)           |
+| wf-recorder                   | Screen Recording on Wayland       | Optional (Wayland wlroots)         |
+| ffmpeg                        | Screen Recording / GIF Generation | Optional (X11 recording & all GIF) |
