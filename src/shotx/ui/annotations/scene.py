@@ -144,7 +144,7 @@ class AnnotationScene(QGraphicsScene):
             return
         elif tool == AnnotationTool.ERASER:
             item = self.itemAt(pos, QTransform())
-            if item and isinstance(item, BaseAnnotationItem):
+            if item and (isinstance(item, BaseAnnotationItem) or isinstance(item, EditableTextItem)):
                 self.undo_stack.push(RemoveItemCommand(self, item))
             event.accept()
             return

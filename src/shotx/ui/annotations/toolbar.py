@@ -20,6 +20,7 @@ class _HoverButton(QPushButton):
     
     hovered = Signal(str)   # emits the tooltip text on enter
     unhovered = Signal()    # emits on leave
+    rightClicked = Signal() # emits on right-click release
     
     def __init__(self, text: str, hover_text: str, parent=None) -> None:
         super().__init__(text, parent)
@@ -33,6 +34,13 @@ class _HoverButton(QPushButton):
     def leaveEvent(self, event: QEvent) -> None:
         self.unhovered.emit()
         super().leaveEvent(event)
+        
+    def mouseReleaseEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.RightButton:
+            self.rightClicked.emit()
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
 
 
 class AnnotationToolbar(QWidget):
@@ -102,7 +110,12 @@ class AnnotationToolbar(QWidget):
         self._add_tool_btn("✎", "Freehand", AnnotationTool.FREEHAND, btn_layout)
         self._add_tool_btn("▓", "Blur / Pixelate", AnnotationTool.BLUR, btn_layout)
         self._add_tool_btn("🖍", "Highlight", AnnotationTool.HIGHLIGHT, btn_layout)
-        self._add_tool_btn("#", "Step Number", AnnotationTool.STEP_NUMBER, btn_layout)
+        
+        from .items import StepNumberItem
+        self._add_tool_btn(
+            "#", "Step Number (Right-Click to reset)", AnnotationTool.STEP_NUMBER, 
+            btn_layout, right_click_callback=StepNumberItem.reset_counter
+        )
         self._add_tool_btn("🗑", "Erase", AnnotationTool.ERASER, btn_layout)
         
         self.tool_group.idClicked.connect(self._on_tool_clicked)
@@ -155,7 +168,7 @@ class AnnotationToolbar(QWidget):
 
     def _add_tool_btn(
         self, icon_text: str, hover_text: str, tool: AnnotationTool,
-        layout: QHBoxLayout, checked: bool = False,
+        layout: QHBoxLayout, checked: bool = False, right_click_callback=None
     ) -> None:
         btn = _HoverButton(icon_text, hover_text, self.bg_widget)
         btn.setCheckable(True)
@@ -164,6 +177,9 @@ class AnnotationToolbar(QWidget):
         btn.setStyleSheet(self._button_style())
         btn.hovered.connect(self._show_hover)
         btn.unhovered.connect(self._clear_hover)
+        
+        if right_click_callback:
+            btn.rightClicked.connect(right_click_callback)
         
         self.tool_group.addButton(btn, id=tool.value)
         layout.addWidget(btn)
