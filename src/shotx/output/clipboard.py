@@ -45,12 +45,17 @@ def copy_image_to_clipboard(image: QImage) -> bool:
         logger.error("Cannot copy null image to clipboard")
         return False
 
-    # Try subprocess-based clipboard (persists after exit)
-    if _copy_image_via_subprocess(image):
-        return True
+    success = False
+    
+    # Try Qt clipboard (ground truth for the app, helpful in tray mode)
+    if _copy_image_via_qt(image):
+        success = True
 
-    # Fall back to Qt clipboard (works when app stays alive, e.g. tray mode)
-    return _copy_image_via_qt(image)
+    # Also try subprocess-based clipboard (persists after exit, essential for one-shot)
+    if _copy_image_via_subprocess(image):
+        success = True
+
+    return success
 
 
 def copy_text_to_clipboard(text: str) -> bool:
@@ -66,12 +71,34 @@ def copy_text_to_clipboard(text: str) -> bool:
         logger.error("Cannot copy empty text to clipboard")
         return False
 
-    # Try subprocess-based clipboard (persists after exit)
-    if _copy_text_via_subprocess(text):
-        return True
+    success = False
 
-    # Fall back to Qt clipboard (works when app stays alive, e.g. tray mode)
-    return _copy_text_via_qt(text)
+    # Try Qt clipboard (ground truth for the app, helpful in tray mode)
+    if _copy_text_via_qt(text):
+        success = True
+
+    # Also try subprocess-based clipboard (persists after exit, essential for one-shot)
+    if _copy_text_via_subprocess(text):
+        success = True
+
+    return success
+
+
+def get_text_from_clipboard() -> str | None:
+    """Read text from the system clipboard.
+
+    Tries subprocess tools (wl-paste, xclip, xsel) first, falls back to Qt.
+
+    Returns:
+        The text content of the clipboard, or None if empty/unavailable.
+    """
+    # Try subprocess tools
+    text = _get_text_via_subprocess()
+    if text is not None:
+        return text
+
+    # Fall back to Qt
+    return _get_text_via_qt()
 
 def _copy_text_via_qt(text: str) -> bool:
     """Copy text via Qt's QClipboard."""
@@ -95,6 +122,23 @@ def _copy_text_via_qt(text: str) -> bool:
 
 
 # --- Private implementation ---
+
+
+def get_image_from_clipboard() -> QImage | None:
+    """Read an image from the system clipboard.
+
+    Returns:
+        The QImage content of the clipboard, or None if empty/unavailable.
+    """
+    # Try subprocess tools
+    img_data = _get_image_via_subprocess()
+    if img_data:
+        qimg = QImage.fromData(img_data)
+        if not qimg.isNull():
+            return qimg
+
+    # Fall back to Qt
+    return _get_image_via_qt()
 
 
 def _image_to_png_bytes(image: QImage) -> bytes | None:
@@ -163,11 +207,13 @@ def _copy_text_via_subprocess(text: str) -> bool:
             return True
 
     # On X11 (or as fallback), try xclip then xsel
-    if _try_clipboard_cmd(
-        ["xclip", "-selection", "clipboard", "-target", "text/plain", "-i"],
-        text_data,
-    ):
-        return True
+    # Try multiple targets for xclip to improve compatibility
+    for target in ["UTF8_STRING", "text/plain", "STRING"]:
+        if _try_clipboard_cmd(
+            ["xclip", "-selection", "clipboard", "-target", target, "-i"],
+            text_data,
+        ):
+            return True
 
     if _try_clipboard_cmd(
         ["xsel", "--clipboard", "--input"],
@@ -175,11 +221,70 @@ def _copy_text_via_subprocess(text: str) -> bool:
     ):
         return True
 
-    logger.debug(
-        "No subprocess tools found for text copy. "
-        "Falling back to Qt clipboard."
-    )
     return False
+
+
+def _get_text_via_subprocess() -> str | None:
+    """Read text via subprocess clipboard tools."""
+    session_type = os.environ.get("XDG_SESSION_TYPE", "").lower().strip()
+
+    # On Wayland, try wl-paste
+    if (session_type == "wayland" or os.environ.get("WAYLAND_DISPLAY")) and shutil.which("wl-paste"):
+        try:
+            res = subprocess.run(
+                ["wl-paste", "--type", "text/plain", "--no-newline"],
+                capture_output=True,
+                check=False,
+            )
+            if res.returncode == 0:
+                return res.stdout.decode("utf-8")
+        except Exception as e:
+            logger.debug("wl-paste failed: %s", e)
+
+    # On X11, try xclip
+    if shutil.which("xclip"):
+        try:
+            res = subprocess.run(
+                ["xclip", "-selection", "clipboard", "-o"],
+                capture_output=True,
+                check=False,
+            )
+            if res.returncode == 0:
+                return res.stdout.decode("utf-8")
+        except Exception as e:
+            logger.debug("xclip -o failed: %s", e)
+
+    # Try xsel
+    if shutil.which("xsel"):
+        try:
+            res = subprocess.run(
+                ["xsel", "--clipboard", "--output"],
+                capture_output=True,
+                check=False,
+            )
+            if res.returncode == 0:
+                return res.stdout.decode("utf-8")
+        except Exception as e:
+            logger.debug("xsel -o failed: %s", e)
+
+    return None
+
+
+def _get_text_via_qt() -> str | None:
+    """Read text via Qt's QClipboard."""
+    app = QGuiApplication.instance()
+    if app is None:
+        return None
+
+    clipboard = app.clipboard()
+    if clipboard is None:
+        return None
+
+    try:
+        return clipboard.text()
+    except Exception as e:
+        logger.debug("Qt clipboard read failed: %s", e)
+        return None
 
 
 def _try_clipboard_cmd(cmd: list[str], data: bytes) -> bool:
@@ -225,6 +330,61 @@ def _try_clipboard_cmd(cmd: list[str], data: bytes) -> bool:
     except (FileNotFoundError, OSError) as e:
         logger.debug("%s error: %s", tool, e)
         return False
+
+
+    return None
+
+
+def _get_image_via_subprocess() -> bytes | None:
+    """Read image bytes via subprocess clipboard tools."""
+    session_type = os.environ.get("XDG_SESSION_TYPE", "").lower().strip()
+
+    # On Wayland, try wl-paste
+    if (session_type == "wayland" or os.environ.get("WAYLAND_DISPLAY")) and shutil.which("wl-paste"):
+        try:
+            res = subprocess.run(
+                ["wl-paste", "--type", "image/png"],
+                capture_output=True,
+                check=False,
+            )
+            if res.returncode == 0 and res.stdout:
+                return res.stdout
+        except Exception as e:
+            logger.debug("wl-paste (image) failed: %s", e)
+
+    # On X11, try xclip
+    if shutil.which("xclip"):
+        try:
+            res = subprocess.run(
+                ["xclip", "-selection", "clipboard", "-target", "image/png", "-o"],
+                capture_output=True,
+                check=False,
+            )
+            if res.returncode == 0 and res.stdout:
+                return res.stdout
+        except Exception as e:
+            logger.debug("xclip (image) failed: %s", e)
+
+    return None
+
+
+def _get_image_via_qt() -> QImage | None:
+    """Read image via Qt's QClipboard."""
+    app = QGuiApplication.instance()
+    if app is None:
+        return None
+
+    clipboard = app.clipboard()
+    if clipboard is None:
+        return None
+
+    try:
+        img = clipboard.image()
+        if not img.isNull():
+            return img
+    except Exception as e:
+        logger.debug("Qt clipboard image read failed: %s", e)
+    return None
 
 
 def _copy_image_via_qt(image: QImage) -> bool:
