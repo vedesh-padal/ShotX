@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 
 import boto3
+import mimetypes
 from botocore.exceptions import BotoCoreError, ClientError
 
 from .base import UploaderBackend, UploadError
@@ -59,14 +60,9 @@ class S3Uploader(UploaderBackend):
         # for MVP we can just drop it in the root or an 'images/' prefix.
         object_name = f"images/{file_path.name}"
         
-        # Determine content type simply
-        content_type = "image/png"
-        if file_path.suffix.lower() in [".jpg", ".jpeg"]:
-            content_type = "image/jpeg"
-        elif file_path.suffix.lower() == ".gif":
-            content_type = "image/gif"
-        elif file_path.suffix.lower() == ".mp4":
-            content_type = "video/mp4"
+        # Determine content type dynamically
+        mime_type, _ = mimetypes.guess_type(file_path.name)
+        content_type = mime_type or "application/octet-stream"
 
         extra_args = {
             "ContentType": content_type,

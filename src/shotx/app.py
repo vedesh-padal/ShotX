@@ -523,19 +523,47 @@ class ShotXApp:
         Returns:
             Exit code (0 = success, 1 = failure).
         """
+        success = False
         if capture_type == "fullscreen":
             success = self.capture_fullscreen()
-            return 0 if success else 1
         elif capture_type == "region":
             success = self.capture_region()
-            return 0 if success else 1
         elif capture_type == "window":
             # Window capture uses the same overlay — user clicks a window
             success = self.capture_region()
-            return 0 if success else 1
         else:
             print(f"Unknown capture type: {capture_type}")
             return 1
+
+        # Because one-shot mode exits instantly, any background QRunnable 
+        # (like UploadWorker) will be brutally killed by the OS.
+        # We must wait for the thread pool to drain before returning.
+        if success and self._thread_pool.activeThreadCount() > 0:
+            if self._verbose:
+                print("Waiting for background uploads to finish...")
+                
+            import time
+            from PySide6.QtWidgets import QApplication
+            
+            app = QApplication.instance()
+            start_time = time.time()
+            
+            # We CANNOT use self._thread_pool.waitForDone() because it blocks
+            # the main thread. If the main thread is blocked, it cannot process
+            # the Qt Signals emitted by the background worker (like success/error).
+            # So the worker finishes, emits success, but the main thread never 
+            # triggers the URL clipboard copy because it's sleeping.
+            # Instead, we spin the Qt Event Loop until threads finish or timeout.
+            while self._thread_pool.activeThreadCount() > 0:
+                if time.time() - start_time > 30.0:
+                    if self._verbose:
+                        print("Background upload timed out.")
+                    break
+                if app:
+                    app.processEvents()
+                time.sleep(0.05)
+
+        return 0 if success else 1
 
     # --- Private methods ---
 

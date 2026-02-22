@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 
 import httpx
+import mimetypes
 
 from .base import UploaderBackend, UploadError
 
@@ -41,9 +42,12 @@ class ImgurUploader(UploaderBackend):
         logger.info("Uploading %s to Imgur...", file_path.name)
 
         try:
+            mime_type, _ = mimetypes.guess_type(file_path.name)
+            content_type = mime_type or "application/octet-stream"
+            
             with open(file_path, "rb") as f:
                 # Imgur expects the 'image' field in multipart/form-data
-                files = {"image": (file_path.name, f, "image/png")}
+                files = {"image": (file_path.name, f, content_type)}
                 
                 with httpx.Client(timeout=30.0) as client:
                     response = client.post(
@@ -94,9 +98,12 @@ class ImgBBUploader(UploaderBackend):
         logger.info("Uploading %s to ImgBB...", file_path.name)
 
         try:
+            mime_type, _ = mimetypes.guess_type(file_path.name)
+            content_type = mime_type or "application/octet-stream"
+            
             with open(file_path, "rb") as f:
                 # ImgBB expects the 'image' field and key as query/form param
-                files = {"image": (file_path.name, f, "image/png")}
+                files = {"image": (file_path.name, f, content_type)}
                 data = {"key": self.api_key}
                 
                 with httpx.Client(timeout=30.0) as client:

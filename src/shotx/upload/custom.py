@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+import mimetypes
 from httpx import Response
 
 from .base import UploaderBackend, UploadError
@@ -58,9 +59,12 @@ class CustomUploader(UploaderBackend):
         logger.info("Uploading via Custom Uploader: %s to %s", self.name, self.request_url)
 
         try:
+            mime_type, _ = mimetypes.guess_type(file_path.name)
+            content_type = mime_type or "application/octet-stream"
+            
             with open(file_path, "rb") as f:
                 # ShareX uses Form data (multipart/form-data) by default for images
-                files = {self.file_form_name: (file_path.name, f, "image/png")}
+                files = {self.file_form_name: (file_path.name, f, content_type)}
                 
                 # Any extra form arguments
                 data = self.arguments
