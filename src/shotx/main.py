@@ -48,6 +48,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Select a region and extract Text (OCR) to clipboard.",
     )
     parser.add_argument(
+        "--color-picker",
+        action="store_true",
+        help="Open magnifier to extract a pixel's exact color code to clipboard.",
+    )
+    parser.add_argument(
         "--tray",
         action="store_true",
         help="Launch the system tray app (default behavior).",
@@ -110,6 +115,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.ocr:
         return app.run_oneshot("ocr")
+
+    if args.color_picker:
+        return app.run_oneshot("color_picker")
 
     # Default: launch tray app
     return app.run_tray()

@@ -320,6 +320,69 @@ class ShotXApp(QObject):
             
         return True
 
+    def capture_color_picker(self) -> bool:
+        """Launch the magnifying color picker overlay."""
+        logger.info("Starting Color Picker")
+        
+        try:
+            backdrop = self.backend.capture_fullscreen()
+        except Exception as e:
+            logger.error("Backdrop capture failed: %s", e)
+            self._notify_error(f"Capture failed: {e}")
+            return False
+            
+        if backdrop is None or backdrop.isNull():
+            return False
+            
+        from shotx.ui.color_picker import ColorPickerOverlay
+        from PySide6.QtCore import QEventLoop
+        from PySide6.QtGui import QColor
+        
+        overlay = ColorPickerOverlay(backdrop)
+        loop = QEventLoop()
+        
+        selected_color: list[QColor] = []
+        
+        def on_color_selected(color: QColor) -> None:
+            selected_color.append(color)
+            loop.quit()
+            
+        def on_cancelled() -> None:
+            loop.quit()
+            
+        overlay.color_selected.connect(on_color_selected)
+        overlay.cancelled.connect(on_cancelled)
+        
+        overlay.show()
+        loop.exec()
+        
+        if not selected_color:
+            return False
+            
+        color = selected_color[0]
+        hex_str = color.name().upper()
+        
+        # Copy to clipboard
+        from shotx.output.clipboard import copy_text_to_clipboard
+        if copy_text_to_clipboard(hex_str):
+            from shotx.ui.notification import notify_info
+            tray_icon = self._tray.tray_icon if self._tray else None
+            notify_info(
+                tray_icon,
+                "Color Picked",
+                f"Copied {hex_str} to clipboard.",
+                file_path=None,
+                actions_dict=None,
+                default_action=None,
+                show_open_button=False,
+            )
+            if self._verbose:
+                print(f"Color copied: {hex_str}")
+        else:
+            self._notify_error("Failed to copy color to clipboard")
+            
+        return True
+
     # --- Recording Commands ---
 
     def start_recording(self, recording_format: str = "mp4") -> bool:
@@ -653,6 +716,8 @@ class ShotXApp(QObject):
             success = self.capture_region()
         elif capture_type == "ocr":
             success = self.capture_ocr()
+        elif capture_type == "color_picker":
+            success = self.capture_color_picker()
         else:
             print(f"Unknown capture type: {capture_type}")
             return 1
