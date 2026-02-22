@@ -66,6 +66,26 @@ def notify_error(
     logger.error("Error notification: %s", message)
 
 
+def notify_info(
+    tray_icon: QSystemTrayIcon | None,
+    title: str,
+    message: str,
+) -> None:
+    """Show an informational notification."""
+    if tray_icon is None:
+        logger.info("Notification (no tray): %s - %s", title, message)
+        return
+
+    tray_icon.showMessage(
+        title,
+        message,
+        QSystemTrayIcon.MessageIcon.Information,
+        5000,  # 5 seconds
+    )
+
+    logger.info("Info notification %s: %s", title, message)
+
+
 def open_file(file_path: Path) -> bool:
     """Open a file with the default application.
 
