@@ -187,13 +187,15 @@ def notify_info(
     tray_icon: QSystemTrayIcon | None,
     title: str,
     message: str,
+    file_path: str | None = None,
 ) -> None:
-    """Show a general info notification.
+    """Show an informational notification.
 
     Args:
         tray_icon: Fallback sys tray for older DEs.
-        title: Notification title.
+        title: The info title.
         message: The info message.
+        file_path: Optional file path or URL to make the notification clickable.
     """
     try:
         # Urgency 2 = Critical
@@ -202,7 +204,7 @@ def notify_info(
             body=message,
             icon="dialog-information",
             urgency=2,
-            file_path=None
+            file_path=file_path
         )
         logger.debug("Native raw DBus info notification shown.")
     except Exception as e:
