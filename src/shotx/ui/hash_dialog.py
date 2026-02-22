@@ -6,106 +6,146 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont, QColor
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
-    QLineEdit, QFileDialog, QPlainTextEdit, QFrame
+    QLineEdit, QFileDialog, QPlainTextEdit, QFrame, QFormLayout, QApplication
 )
 
 from shotx.tools.hash_tool import calculate_hashes, calculate_file_hashes
 
 class HashDialog(QDialog):
-    """Dialog for calculating MD5, SHA1, SHA256 hashes."""
+    """Modern dialog for calculating hashes with a unified Nord-inspired theme."""
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("ShotX — Hash Checker")
-        self.setMinimumWidth(500)
+        self.setMinimumWidth(550)
         
-        # UI Setup
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #1e1e1e;
-                color: #ffffff;
-            }
-            QLabel {
-                color: #cccccc;
-            }
-            QLineEdit, QPlainTextEdit {
-                background-color: #2b2b2b;
-                color: #ffffff;
-                border: 1px solid #3d3d3d;
-                border-radius: 4px;
-                padding: 4px;
-            }
-            QPushButton {
-                background-color: #3d3d3d;
-                color: #ffffff;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #4d4d4d;
-            }
-            QPushButton#primary {
-                background-color: #007bff;
-            }
-            QPushButton#primary:hover {
-                background-color: #0056b3;
-            }
-        """)
+        # Unified Nord Theme (Consistent across Light/Dark systems)
+        self._apply_nord_theme()
 
         layout = QVBoxLayout(self)
-        layout.setSpacing(15)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(20)
 
-        # 1. Input Selection
-        btn_layout = QHBoxLayout()
+        # 1. Input Section
+        input_frame = QFrame()
+        input_frame.setObjectName("GroupFrame")
+        input_layout = QHBoxLayout(input_frame)
+        input_layout.setContentsMargins(10, 10, 10, 10)
+        
         self.btn_file = QPushButton("📁 Open File")
+        self.btn_file.setObjectName("ActionBtn")
         self.btn_file.clicked.connect(self._on_open_file)
         
         self.btn_clipboard = QPushButton("📋 Paste from Clipboard")
+        self.btn_clipboard.setObjectName("ActionBtn")
         self.btn_clipboard.clicked.connect(self._on_paste_clipboard)
         
-        btn_layout.addWidget(self.btn_file)
-        btn_layout.addWidget(self.btn_clipboard)
-        layout.addLayout(btn_layout)
+        input_layout.addWidget(self.btn_file)
+        input_layout.addWidget(self.btn_clipboard)
+        layout.addWidget(input_frame)
 
-        # 2. Results Section
-        self.results_frame = QFrame()
-        self.results_layout = QVBoxLayout(self.results_frame)
-        self.results_layout.setContentsMargins(0, 0, 0, 0)
+        # 2. Results Section (Form Layout)
+        results_frame = QFrame()
+        results_frame.setObjectName("GroupFrame")
+        results_vbox = QVBoxLayout(results_frame)
+        
+        self.form_layout = QFormLayout()
+        self.form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        self.form_layout.setSpacing(10)
         
         self.hash_lines: dict[str, QLineEdit] = {}
         for algo in ["MD5", "SHA1", "SHA256"]:
             row = QHBoxLayout()
-            label = QLabel(f"{algo}:")
-            label.setFixedWidth(60)
             
             line = QLineEdit()
             line.setReadOnly(True)
+            line.setPlaceholderText(f"Calculate {algo}...")
             self.hash_lines[algo] = line
             
             btn_copy = QPushButton("Copy")
             btn_copy.setFixedWidth(90)
             btn_copy.clicked.connect(lambda checked=False, a=algo, b=btn_copy: self._on_copy_hash(a, b))
             
-            row.addWidget(label)
             row.addWidget(line)
             row.addWidget(btn_copy)
-            self.results_layout.addLayout(row)
+            
+            label = QLabel(f"{algo}:")
+            self.form_layout.addRow(label, row)
         
-        layout.addWidget(self.results_frame)
+        results_vbox.addLayout(self.form_layout)
+        layout.addWidget(results_frame)
 
         # 3. Verification Section
-        v_label = QLabel("Verify against hash:")
-        layout.addWidget(v_label)
+        verify_frame = QFrame()
+        verify_frame.setObjectName("GroupFrame")
+        verify_layout = QVBoxLayout(verify_frame)
+        
+        v_header = QLabel("Verify against known hash:")
+        verify_layout.addWidget(v_header)
         
         self.verify_input = QLineEdit()
         self.verify_input.setPlaceholderText("Paste hash here to verify...")
         self.verify_input.textChanged.connect(self._on_verify_changed)
-        layout.addWidget(self.verify_input)
+        verify_layout.addWidget(self.verify_input)
         
         self.status_label = QLabel("")
+        self.status_label.setObjectName("StatusLabel")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.status_label)
+        verify_layout.addWidget(self.status_label)
+        
+        layout.addWidget(verify_frame)
+
+    def _apply_nord_theme(self) -> None:
+        """Apply a handcrafted Nord-inspired theme that works everywhere."""
+        # Nord Palette
+        # Polar Night: #2e3440 (bg), #3b4252 (cards), #434c5e (borders)
+        # Snow Storm: #eceff4 (text), #d8dee9 (subtext)
+        # Frost: #88c0d0 (accent), #81a1c1 (hover)
+        
+        self.setStyleSheet("""
+            QDialog { 
+                background-color: #2e3440; 
+            }
+            QFrame#GroupFrame { 
+                background-color: #3b4252; 
+                border: 1px solid #434c5e; 
+                border-radius: 8px; 
+            }
+            QLabel { 
+                color: #eceff4; 
+                font-weight: 500; 
+            }
+            QLineEdit { 
+                background-color: #242933; 
+                color: #eceff4; 
+                border: 1px solid #434c5e; 
+                border-radius: 4px; 
+                padding: 6px; 
+                font-family: 'Monospace', 'Cousine';
+            }
+            QPushButton { 
+                background-color: #434c5e; 
+                color: #eceff4; 
+                border: 1px solid #4c566a; 
+                padding: 6px 12px; 
+                border-radius: 4px; 
+            }
+            QPushButton:hover { 
+                background-color: #4c566a; 
+            }
+            QPushButton#ActionBtn { 
+                background-color: #5e81ac; 
+                color: #eceff4; 
+                font-weight: bold; 
+                padding: 10px; 
+                border: none;
+            }
+            QPushButton#ActionBtn:hover { 
+                background-color: #81a1c1; 
+            }
+        """)
+        self._success_color = "#a3be8c" # Nord Green
+        self._error_color = "#bf616a"   # Nord Red
 
     def _on_open_file(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(self, "Select File to Hash")
@@ -115,7 +155,7 @@ class HashDialog(QDialog):
                 self._display_hashes(hashes)
             except Exception as e:
                 self.status_label.setText(f"Error: {e}")
-                self.status_label.setStyleSheet("color: #ff4444;")
+                self.status_label.setStyleSheet(f"color: {self._error_color};")
 
     def _on_paste_clipboard(self) -> None:
         from PySide6.QtWidgets import QApplication
@@ -126,13 +166,13 @@ class HashDialog(QDialog):
             self._display_hashes(hashes)
         else:
             self.status_label.setText("No text in clipboard!")
-            self.status_label.setStyleSheet("color: #ffaa00;")
+            self.status_label.setStyleSheet(f"color: {self._error_color};")
 
     def _display_hashes(self, hashes: dict[str, str]) -> None:
         for algo, val in hashes.items():
             self.hash_lines[algo].setText(val)
         self.status_label.setText("Hashes calculated successfully.")
-        self.status_label.setStyleSheet("color: #00ff00;")
+        self.status_label.setStyleSheet(f"color: {self._success_color}; font-weight: bold;")
         self._on_verify_changed()
 
     def _on_copy_hash(self, algo: str, button: QPushButton) -> None:
@@ -142,7 +182,7 @@ class HashDialog(QDialog):
             QApplication.clipboard().setText(val)
             # Visual feedback
             button.setText("Copied!")
-            button.setStyleSheet("background-color: #28a745; color: white;")
+            button.setStyleSheet(f"background-color: {self._success_color}; color: #2e3440; border: none; font-weight: bold;")
             QTimer.singleShot(1000, lambda: self._reset_button(button))
 
     def _reset_button(self, button: QPushButton) -> None:
@@ -163,7 +203,7 @@ class HashDialog(QDialog):
         
         if found_match:
             self.status_label.setText("✅ Match Found!")
-            self.status_label.setStyleSheet("color: #00ff00; font-weight: bold;")
+            self.status_label.setStyleSheet(f"color: {self._success_color}; font-weight: bold;")
         else:
             self.status_label.setText("❌ No Match")
-            self.status_label.setStyleSheet("color: #ff4444; font-weight: bold;")
+            self.status_label.setStyleSheet(f"color: {self._error_color}; font-weight: bold;")
