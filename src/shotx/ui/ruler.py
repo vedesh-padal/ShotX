@@ -89,8 +89,8 @@ class RulerOverlay(QWidget):
         painter.drawEllipse(self._current_pos, 4, 4)
 
         # 4. Render tooltip info near the cursor
-        box_width = 160
-        box_height = 80
+        box_width = 200
+        box_height = 100
         
         # Offset cursor
         mag_x = x2 + 15
@@ -108,8 +108,8 @@ class RulerOverlay(QWidget):
 
         # Text constraints
         painter.setPen(QColor(255, 255, 255))
-        painter.setFont(QFont("Cousine", 10, QFont.Weight.Bold))
-        text_rect = QRect(mag_x + 10, mag_y + 10, box_width - 20, box_height - 20)
+        painter.setFont(QFont("Cousine", 14, QFont.Weight.Bold))
+        text_rect = QRect(mag_x + 15, mag_y + 10, box_width - 30, box_height - 20)
         
         info_text = (
             f"W: {width} px\n"
