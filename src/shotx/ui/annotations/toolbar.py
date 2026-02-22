@@ -103,6 +103,7 @@ class AnnotationToolbar(QWidget):
         self._add_tool_btn("▓", "Blur / Pixelate", AnnotationTool.BLUR, btn_layout)
         self._add_tool_btn("🖍", "Highlight", AnnotationTool.HIGHLIGHT, btn_layout)
         self._add_tool_btn("#", "Step Number", AnnotationTool.STEP_NUMBER, btn_layout)
+        self._add_tool_btn("🗑", "Erase", AnnotationTool.ERASER, btn_layout)
         
         self.tool_group.idClicked.connect(self._on_tool_clicked)
         

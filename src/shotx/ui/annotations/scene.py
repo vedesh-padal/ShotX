@@ -12,7 +12,7 @@ from enum import Enum, auto
 from typing import Optional
 
 from PySide6.QtCore import Qt, QPointF
-from PySide6.QtGui import QColor, QImage, QUndoStack, QUndoCommand
+from PySide6.QtGui import QColor, QImage, QUndoStack, QUndoCommand, QTransform
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsSceneMouseEvent
 
 from .items import (
@@ -42,6 +42,7 @@ class AnnotationTool(Enum):
     BLUR = auto()
     HIGHLIGHT = auto()
     STEP_NUMBER = auto()
+    ERASER = auto()
 
 
 # ---------------------------------------------------------------------------
@@ -62,6 +63,23 @@ class AddItemCommand(QUndoCommand):
 
     def undo(self) -> None:
         self._scene.removeItem(self._item)
+
+
+class RemoveItemCommand(QUndoCommand):
+    """Undoable command that removes a graphics item from the scene."""
+
+    def __init__(self, scene: QGraphicsScene, item) -> None:
+        super().__init__("Erase shape")
+        self._scene = scene
+        self._item = item
+
+    def redo(self) -> None:
+        if self._item.scene() is not None:
+            self._scene.removeItem(self._item)
+
+    def undo(self) -> None:
+        if self._item.scene() is None:
+            self._scene.addItem(self._item)
 
 
 # ---------------------------------------------------------------------------
@@ -122,6 +140,12 @@ class AnnotationScene(QGraphicsScene):
             item = StepNumberItem(pos, color, thick)
             self.addItem(item)
             self.undo_stack.push(AddItemCommand(self, item))
+            event.accept()
+            return
+        elif tool == AnnotationTool.ERASER:
+            item = self.itemAt(pos, QTransform())
+            if item and isinstance(item, BaseAnnotationItem):
+                self.undo_stack.push(RemoveItemCommand(self, item))
             event.accept()
             return
         else:
