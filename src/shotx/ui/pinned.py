@@ -57,6 +57,9 @@ class PinnedWidget(QWidget):
         self.min_w = max(self.MIN_SIZE_PX, int(self.original_size.width() * self.MIN_SIZE_RATIO))
         self.min_h = int(self.min_w / self.aspect_ratio)
         
+        # Explicitly allow the widget to shrink by overriding the default MinimumSizeHint
+        self.setMinimumSize(self.min_w, self.min_h)
+        
         # Window Flags: Frameless, Always on Top, Tool window (no taskbar entry)
         self.setWindowFlags(
             Qt.WindowType.Window |
@@ -73,6 +76,8 @@ class PinnedWidget(QWidget):
         self.label = PinnedImageLabel()
         self.label.setPixmap(pixmap)
         self.label.setScaledContents(True)
+        # Prevent the label from enforcing the original pixmap size as its minimum
+        self.label.setMinimumSize(self.min_w, self.min_h)
         
         # Subtle 1px border for "Premium" look
         self.label.setStyleSheet("""
@@ -153,6 +158,8 @@ class PinnedWidget(QWidget):
 
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
+            # We explicitly accept the event so the window closes properly
+            event.accept()
             self.close()
 
     def _show_context_menu(self, pos: QPoint) -> None:
@@ -183,9 +190,6 @@ class PinnedWidget(QWidget):
         notify_info(None, "Copied to Clipboard", "Pinned snippet image copied successfully.")
 
     def _on_save(self) -> None:
-        # Preserve geometry before dialog
-        current_geo = self.geometry()
-        
         import datetime
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         default_name = f"pinned_{timestamp}.png"
@@ -195,9 +199,6 @@ class PinnedWidget(QWidget):
             self, "Save Pinned Snippet", default_path, 
             "Images (*.png *.jpg *.webp)"
         )
-        
-        # Restore geometry just in case the dialog messed with it
-        self.setGeometry(current_geo)
         
         if path:
             success = self.pixmap.save(path)
