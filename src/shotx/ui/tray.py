@@ -99,6 +99,10 @@ class TrayIcon:
         capture_ocr.triggered.connect(self._on_capture_ocr)
         self._menu.addAction(capture_ocr)
 
+        pin_region = QAction("📌 Pin to Screen", self._menu)
+        pin_region.triggered.connect(self._on_pin_region)
+        self._menu.addAction(pin_region)
+
         capture_color = QAction("🎨 Color Picker", self._menu)
         capture_color.triggered.connect(self._on_capture_color_picker)
         self._menu.addAction(capture_color)
@@ -196,6 +200,10 @@ class TrayIcon:
     def _on_capture_ocr(self) -> None:
         """Trigger OCR region capture."""
         QTimer.singleShot(300, self._app.capture_ocr)
+
+    def _on_pin_region(self) -> None:
+        """Trigger Pin to Screen region capture."""
+        QTimer.singleShot(300, self._app.pin_region)
 
     def _on_capture_color_picker(self) -> None:
         """Trigger Color Picker overlay."""

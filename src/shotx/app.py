@@ -353,7 +353,7 @@ class ShotXApp(QObject):
         overlay.color_selected.connect(on_color_selected)
         overlay.cancelled.connect(on_cancelled)
         
-        overlay.show()
+        overlay.show_fullscreen()
         loop.exec()
         
         if not selected_color:
@@ -408,7 +408,7 @@ class ShotXApp(QObject):
             
         overlay.cancelled.connect(on_cancelled)
         
-        overlay.show()
+        overlay.show_fullscreen()
         loop.exec()
         
         return True
@@ -444,7 +444,7 @@ class ShotXApp(QObject):
         overlay.region_selected.connect(on_region_selected)
         overlay.selection_cancelled.connect(on_cancelled)
 
-        overlay.show()
+        overlay.show_fullscreen()
         loop.exec()
 
         if not selected_region:
@@ -531,6 +531,65 @@ class ShotXApp(QObject):
         from shotx.ui.hash_dialog import HashDialog
         self._hash_dialog = HashDialog()
         self._hash_dialog.show()
+        return True
+
+    def pin_region(self) -> bool:
+        """Capture a region and pin it to the screen."""
+        logger.info("Starting Pin to Screen capture")
+        try:
+            backdrop = self.backend.capture_fullscreen()
+        except Exception as e:
+            logger.error("Backdrop capture failed: %s", e)
+            self._notify_error(f"Capture failed: {e}")
+            return False
+
+        if backdrop is None or backdrop.isNull():
+            return False
+
+        from shotx.ui.overlay import RegionOverlay
+        from PySide6.QtCore import QEventLoop, QRect
+        from PySide6.QtGui import QPixmap
+
+        overlay = RegionOverlay(backdrop, after_capture_action="capture")
+        loop = QEventLoop()
+        selected_region = []
+
+        def on_region_selected(rect: QRect) -> None:
+            selected_region.append(rect)
+            loop.quit()
+
+        def on_cancelled() -> None:
+            loop.quit()
+
+        overlay.region_selected.connect(on_region_selected)
+        overlay.selection_cancelled.connect(on_cancelled)
+        overlay.show_fullscreen()
+        loop.exec()
+
+        if not selected_region:
+            return False
+
+        rect = selected_region[0]
+        if rect.width() < 2 or rect.height() < 2:
+            return False
+
+        # Crop image and pin it
+        cropped_img = backdrop.copy(rect)
+        pixmap = QPixmap.fromImage(cropped_img)
+        
+        from shotx.ui.pinned import PinnedWidget
+        
+        # We need to keep a reference to prevent garbage collection
+        if not hasattr(self, "_pinned_widgets"):
+            self._pinned_widgets = []
+            
+        pinned = PinnedWidget(pixmap)
+        pinned.show()
+        self._pinned_widgets.append(pinned)
+        
+        # Cleanup closed widgets periodically
+        pinned.destroyed.connect(lambda: self._pinned_widgets.remove(pinned) if pinned in self._pinned_widgets else None)
+        
         return True
 
     def scan_qr_from_clipboard(self) -> bool:
@@ -914,6 +973,8 @@ class ShotXApp(QObject):
             success = self.generate_qr_from_clipboard()
         elif capture_type == "qr_scan_clipboard":
             success = self.scan_qr_from_clipboard()
+        elif capture_type == "pin_region":
+            success = self.pin_region()
         elif capture_type == "hash":
             success = self.open_hash_checker()
         else:

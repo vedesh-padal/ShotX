@@ -73,9 +73,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Scan the current clipboard image for a QR code.",
     )
     parser.add_argument(
+        "--pin-region", 
+        action="store_true", 
+        help="Capture a region and pin it as a floating window"
+    )
+    parser.add_argument(
         "--hash",
         action="store_true",
-        help="Open hash checker tool.",
+        help="Open the hash checker tool",
     )
     parser.add_argument(
         "--tray",
@@ -156,7 +161,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.qr_scan_clipboard:
         return app.run_oneshot("qr_scan_clipboard")
 
-    if args.hash:
+    elif args.pin_region:
+        return app.run_oneshot("pin_region")
+    elif args.hash:
         return app.run_oneshot("hash")
 
     # Default: launch tray app
