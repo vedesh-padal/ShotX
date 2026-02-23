@@ -20,12 +20,9 @@ class DirectoryIndexerDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("ShotX — Directory Indexer")
         
-        # Disable Maximize button
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowMaximizeButtonHint)
-        
-        # Set dimension constraints (allow limited resizing up to +50%)
-        self.setMinimumSize(550, 250)
-        self.setMaximumSize(825, 450)
+        # On GNOME/Wayland, the only native way to remove the Maximize 
+        # button is to make the dialog a fixed size.
+        self.setFixedSize(650, 350)
         
         self.last_generated_path: Path | None = None
         
@@ -70,17 +67,21 @@ class DirectoryIndexerDialog(QDialog):
         layout.addWidget(self.btn_generate)
         
         # 3. Status/Result Section
+        # Pre-allocate vertical space so the window doesn't jerk/shrink when this appears/disappears
         self.status_label = QLabel("")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_label.setWordWrap(True)
-        self.status_label.hide()
+        self.status_label.setMinimumHeight(40)
         layout.addWidget(self.status_label)
         
         self.btn_open = QPushButton("🌐 Open in Browser")
         self.btn_open.setObjectName("ActionBtn")
         self.btn_open.clicked.connect(self._on_open_browser)
-        self.btn_open.hide()
+        self.btn_open.setFixedHeight(40)  # Keep consistent height
         layout.addWidget(self.btn_open)
+        
+        # Initially hide the actual elements, but they take up space via QSizePolicy now
+        self._reset_status()
 
     def _apply_nord_theme(self) -> None:
         """Applies a standalone Nord-inspired stylesheet."""
@@ -162,7 +163,8 @@ class DirectoryIndexerDialog(QDialog):
             self._reset_status()
 
     def _reset_status(self) -> None:
-        self.status_label.hide()
+        self.status_label.setText("")     # Clear text instead of hiding
+        self.status_label.setStyleSheet("") # Clear color
         self.btn_open.hide()
         self.last_generated_path = None
 
@@ -201,7 +203,6 @@ class DirectoryIndexerDialog(QDialog):
         self.status_label.setObjectName("ErrorLabel")
         self.status_label.style().unpolish(self.status_label)
         self.status_label.style().polish(self.status_label)
-        self.status_label.show()
         
     def _on_open_browser(self) -> None:
         if self.last_generated_path and self.last_generated_path.exists():

@@ -17,7 +17,10 @@ class HashDialog(QDialog):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("ShotX — Hash Checker")
-        self.setMinimumWidth(550)
+        
+        # On GNOME/Wayland, the only native way to remove the Maximize 
+        # button is to make the dialog a fixed size.
+        self.setFixedSize(650, 400)
         
         # Unified Nord Theme (Consistent across Light/Dark systems)
         self._apply_nord_theme()
@@ -91,6 +94,7 @@ class HashDialog(QDialog):
         self.status_label = QLabel("")
         self.status_label.setObjectName("StatusLabel")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.status_label.setMinimumHeight(30)
         verify_layout.addWidget(self.status_label)
         
         layout.addWidget(verify_frame)
