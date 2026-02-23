@@ -123,6 +123,11 @@ def main(argv: list[str] | None = None) -> int:
     """
     args = parse_args(argv)
 
+    # Ensure Ctrl+C from terminal instantly kills the process, even if 
+    # the PySide6 C++ event loop (exec_) is running and blocking Python.
+    import signal
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+
     # QApplication must be created before any Qt operations.
     # We create it early because both tray and one-shot modes need it
     # (one-shot needs it for QImage, clipboard, and screen access).
