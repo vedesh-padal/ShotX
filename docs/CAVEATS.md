@@ -153,3 +153,24 @@ Collected during development. Use for README, GitHub Wiki, and troubleshooting d
     1. We import `gi.repository.Gio` (PyGObject) to pipe raw zero-overhead DBus calls directly to `org.freedesktop.Notifications.Notify` using `Gio.DBusConnection.call_sync()`.
     2. We physically subscribe a global Python handler to `ActionInvoked` DBus signals and dynamically match the returned DBus `notification_id` to our saved screenshot file paths.
     3. To defeat the GNOME focus limitation, we explicitly inject `{"urgency": 2}` (Critical) hints into all of our DBus payloads so that ShotX notifications are strictly displayed as pop-down banners immediately upon capture.
+
+## "Always on Top" (Pinned Snippets)
+
+- **The Issue:** On GNOME Wayland, applications are strictly forbidden from programmatically forcing themselves above other windows. This is a security measure to prevent "UI hijacking."
+- **Behavior in ShotX:** The **Pin to Screen** feature uses the `Qt.WindowStaysOnTopHint`. On most compositors (KDE Plasma, Sway), this works as expected. On GNOME, it is "best effort"—the compositor may push the snippet to the background if you focus a full-screen window.
+- **Future Fix:** We are exploring a dedicated GNOME Shell Extension (Phase 10+) to handle pinning at the compositor level.
+
+## Global Hotkeys
+
+- **The Issue:** Wayland does not allow apps to "spy" on global keystrokes.
+- **Solution:** ShotX uses the `XDG Global Shortcuts` portal where available, or relies on system-level keybindings (e.g., mapping `Print` to `shotx --capture-region`).
+
+## Window Repositioning
+
+- **The Issue:** Wayland prevents apps from knowing their absolute global coordinates or moving themselves to specific pixel locations (e.g., `window.move(x, y)`).
+- **Solution:** ShotX uses `windowHandle().startSystemMove()` and `startSystemResize()` to hand off control to the compositor, ensuring smooth movement that follows system security policies.
+
+## Pinned Widget Resizing
+
+- **The Issue:** Handling multi-edge resizing on Wayland while maintaining a fixed aspect ratio can lead to jittery window movement as the compositor and app fight over the window geometry.
+- **Solution:** ShotX focuses resizing specifically on the **Bottom-Right Corner**. This provides the most stable and intuitive experience for proportional scaling. A visual handle (white dot) is provided to make this area discoverable.
