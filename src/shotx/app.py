@@ -533,6 +533,13 @@ class ShotXApp(QObject):
         self._hash_dialog.show()
         return True
 
+    def open_directory_indexer(self, start_path: str = "") -> bool:
+        """Open the directory indexer tool dialog."""
+        from shotx.ui.directory_indexer import DirectoryIndexerDialog
+        self._indexer_dialog = DirectoryIndexerDialog(initial_dir=start_path)
+        self._indexer_dialog.show()
+        return True
+
     def pin_region(self) -> bool:
         """Capture a region and pin it to the screen."""
         logger.info("Starting Pin to Screen capture")
@@ -977,6 +984,10 @@ class ShotXApp(QObject):
             success = self.pin_region()
         elif capture_type == "hash":
             success = self.open_hash_checker()
+        elif capture_type == "index_dir":
+            # Extract start_path if it was passed via kwargs
+            start_path = kwargs.get("start_path", "")
+            success = self.open_directory_indexer(start_path)
         else:
             print(f"Unknown capture type: {capture_type}")
             return 1

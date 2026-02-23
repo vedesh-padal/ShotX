@@ -130,6 +130,10 @@ class TrayIcon:
         hash_tool.triggered.connect(self._on_hash_checker)
         self._menu.addAction(hash_tool)
 
+        indexer_tool = QAction("📁 Directory Indexer", self._menu)
+        indexer_tool.triggered.connect(self._on_directory_indexer)
+        self._menu.addAction(indexer_tool)
+
         self._menu.addSeparator()
 
         # Recording actions
@@ -229,6 +233,10 @@ class TrayIcon:
     def _on_hash_checker(self) -> None:
         """Trigger hash checker tool."""
         self._app.open_hash_checker()
+
+    def _on_directory_indexer(self) -> None:
+        """Trigger directory indexer tool."""
+        self._app.open_directory_indexer()
 
     def _on_record_mp4(self) -> None:
         self._app.start_recording("mp4")
