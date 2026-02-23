@@ -526,18 +526,26 @@ class ShotXApp(QObject):
         self._qr_overlay.show()
         return True
 
-    def open_hash_checker(self) -> bool:
+    def open_hash_checker(self, exec_dialog: bool = False) -> bool:
         """Open the hash checker tool dialog."""
         from shotx.ui.hash_dialog import HashDialog
+
         self._hash_dialog = HashDialog()
-        self._hash_dialog.show()
+        if exec_dialog:
+            self._hash_dialog.exec()
+        else:
+            self._hash_dialog.show()
         return True
 
-    def open_directory_indexer(self, start_path: str = "") -> bool:
+    def open_directory_indexer(self, start_path: str = "", exec_dialog: bool = False) -> bool:
         """Open the directory indexer tool dialog."""
         from shotx.ui.directory_indexer import DirectoryIndexerDialog
+
         self._indexer_dialog = DirectoryIndexerDialog(initial_dir=start_path)
-        self._indexer_dialog.show()
+        if exec_dialog:
+            self._indexer_dialog.exec()
+        else:
+            self._indexer_dialog.show()
         return True
 
     def pin_region(self) -> bool:
@@ -983,11 +991,11 @@ class ShotXApp(QObject):
         elif capture_type == "pin_region":
             success = self.pin_region()
         elif capture_type == "hash":
-            success = self.open_hash_checker()
+            success = self.open_hash_checker(exec_dialog=True)
         elif capture_type == "index_dir":
             # Extract start_path if it was passed via kwargs
             start_path = kwargs.get("start_path", "")
-            success = self.open_directory_indexer(start_path)
+            success = self.open_directory_indexer(start_path, exec_dialog=True)
         else:
             print(f"Unknown capture type: {capture_type}")
             return 1
