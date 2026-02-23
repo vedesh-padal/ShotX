@@ -174,3 +174,9 @@ Collected during development. Use for README, GitHub Wiki, and troubleshooting d
 
 - **The Issue:** Handling multi-edge resizing on Wayland while maintaining a fixed aspect ratio can lead to jittery window movement as the compositor and app fight over the window geometry.
 - **Solution:** ShotX focuses resizing specifically on the **Bottom-Right Corner**. This provides the most stable and intuitive experience for proportional scaling. A visual handle (white dot) is provided to make this area discoverable.
+
+## Pinned Widget Notifications (App Identity)
+
+- **The Issue:** Notifications from the "Pin to Screen" feature may display 'Unknown' or 'python3' as the app name instead of 'ShotX'.
+- **Root Cause:** GNOME Shell ignores the DBus Notify `app_name` field and resolves identity via the `desktop-entry` hint against installed `.desktop` files. If the app is run dynamically (e.g., via `uv run` in development), the `.desktop` file is not properly picked up by the notification daemon within the same session.
+- **Future Resolution:** This is expected to be resolved when the app is statically packaged and installed (e.g., via `.deb`, `pip install` system-wide, or Flatpak), where the `.desktop` file is placed by the installer and the desktop database is refreshed before the first launch.
