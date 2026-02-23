@@ -25,13 +25,41 @@ logger = logging.getLogger(__name__)
 _dbus_conn = None
 _notification_paths: dict[int, str] = {}
 
+def _ensure_desktop_file() -> None:
+    """Install shotx.desktop to ~/.local/share/applications/ if missing.
+
+    GNOME Shell resolves the 'desktop-entry' notification hint by looking up
+    a matching .desktop file.  Without it the app shows as 'Unknown'.
+    """
+    target_dir = Path.home() / ".local" / "share" / "applications"
+    target = target_dir / "shotx.desktop"
+    if target.exists():
+        return
+    try:
+        import importlib.resources as _res
+        source = _res.files("shotx").joinpath("data", "shotx.desktop")
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target.write_text(source.read_text())
+        logger.debug("Installed shotx.desktop to %s", target)
+    except Exception as e:
+        logger.debug("Could not install shotx.desktop: %s", e)
+
+
 def init_notifications():
     """Initialize DBus connection and signal listener on the main thread."""
     global _dbus_conn
     
     if _dbus_conn is not None:
         return
-        
+
+    # Ensure a .desktop file exists so GNOME Shell can resolve notifications.
+    _ensure_desktop_file()
+
+    # Set GLib program identity so the notification daemon (GNOME Shell)
+    # can attribute notifications to "ShotX" even without an installed .desktop file.
+    GLib.set_prgname("shotx")
+    GLib.set_application_name("ShotX")
+
     try:
         # Get the session bus
         _dbus_conn = Gio.bus_get_sync(Gio.BusType.SESSION, None)
@@ -128,7 +156,11 @@ def _send_dbus_notification(title: str, body: str, icon: str, urgency: int = 1, 
             title,                               # summary
             body,                                # body
             dbus_actions,                        # actions
-            {"urgency": GLib.Variant("y", urgency), "transient": GLib.Variant("b", False)},  # hints (0=low, 1=normal, 2=critical)
+            {
+                "urgency": GLib.Variant("y", urgency), 
+                "transient": GLib.Variant("b", False),
+                "desktop-entry": GLib.Variant("s", "shotx")
+            },                                   # hints
             5000 if urgency < 2 else 10000       # expire_timeout
         )),
         None,                                    # reply_type

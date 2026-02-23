@@ -116,6 +116,16 @@ def main(argv: list[str] | None = None) -> int:
     """
     args = parse_args(argv)
 
+    # Set the Linux process name to "shotx" so the Wayland compositor and
+    # notification daemon identify this process correctly instead of "python3".
+    try:
+        import ctypes
+        import ctypes.util
+        _libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
+        _libc.prctl(15, b"shotx", 0, 0, 0)  # PR_SET_NAME = 15
+    except Exception:
+        pass
+
     # QApplication must be created before any Qt operations.
     # We create it early because both tray and one-shot modes need it
     # (one-shot needs it for QImage, clipboard, and screen access).
@@ -126,6 +136,7 @@ def main(argv: list[str] | None = None) -> int:
         qt_app = QApplication(sys.argv)
     qt_app.setApplicationName("ShotX")
     qt_app.setApplicationVersion(_get_version())
+    qt_app.setDesktopFileName("shotx")
     qt_app.setStyleSheet("QToolTip { color: white; background-color: #2b2b2b; border: 1px solid #555; }")
 
     # Create the app controller

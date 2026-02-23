@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=ShotX
+Comment=Screenshot and screen capture tool for Linux
+Exec=shotx
+Icon=camera-photo
+Terminal=false
+Categories=Utility;Graphics;
+StartupNotify=false
+NoDisplay=true
