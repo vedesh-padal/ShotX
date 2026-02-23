@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QPoint, QRect, QSize
+from PySide6.QtCore import Qt, QPoint, QRect, QSize, QPointF
 from PySide6.QtGui import QPixmap, QCursor, QAction, QIcon, QMouseEvent, QPainter, QColor, QPen
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QMenu, QFileDialog, QApplication
 
@@ -24,15 +24,12 @@ class PinnedImageLabel(QLabel):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
         # Position at the EXTREME bottom right corner
-        # We allow half the circle to overlap the edge for that "handle" look
         handle_x = self.width() - self.HANDLE_SIZE
         handle_y = self.height() - self.HANDLE_SIZE
         
-        # Draw a white circle with a dark outline
-        painter.setPen(QPen(QColor(0, 0, 0, 180), 1.5))
+        painter.setPen(QPen(QColor(0, 0, 0, 200), 1.5))
         painter.setBrush(QColor(255, 255, 255))
-        # Draw it slightly offset so the center is near the corner
-        painter.drawEllipse(handle_x - 2, handle_y - 2, self.HANDLE_SIZE, self.HANDLE_SIZE)
+        painter.drawEllipse(handle_x - 1, handle_y - 1, self.HANDLE_SIZE, self.HANDLE_SIZE)
 
 class PinnedWidget(QWidget):
     """
@@ -90,6 +87,7 @@ class PinnedWidget(QWidget):
         # State
         self.setMouseTracking(True)
         self._resizing = False
+        self._moving = False
         
         # Starting Position
         cursor_pos = QCursor.pos()
@@ -109,8 +107,8 @@ class PinnedWidget(QWidget):
                 self._resize_start_geo = self.geometry()
                 event.accept()
             else:
-                # Hand off movement to the system (Wayland-native move)
-                self.windowHandle().startSystemMove()
+                # We DON'T start move here to keep double-click detection alive
+                self._moving = True
                 event.accept()
         elif event.button() == Qt.MouseButton.RightButton:
             self._show_context_menu(event.globalPosition().toPoint())
@@ -122,27 +120,18 @@ class PinnedWidget(QWidget):
         else:
             self.setCursor(Qt.CursorShape.ArrowCursor)
 
-        # Proportional Resizing Logic (Locked Aspect Ratio)
+        # Proportional Resizing Logic
         if self._resizing:
             delta = event.globalPosition() - self._resize_start_pos
             
-            # Proportional resizing: we want the largest delta component 
-            # to drive the resize for better feeling
-            dx = int(delta.x())
-            dy = int(delta.y())
-            
             # Use dx as primary driver
-            new_w = self._resize_start_geo.width() + dx
+            new_w = self._resize_start_geo.width() + int(delta.x())
             
-            # Enforce Limits
-            if new_w < self.min_w:
-                new_w = self.min_w
-            elif new_w > self.max_w:
-                new_w = self.max_w
-                
+            # Clamp width
+            new_w = max(self.min_w, min(new_w, self.max_w))
             new_h = int(new_w / self.aspect_ratio)
             
-            # If height would exceed screen or min, cap it and re-calculate width
+            # Clamp height and re-adjust width if needed
             if new_h > self.max_h:
                 new_h = self.max_h
                 new_w = int(new_h * self.aspect_ratio)
@@ -152,9 +141,15 @@ class PinnedWidget(QWidget):
 
             self.resize(new_w, new_h)
             event.accept()
+        elif self._moving and event.buttons() & Qt.MouseButton.LeftButton:
+            # We started moving, hand off to system
+            self._moving = False
+            self.windowHandle().startSystemMove()
+            event.accept()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         self._resizing = False
+        self._moving = False
 
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
@@ -188,6 +183,9 @@ class PinnedWidget(QWidget):
         notify_info(None, "Copied to Clipboard", "Pinned snippet image copied successfully.")
 
     def _on_save(self) -> None:
+        # Preserve geometry before dialog
+        current_geo = self.geometry()
+        
         import datetime
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         default_name = f"pinned_{timestamp}.png"
@@ -198,9 +196,10 @@ class PinnedWidget(QWidget):
             "Images (*.png *.jpg *.webp)"
         )
         
+        # Restore geometry just in case the dialog messed with it
+        self.setGeometry(current_geo)
+        
         if path:
-            # Important: we save the ORIGINAL pixmap to maintain quality
-            # even if the user has shrunk the widget view
             success = self.pixmap.save(path)
             if success:
                 notify_info(None, "Saved Successfully", f"Pinned snippet saved to:\n{path}", file_path=path)
