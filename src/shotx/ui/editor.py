@@ -200,6 +200,11 @@ class ImageEditorWindow(QMainWindow):
         # File operations
         QShortcut(QKeySequence("Ctrl+O"), self).activated.connect(self._on_open_file)
         
+        # View operations
+        QShortcut(QKeySequence("Ctrl+="), self).activated.connect(lambda: self.view.set_zoom(int(self.view._current_zoom * 1.15)))
+        QShortcut(QKeySequence("Ctrl+-"), self).activated.connect(lambda: self.view.set_zoom(int(self.view._current_zoom / 1.15)))
+        QShortcut(QKeySequence("Ctrl+0"), self).activated.connect(lambda: self.view.set_zoom(100))
+        
         # Undo / Redo
         QShortcut(QKeySequence("Ctrl+Z"), self).activated.connect(self.scene.undo_stack.undo)
         QShortcut(QKeySequence("Ctrl+Y"), self).activated.connect(self.scene.undo_stack.redo)
