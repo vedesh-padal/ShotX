@@ -197,6 +197,9 @@ class ImageEditorWindow(QMainWindow):
 
     def _setup_shortcuts(self) -> None:
         """Register keyboard shortcuts for the editor."""
+        # File operations
+        QShortcut(QKeySequence("Ctrl+O"), self).activated.connect(self._on_open_file)
+        
         # Undo / Redo
         QShortcut(QKeySequence("Ctrl+Z"), self).activated.connect(self.scene.undo_stack.undo)
         QShortcut(QKeySequence("Ctrl+Y"), self).activated.connect(self.scene.undo_stack.redo)
