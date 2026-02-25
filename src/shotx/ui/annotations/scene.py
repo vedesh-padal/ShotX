@@ -109,6 +109,16 @@ class AnnotationScene(QGraphicsScene):
         y = max(rect.top(), min(pos.y(), rect.bottom()))
         return QPointF(x, y)
 
+    def keyPressEvent(self, event) -> None:
+        if event.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
+            selected_items = self.selectedItems()
+            if selected_items:
+                for item in selected_items:
+                    self.undo_stack.push(RemoveItemCommand(self, item))
+                event.accept()
+                return
+        super().keyPressEvent(event)
+
     # ----- Mouse events -----
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:

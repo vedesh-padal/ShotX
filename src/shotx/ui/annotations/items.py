@@ -18,6 +18,7 @@ import math
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (
     QColor, QFont, QImage, QPainter, QPainterPath, QPen, QPolygonF, QBrush,
+    QPainterPathStroker
 )
 from PySide6.QtWidgets import QGraphicsItem, QGraphicsTextItem
 
@@ -52,6 +53,14 @@ class BaseAnnotationItem(QGraphicsItem):
             return QPointF(x, y)
         return super().itemChange(change, value)
 
+    def _draw_selection_highlight(self, painter: QPainter) -> None:
+        """Draws a dashed bounding box when the item is selected."""
+        if self.isSelected():
+            pen = QPen(QColor(255, 255, 255, 200), 1, Qt.PenStyle.DashLine)
+            painter.setPen(pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRect(self.boundingRect())
+
 
 # ---------------------------------------------------------------------------
 # Rectangle
@@ -73,10 +82,18 @@ class RectangleItem(BaseAnnotationItem):
         p = self.thickness / 2.0
         return self._rect.adjusted(-p, -p, p, p)
 
+    def shape(self) -> QPainterPath:
+        path = QPainterPath()
+        path.addRect(self._rect)
+        stroker = QPainterPathStroker()
+        stroker.setWidth(self.thickness + 4)  # +4 for easier clicking
+        return stroker.createStroke(path)
+
     def paint(self, painter: QPainter, option, widget) -> None:
         painter.setPen(self._pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRect(self._rect)
+        self._draw_selection_highlight(painter)
 
 
 # ---------------------------------------------------------------------------
@@ -99,10 +116,18 @@ class EllipseItem(BaseAnnotationItem):
         p = self.thickness / 2.0
         return self._rect.adjusted(-p, -p, p, p)
 
+    def shape(self) -> QPainterPath:
+        path = QPainterPath()
+        path.addEllipse(self._rect)
+        stroker = QPainterPathStroker()
+        stroker.setWidth(self.thickness + 4)
+        return stroker.createStroke(path)
+
     def paint(self, painter: QPainter, option, widget) -> None:
         painter.setPen(self._pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawEllipse(self._rect)
+        self._draw_selection_highlight(painter)
 
 
 # ---------------------------------------------------------------------------
@@ -135,6 +160,37 @@ class ArrowItem(BaseAnnotationItem):
     def _head_length(self) -> float:
         """Arrow head length scales with pen thickness."""
         return 10.0 + self.thickness * 2.0
+
+    def shape(self) -> QPainterPath:
+        path = QPainterPath()
+        path.moveTo(self._start)
+        path.lineTo(self._end)
+        
+        # Stroke the line segment
+        stroker = QPainterPathStroker()
+        stroker.setWidth(self.thickness + 4)
+        stroke_path = stroker.createStroke(path)
+        
+        # Compute and add the arrowhead polygon directly to the shape
+        dx = self._end.x() - self._start.x()
+        dy = self._end.y() - self._start.y()
+        length = math.hypot(dx, dy)
+        if length >= 1:
+            ux, uy = dx / length, dy / length
+            head_len = self._head_length()
+            head_width = head_len * 0.5
+            
+            base_x = self._end.x() - ux * head_len
+            base_y = self._end.y() - uy * head_len
+            perp_x, perp_y = -uy, ux
+            left = QPointF(base_x + perp_x * head_width, base_y + perp_y * head_width)
+            right = QPointF(base_x - perp_x * head_width, base_y - perp_y * head_width)
+            
+            head_path = QPainterPath()
+            head_path.addPolygon(QPolygonF([self._end, left, right]))
+            stroke_path.addPath(head_path)
+            
+        return stroke_path
 
     def paint(self, painter: QPainter, option, widget) -> None:
         painter.setPen(self._pen)
@@ -169,6 +225,7 @@ class ArrowItem(BaseAnnotationItem):
         painter.setBrush(QBrush(self.color))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawPolygon(arrow_head)
+        self._draw_selection_highlight(painter)
 
 
 # ---------------------------------------------------------------------------
@@ -194,10 +251,16 @@ class FreehandItem(BaseAnnotationItem):
         p = self.thickness / 2.0
         return self._path.boundingRect().adjusted(-p, -p, p, p)
 
+    def shape(self) -> QPainterPath:
+        stroker = QPainterPathStroker()
+        stroker.setWidth(self.thickness + 4)
+        return stroker.createStroke(self._path)
+
     def paint(self, painter: QPainter, option, widget) -> None:
         painter.setPen(self._pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawPath(self._path)
+        self._draw_selection_highlight(painter)
 
 
 # ---------------------------------------------------------------------------
@@ -317,6 +380,7 @@ class HighlightItem(BaseAnnotationItem):
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QBrush(fill))
         painter.drawRect(self._rect)
+        self._draw_selection_highlight(painter)
 
 
 # ---------------------------------------------------------------------------
@@ -363,6 +427,7 @@ class StepNumberItem(BaseAnnotationItem):
         font.setBold(True)
         painter.setFont(font)
         painter.drawText(self.boundingRect(), Qt.AlignmentFlag.AlignCenter, str(self._number))
+        self._draw_selection_highlight(painter)
 
 
 # ---------------------------------------------------------------------------
@@ -420,3 +485,4 @@ class BlurItem(BaseAnnotationItem):
         painter.setPen(pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRect(self._rect)
+        self._draw_selection_highlight(painter)
