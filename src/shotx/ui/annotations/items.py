@@ -38,6 +38,19 @@ class BaseAnnotationItem(QGraphicsItem):
         # Items should be selectable and movable
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges, True)
+
+    def itemChange(self, change, value):
+        if change == QGraphicsItem.GraphicsItemChange.ItemPositionChange and self.scene():
+            # Clamp movement to scene dimensions
+            new_pos = value
+            rect = self.scene().sceneRect()
+            bbox = self.boundingRect()
+            
+            x = max(rect.left() - bbox.left(), min(new_pos.x(), rect.right() - bbox.right()))
+            y = max(rect.top() - bbox.top(), min(new_pos.y(), rect.bottom() - bbox.bottom()))
+            return QPointF(x, y)
+        return super().itemChange(change, value)
 
 
 # ---------------------------------------------------------------------------
@@ -216,8 +229,23 @@ class EditableTextItem(QGraphicsTextItem):
         # Selectable + movable (same as BaseAnnotationItem)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges, True)
 
         # Start in editing mode
+        self.setTextInteractionFlags(Qt.TextInteractionFlag.TextEditorInteraction)
+        self.setFocus()
+
+    def itemChange(self, change, value):
+        if change == QGraphicsItem.GraphicsItemChange.ItemPositionChange and self.scene():
+            # Clamp movement to scene dimensions
+            new_pos = value
+            rect = self.scene().sceneRect()
+            bbox = self.boundingRect()
+            
+            x = max(rect.left() - bbox.left(), min(new_pos.x(), rect.right() - bbox.right()))
+            y = max(rect.top() - bbox.top(), min(new_pos.y(), rect.bottom() - bbox.bottom()))
+            return QPointF(x, y)
+        return super().itemChange(change, value)
         self.setTextInteractionFlags(Qt.TextInteractionFlag.TextEditorInteraction)
         self.setFocus()
 

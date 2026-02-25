@@ -102,9 +102,21 @@ class AnnotationScene(QGraphicsScene):
 
         self._active_item: Optional[BaseAnnotationItem] = None
 
+    def _clamp_pos(self, pos: QPointF) -> QPointF:
+        """Clamp a scene position to the valid sceneRect (the image boundaries)."""
+        rect = self.sceneRect()
+        x = max(rect.left(), min(pos.x(), rect.right()))
+        y = max(rect.top(), min(pos.y(), rect.bottom()))
+        return QPointF(x, y)
+
     # ----- Mouse events -----
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:
+        if self.backdrop_crop is None:
+            # Prevent drawing before an image is loaded
+            super().mousePressEvent(event)
+            return
+            
         if event.button() != Qt.MouseButton.LeftButton:
             super().mousePressEvent(event)
             return
@@ -113,7 +125,7 @@ class AnnotationScene(QGraphicsScene):
             super().mousePressEvent(event)
             return
 
-        pos = event.scenePos()
+        pos = self._clamp_pos(event.scenePos())
         tool = self.current_tool
         color = self.current_color
         thick = self.current_thickness
@@ -161,7 +173,7 @@ class AnnotationScene(QGraphicsScene):
             super().mouseMoveEvent(event)
             return
 
-        pos = event.scenePos()
+        pos = self._clamp_pos(event.scenePos())
 
         if isinstance(self._active_item, FreehandItem):
             self._active_item.add_point(pos)

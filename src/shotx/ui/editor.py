@@ -3,7 +3,7 @@
 from __future__ import annotations
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QRectF, QTimer
+from PySide6.QtCore import Qt, QRectF, QTimer, Signal, QPointF
 from PySide6.QtGui import QImage, QPixmap, QPainter, QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QMainWindow, QGraphicsView, QGraphicsPixmapItem,
@@ -12,6 +12,107 @@ from PySide6.QtWidgets import (
 
 from shotx.ui.annotations.scene import AnnotationScene, AnnotationTool
 from shotx.ui.annotations.toolbar import AnnotationToolbar
+
+class EditorGraphicsView(QGraphicsView):
+    """Custom view to handle zooming and specific canvas interactions."""
+    
+    # Emitted when zoom percentage changes (e.g. 100 for 100%)
+    zoom_changed = Signal(int)
+    
+    def __init__(self, scene, parent=None):
+        super().__init__(scene, parent)
+        self._space_pressed = False
+        self._previous_drag_mode = self.dragMode()
+        self._current_zoom = 100  # percentage
+        
+        # Performance/rendering hints
+        self.setOptimizationFlag(QGraphicsView.OptimizationFlag.DontAdjustForAntialiasing, True)
+        self.setOptimizationFlag(QGraphicsView.OptimizationFlag.DontSavePainterState, True)
+        self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.SmartViewportUpdate)
+
+    def set_zoom(self, zoom_level: int, anchor_point: QPointF | None = None) -> None:
+        """Set the absolute zoom level as a percentage (10 to 500)."""
+        # Clamp between 10% and 500%
+        zoom_level = max(10, min(500, zoom_level))
+        if zoom_level == self._current_zoom:
+            return
+            
+        old_zoom = self._current_zoom
+        self._current_zoom = zoom_level
+        
+        # Calculate the mathematical scale factor needed to go from exactly old_zoom to zoom_level
+        scale_factor = self._current_zoom / old_zoom
+        
+        if anchor_point:
+            # Map the viewport anchor to a scene coordinate *before* scaling
+            scene_pos = self.mapToScene(anchor_point.toPoint())
+            
+            self.scale(scale_factor, scale_factor)
+            
+            # Map that same viewport anchor to a scene coordinate *after* scaling
+            new_scene_pos = self.mapToScene(anchor_point.toPoint())
+            
+            # Translate the view so the scene coordinate stays under the anchor
+            delta = new_scene_pos - scene_pos
+            self.translate(delta.x(), delta.y())
+        else:
+            self.scale(scale_factor, scale_factor)
+            
+        self.zoom_changed.emit(self._current_zoom)
+
+    def mousePressEvent(self, event) -> None:
+        if self._space_pressed:
+            # Force panning only, preventing clicking/moving items underneath
+            self.setInteractive(False)
+            super().mousePressEvent(event)
+            event.accept()
+        else:
+            super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:
+        super().mouseReleaseEvent(event)
+        # Restore interactivity after drag finishes
+        if self._space_pressed:
+            self.setInteractive(True)
+            event.accept()
+        
+    def keyPressEvent(self, event) -> None:
+        if event.key() == Qt.Key.Key_Space and not event.isAutoRepeat():
+            self._space_pressed = True
+            self._previous_drag_mode = self.dragMode()
+            self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
+            event.accept()
+        else:
+            super().keyPressEvent(event)
+
+    def keyReleaseEvent(self, event) -> None:
+        if event.key() == Qt.Key.Key_Space and not event.isAutoRepeat():
+            self._space_pressed = False
+            self.setDragMode(self._previous_drag_mode)
+            event.accept()
+        else:
+            super().keyReleaseEvent(event)
+
+    def wheelEvent(self, event) -> None:
+        # Standard Ctrl + Scroll to Zoom
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            if event.angleDelta().y() > 0:
+                # Zoom in: ~15% steps
+                new_zoom = int(self._current_zoom * 1.15)
+                # Snap to nice round numbers if close
+                if 95 <= new_zoom <= 105: new_zoom = 100
+                if 195 <= new_zoom <= 205: new_zoom = 200
+            else:
+                # Zoom out: ~15% steps
+                new_zoom = int(self._current_zoom / 1.15)
+                # Snap to nice round numbers if close
+                if 95 <= new_zoom <= 105: new_zoom = 100
+                if 195 <= new_zoom <= 205: new_zoom = 200
+                
+            self.set_zoom(new_zoom, anchor_point=event.position())
+            event.accept()
+        else:
+            super().wheelEvent(event)
 
 class ImageEditorWindow(QMainWindow):
     """Main window for the ShotX Image Editor."""
@@ -23,7 +124,7 @@ class ImageEditorWindow(QMainWindow):
         
         # Setup Scene and View
         self.scene = AnnotationScene(self)
-        self.view = QGraphicsView(self.scene)
+        self.view = EditorGraphicsView(self.scene)
         self.view.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.view.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         self.view.setDragMode(QGraphicsView.DragMode.NoDrag)
@@ -33,19 +134,24 @@ class ImageEditorWindow(QMainWindow):
         
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
-        layout = QVBoxLayout(central_widget)
-        layout.setContentsMargins(0, 8, 0, 0)
-        layout.setSpacing(8)
+        
+        from PySide6.QtWidgets import QGridLayout
+        layout = QGridLayout(central_widget)
+        layout.setContentsMargins(0, 0, 0, 0)
         
         self.image_item: QGraphicsPixmapItem | None = None
         self.current_image_path: str | None = None
         
         self._setup_system_toolbar()
         
-        # Add the floating annotation tools
-        self._setup_annotation_toolbar()
-        layout.addWidget(self.annotation_toolbar, alignment=Qt.AlignmentFlag.AlignHCenter)
-        layout.addWidget(self.view)
+        # 1. Base layer is the view
+        layout.addWidget(self.view, 0, 0)
+        
+        # 2. Setup Annotation Toolbar in overlay layout
+        self._setup_annotation_toolbar(layout)
+        
+        # 3. Setup Zoom overlay UI
+        self._setup_zoom_ui(layout)
         
         # Setup global application shortcuts
         self._setup_shortcuts()
@@ -89,9 +195,22 @@ class ImageEditorWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+V"), self).activated.connect(self._on_paste_clipboard)
         QShortcut(QKeySequence("Ctrl+S"), self).activated.connect(self._on_save_as)
 
-    def _setup_annotation_toolbar(self) -> None:
+    def _setup_annotation_toolbar(self, grid_layout) -> None:
         from PySide6.QtGui import QColor
+        from PySide6.QtWidgets import QVBoxLayout
         self.annotation_toolbar = AnnotationToolbar(initial_color=QColor(255, 0, 0), parent=self.centralWidget())
+        
+        # Wrapper to add padding from the top edge
+        self.toolbar_container = QWidget(self.centralWidget())
+        container_layout = QVBoxLayout(self.toolbar_container)
+        container_layout.setContentsMargins(0, 16, 0, 0)
+        container_layout.addWidget(self.annotation_toolbar)
+        
+        grid_layout.addWidget(
+            self.toolbar_container, 
+            0, 0, 
+            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter
+        )
         
         self.annotation_toolbar.tool_selected.connect(self._on_tool_selected)
         self.annotation_toolbar.undo_requested.connect(self.scene.undo_stack.undo)
@@ -99,11 +218,73 @@ class ImageEditorWindow(QMainWindow):
         self.annotation_toolbar.color_changed.connect(lambda c: setattr(self.scene, 'current_color', c))
         self.annotation_toolbar.thickness_changed.connect(lambda t: setattr(self.scene, 'current_thickness', t))
         
-        # We don't need Accept/Cancel in a standalone editor window
-        # but we can wire Cancel to just close the window
         self.annotation_toolbar.cancel_requested.connect(self.close)
-        
 
+    def _setup_zoom_ui(self, grid_layout) -> None:
+        from PySide6.QtWidgets import QHBoxLayout, QPushButton, QLabel
+        
+        self.zoom_widget = QWidget(self.centralWidget())
+        self.zoom_widget.setStyleSheet("""
+            QWidget {
+                background-color: rgba(30, 30, 30, 240);
+                border-radius: 6px;
+                border: 1px solid rgba(255, 255, 255, 40);
+            }
+            QPushButton {
+                background-color: transparent;
+                color: white;
+                border: none;
+                font-size: 16px;
+                font-weight: bold;
+                padding: 4px;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: rgba(255, 255, 255, 30);
+            }
+            QLabel {
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                background-color: transparent;
+                border: none;
+                padding: 0 8px;
+            }
+        """)
+        
+        layout = QHBoxLayout(self.zoom_widget)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(4)
+        
+        btn_out = QPushButton("−")
+        btn_out.setFixedSize(30, 30)
+        btn_out.clicked.connect(lambda: self.view.set_zoom(int(self.view._current_zoom / 1.15)))
+        layout.addWidget(btn_out)
+        
+        self.zoom_label = QLabel("100%")
+        self.zoom_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.zoom_label.setFixedWidth(50)
+        layout.addWidget(self.zoom_label)
+        
+        btn_in = QPushButton("+")
+        btn_in.setFixedSize(30, 30)
+        btn_in.clicked.connect(lambda: self.view.set_zoom(int(self.view._current_zoom * 1.15)))
+        layout.addWidget(btn_in)
+        
+        # Wrapper to add padding from the bottom-right edges
+        self.zoom_container = QWidget(self.centralWidget())
+        container_layout = QHBoxLayout(self.zoom_container)
+        container_layout.setContentsMargins(0, 0, 16, 16)
+        container_layout.addWidget(self.zoom_widget)
+        
+        grid_layout.addWidget(
+            self.zoom_container, 
+            0, 0, 
+            Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight
+        )
+        
+        # Connect view signal to label update
+        self.view.zoom_changed.connect(lambda z: self.zoom_label.setText(f"{z}%"))
 
     def _on_tool_selected(self, tool: AnnotationTool) -> None:
         self.scene.current_tool = tool
