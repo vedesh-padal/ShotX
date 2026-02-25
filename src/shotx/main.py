@@ -90,6 +90,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Open the Directory Indexer (optionally provide a starting path).",
     )
     parser.add_argument(
+        "--edit",
+        type=str,
+        nargs="?",
+        const="",
+        help="Open the Image Editor (optionally provide a starting image path).",
+    )
+    parser.add_argument(
         "--tray",
         action="store_true",
         help="Launch the system tray app (default behavior).",
@@ -179,6 +186,8 @@ def main(argv: list[str] | None = None) -> int:
         return app.run_oneshot("hash")
     elif args.index_dir is not None:
         return app.run_oneshot("index_dir", start_path=args.index_dir)
+    elif args.edit is not None:
+        return app.run_oneshot("edit", image_path=args.edit)
 
     # Default: launch tray app
     return app.run_tray()

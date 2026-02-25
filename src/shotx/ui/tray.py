@@ -134,6 +134,10 @@ class TrayIcon:
         indexer_tool.triggered.connect(self._on_directory_indexer)
         self._menu.addAction(indexer_tool)
 
+        editor_tool = QAction("🖌️ Image Editor", self._menu)
+        editor_tool.triggered.connect(self._on_image_editor)
+        self._menu.addAction(editor_tool)
+
         self._menu.addSeparator()
 
         # Recording actions
@@ -237,6 +241,10 @@ class TrayIcon:
     def _on_directory_indexer(self) -> None:
         """Trigger directory indexer tool."""
         self._app.open_directory_indexer()
+
+    def _on_image_editor(self) -> None:
+        """Handler for opening the Image Editor."""
+        self._app.open_image_editor()
 
     def _on_record_mp4(self) -> None:
         self._app.start_recording("mp4")
