@@ -245,7 +245,7 @@ class ImageEditorWindow(QMainWindow):
             QPushButton:hover {
                 background-color: rgba(255, 255, 255, 30);
             }
-            QLabel {
+            QLabel, QPushButton#zoom_label {
                 color: white;
                 font-size: 14px;
                 font-weight: bold;
@@ -264,9 +264,11 @@ class ImageEditorWindow(QMainWindow):
         btn_out.clicked.connect(lambda: self.view.set_zoom(int(self.view._current_zoom / 1.15)))
         layout.addWidget(btn_out)
         
-        self.zoom_label = QLabel("100%")
-        self.zoom_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.zoom_label = QPushButton("100%")
+        self.zoom_label.setObjectName("zoom_label")
+        # Buttons are centered by default, no need for setAlignment
         self.zoom_label.setFixedWidth(50)
+        self.zoom_label.clicked.connect(lambda: self.view.set_zoom(100))
         layout.addWidget(self.zoom_label)
         
         btn_in = QPushButton("+")
