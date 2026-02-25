@@ -135,23 +135,37 @@ class ImageEditorWindow(QMainWindow):
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
         
-        from PySide6.QtWidgets import QGridLayout
-        layout = QGridLayout(central_widget)
-        layout.setContentsMargins(0, 0, 0, 0)
+        from PySide6.QtWidgets import QGridLayout, QVBoxLayout, QHBoxLayout
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
         
         self.image_item: QGraphicsPixmapItem | None = None
         self.current_image_path: str | None = None
         
         self._setup_system_toolbar()
         
+        # Dedicated horizontal container for the Annotation toolbar
+        self.annot_container = QWidget()
+        self.annot_container.setStyleSheet("background-color: #3b4252; border-bottom: 1px solid #434c5e;")
+        annot_layout = QHBoxLayout(self.annot_container)
+        annot_layout.setContentsMargins(8, 8, 8, 8)
+        self._setup_annotation_toolbar(annot_layout)
+        
+        main_layout.addWidget(self.annot_container)
+        
+        # Container for the View and Zoom Overlays
+        self.view_container = QWidget()
+        view_grid = QGridLayout(self.view_container)
+        view_grid.setContentsMargins(0, 0, 0, 0)
+        
         # 1. Base layer is the view
-        layout.addWidget(self.view, 0, 0)
+        view_grid.addWidget(self.view, 0, 0)
         
-        # 2. Setup Annotation Toolbar in overlay layout
-        self._setup_annotation_toolbar(layout)
+        # 2. Setup Zoom overlay UI in the grid layout
+        self._setup_zoom_ui(view_grid)
         
-        # 3. Setup Zoom overlay UI
-        self._setup_zoom_ui(layout)
+        main_layout.addWidget(self.view_container, stretch=1)
         
         # Setup global application shortcuts
         self._setup_shortcuts()
@@ -195,22 +209,11 @@ class ImageEditorWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+V"), self).activated.connect(self._on_paste_clipboard)
         QShortcut(QKeySequence("Ctrl+S"), self).activated.connect(self._on_save_as)
 
-    def _setup_annotation_toolbar(self, grid_layout) -> None:
+    def _setup_annotation_toolbar(self, parent_layout) -> None:
         from PySide6.QtGui import QColor
-        from PySide6.QtWidgets import QVBoxLayout
         self.annotation_toolbar = AnnotationToolbar(initial_color=QColor(255, 0, 0), parent=self.centralWidget())
         
-        # Wrapper to add padding from the top edge
-        self.toolbar_container = QWidget(self.centralWidget())
-        container_layout = QVBoxLayout(self.toolbar_container)
-        container_layout.setContentsMargins(0, 16, 0, 0)
-        container_layout.addWidget(self.annotation_toolbar)
-        
-        grid_layout.addWidget(
-            self.toolbar_container, 
-            0, 0, 
-            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter
-        )
+        parent_layout.addWidget(self.annotation_toolbar, alignment=Qt.AlignmentFlag.AlignHCenter)
         
         self.annotation_toolbar.tool_selected.connect(self._on_tool_selected)
         self.annotation_toolbar.undo_requested.connect(self.scene.undo_stack.undo)
