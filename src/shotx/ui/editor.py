@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 
 from shotx.ui.annotations.scene import AnnotationScene, AnnotationTool
 from shotx.ui.annotations.toolbar import AnnotationToolbar
+from shotx.ui.effects import EffectsDialog, EffectsCommand
 
 # ---------------------------------------------------------------------------
 # Undo Commands for Flattening Vectors
@@ -378,6 +379,9 @@ class ImageEditorWindow(QMainWindow):
         action_resize = self.system_toolbar.addAction("📐 Resize...")
         action_resize.triggered.connect(self._on_resize_requested)
         
+        action_effects = self.system_toolbar.addAction("✨ Effects...")
+        action_effects.triggered.connect(self._on_effects_requested)
+        
         self.system_toolbar.addSeparator()
         
         action_paste = self.system_toolbar.addAction("📋 Paste")
@@ -570,6 +574,15 @@ class ImageEditorWindow(QMainWindow):
             h = dialog.height_spin.value()
             if w != int(rect.width()) or h != int(rect.height()):
                 self.scene.undo_stack.push(ResizeCommand(self, w, h))
+
+    def _on_effects_requested(self) -> None:
+        if not self.image_item:
+            return
+            
+        dialog = EffectsDialog(self)
+        if dialog.exec():
+            config = dialog.get_config()
+            self.scene.undo_stack.push(EffectsCommand(self, config))
 
     def _on_open_file(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(
