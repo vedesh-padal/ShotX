@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 from shotx.ui.annotations.scene import AnnotationScene, AnnotationTool
 from shotx.ui.annotations.toolbar import AnnotationToolbar
 from shotx.ui.effects import EffectsDialog, EffectsCommand
+from shotx.ui.beautify import BeautifyDialog, BeautifyCommand, CombineCommand
 
 # ---------------------------------------------------------------------------
 # Undo Commands for Flattening Vectors
@@ -382,6 +383,12 @@ class ImageEditorWindow(QMainWindow):
         action_effects = self.system_toolbar.addAction("✨ Effects...")
         action_effects.triggered.connect(self._on_effects_requested)
         
+        action_beautify = self.system_toolbar.addAction("🪄 Beautify...")
+        action_beautify.triggered.connect(self._on_beautify_requested)
+        
+        action_combine = self.system_toolbar.addAction("🔗 Combine...")
+        action_combine.triggered.connect(self._on_combine_requested)
+        
         self.system_toolbar.addSeparator()
         
         action_paste = self.system_toolbar.addAction("📋 Paste")
@@ -583,6 +590,36 @@ class ImageEditorWindow(QMainWindow):
         if dialog.exec():
             config = dialog.get_config()
             self.scene.undo_stack.push(EffectsCommand(self, config))
+
+    def _on_beautify_requested(self) -> None:
+        if not self.image_item:
+            return
+            
+        dialog = BeautifyDialog(self)
+        if dialog.exec():
+            config = dialog.get_config()
+            self.scene.undo_stack.push(
+                BeautifyCommand(self, config['bg_style'], config['padding'], config['radius'])
+            )
+
+    def _on_combine_requested(self) -> None:
+        if not self.image_item:
+            return
+            
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select Image to Combine", "", "Images (*.png *.jpg *.jpeg *.bmp *.webp)"
+        )
+        if not file_path:
+            return
+            
+        from PySide6.QtWidgets import QInputDialog
+        items = ["Horizontal", "Vertical"]
+        mode, ok = QInputDialog.getItem(self, "Combine Orientation", "Append second image direction:", items, 0, False)
+        if ok and mode:
+            try:
+                self.scene.undo_stack.push(CombineCommand(self, file_path, mode))
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to combine image: {str(e)}")
 
     def _on_open_file(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(
