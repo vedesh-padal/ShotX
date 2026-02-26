@@ -105,6 +105,7 @@ class AnnotationScene(QGraphicsScene):
         self.backdrop_crop: QImage | None = None
 
         self._active_item: Optional[BaseAnnotationItem] = None
+        self._crop_interacting = False
 
     def _clamp_pos(self, pos: QPointF) -> QPointF:
         """Clamp a scene position to the valid sceneRect (the image boundaries)."""
@@ -173,10 +174,18 @@ class AnnotationScene(QGraphicsScene):
         elif tool == AnnotationTool.BLUR:
             self._active_item = BlurItem(pos, color, thick, backdrop=self.backdrop_crop)
         elif tool == AnnotationTool.CROP:
-            for item in self.items():
-                if isinstance(item, CropItem):
-                    self.removeItem(item)
-            self._active_item = CropItem(pos)
+            item = self.itemAt(pos, QTransform())
+            if isinstance(item, CropItem):
+                self._active_item = item
+                self._crop_interacting = True
+                super().mousePressEvent(event)
+                return
+            else:
+                for existing in self.items():
+                    if isinstance(existing, CropItem):
+                        self.removeItem(existing)
+                self._active_item = CropItem(pos)
+                self._crop_interacting = False
         elif tool == AnnotationTool.TEXT:
             item = EditableTextItem(pos, color, thick)
             self.addItem(item)
@@ -208,6 +217,11 @@ class AnnotationScene(QGraphicsScene):
             super().mouseMoveEvent(event)
             return
 
+        if isinstance(self._active_item, CropItem) and self._crop_interacting:
+            # CropItem handles its own dragging/resizing via ItemIsMovable / mouseMoveEvent internally
+            super().mouseMoveEvent(event)
+            return
+
         pos = self._clamp_pos(event.scenePos())
 
         if isinstance(self._active_item, FreehandItem):
@@ -220,6 +234,8 @@ class AnnotationScene(QGraphicsScene):
     def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         if self._active_item:
             if isinstance(self._active_item, CropItem):
+                if self._crop_interacting:
+                    super().mouseReleaseEvent(event)
                 self._active_item = None
             else:
                 self.undo_stack.push(AddItemCommand(self, self._active_item))

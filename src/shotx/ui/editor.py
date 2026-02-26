@@ -121,13 +121,14 @@ class ResizeCommand(QUndoCommand):
 # ---------------------------------------------------------------------------
 
 class ResizeDialog(QDialog):
-    def __init__(self, current_width: int, current_height: int, parent=None):
+    def __init__(self, current_width: int, current_height: int, orig_size: int, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Resize Image")
         self.setMinimumWidth(350)
         
         self._orig_width = current_width
         self._orig_height = current_height
+        self._orig_size = orig_size
         
         layout = QFormLayout(self)
         
@@ -158,6 +159,12 @@ class ResizeDialog(QDialog):
         layout.addRow("Scale:", self.percent_spin)
         layout.addRow("", self.aspect_ratio_cb)
         
+        from PySide6.QtWidgets import QLabel
+        self.size_label = QLabel(self)
+        self.size_label.setStyleSheet("color: #88c0d0; font-weight: bold;")
+        self._update_size_estimate()
+        layout.addRow("", self.size_label)
+        
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
@@ -168,12 +175,14 @@ class ResizeDialog(QDialog):
             if self.aspect_ratio_cb.isChecked():
                 self.height_spin.setValue(int(w / self._aspect_ratio))
             self.percent_spin.setValue((w / self._orig_width) * 100.0)
+        self._update_size_estimate()
             
     def _on_height_changed(self, h: int):
         if self.height_spin.hasFocus():
             if self.aspect_ratio_cb.isChecked():
                 self.width_spin.setValue(int(h * self._aspect_ratio))
             self.percent_spin.setValue((h / self._orig_height) * 100.0)
+        self._update_size_estimate()
 
     def _on_percent_changed(self, p: float):
         if self.percent_spin.hasFocus():
@@ -181,6 +190,19 @@ class ResizeDialog(QDialog):
             new_h = max(1, int(self._orig_height * (p / 100.0)))
             self.width_spin.setValue(new_w)
             self.height_spin.setValue(new_h)
+        self._update_size_estimate()
+
+    def _format_size(self, size_bytes: int) -> str:
+        if size_bytes < 1024 * 1024:
+            return f"{size_bytes / 1024:.1f} KB"
+        return f"{size_bytes / (1024 * 1024):.2f} MB"
+
+    def _update_size_estimate(self) -> None:
+        w = self.width_spin.value()
+        h = self.height_spin.value()
+        ratio = (w * h) / (self._orig_width * self._orig_height) if self._orig_width > 0 else 1
+        est_size = int(self._orig_size * ratio)
+        self.size_label.setText(f"Est. Size: ~{self._format_size(est_size)}")
 
 class EditorGraphicsView(QGraphicsView):
     """Custom view to handle zooming and specific canvas interactions."""
@@ -534,7 +556,15 @@ class ImageEditorWindow(QMainWindow):
             return
             
         rect = self.scene.sceneRect()
-        dialog = ResizeDialog(int(rect.width()), int(rect.height()), self)
+        
+        from PySide6.QtCore import QByteArray, QBuffer, QIODevice
+        ba = QByteArray()
+        buf = QBuffer(ba)
+        buf.open(QIODevice.OpenModeFlag.WriteOnly)
+        self.image_item.pixmap().save(buf, "PNG")
+        orig_size = ba.size()
+        
+        dialog = ResizeDialog(int(rect.width()), int(rect.height()), orig_size, self)
         if dialog.exec():
             w = dialog.width_spin.value()
             h = dialog.height_spin.value()

@@ -18,7 +18,7 @@ import math
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (
     QColor, QFont, QImage, QPainter, QPainterPath, QPen, QPolygonF, QBrush,
-    QPainterPathStroker
+    QPainterPathStroker, QCursor
 )
 from PySide6.QtWidgets import QGraphicsItem, QGraphicsTextItem
 
@@ -493,42 +493,94 @@ class BlurItem(BaseAnnotationItem):
 # ---------------------------------------------------------------------------
 
 class CropItem(QGraphicsItem):
-    """A temporary dashed rectangle representing a crop selection.
-    
-    This does not subclass BaseAnnotationItem because it doesn't need to be
-    selectable/movable after the drag finishes (the crop action is instant).
-    """
+    """An interactive dashed rectangle representing a crop selection with resize handles."""
 
     def __init__(self, start_pos: QPointF) -> None:
         super().__init__()
         self._start = QPointF(start_pos)
         self._rect = QRectF(start_pos, start_pos)
         self.setZValue(9999)  # Draw above everything else
+        
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges, True)
+        self.setAcceptHoverEvents(True)
+        
+        self._drag_edge = None
+        self._drag_start_rect = QRectF()
+        self.setCursor(QCursor(Qt.CursorShape.SizeAllCursor))
 
     def set_end_pos(self, pos: QPointF) -> None:
         self.prepareGeometryChange()
         self._rect = QRectF(self._start, pos).normalized()
 
     def get_crop_rect(self) -> QRectF:
-        """Return the final rounded rectangle to crop."""
-        return self._rect
+        """Return the final rounded rectangle to crop in scene coordinates."""
+        return self.sceneTransform().mapRect(self._rect)
 
     def boundingRect(self) -> QRectF:
-        return self._rect.adjusted(-2, -2, 2, 2)
+        return self._rect.adjusted(-6, -6, 6, 6)
+
+    def _get_edge(self, pos: QPointF) -> str:
+        r = self._rect
+        m = 10 # margin for handles
+        if pos.x() <= r.left() + m and pos.y() <= r.top() + m: return "top-left"
+        if pos.x() >= r.right() - m and pos.y() >= r.bottom() - m: return "bottom-right"
+        if pos.x() >= r.right() - m and pos.y() <= r.top() + m: return "top-right"
+        if pos.x() <= r.left() + m and pos.y() >= r.bottom() - m: return "bottom-left"
+        if pos.y() <= r.top() + m: return "top"
+        if pos.y() >= r.bottom() - m: return "bottom"
+        if pos.x() <= r.left() + m: return "left"
+        if pos.x() >= r.right() - m: return "right"
+        return "center"
+
+    def hoverMoveEvent(self, event) -> None:
+        edge = self._get_edge(event.pos())
+        if edge in ("top-left", "bottom-right"):
+            self.setCursor(QCursor(Qt.CursorShape.SizeFDiagCursor))
+        elif edge in ("top-right", "bottom-left"):
+            self.setCursor(QCursor(Qt.CursorShape.SizeBDiagCursor))
+        elif edge in ("top", "bottom"):
+            self.setCursor(QCursor(Qt.CursorShape.SizeVerCursor))
+        elif edge in ("left", "right"):
+            self.setCursor(QCursor(Qt.CursorShape.SizeHorCursor))
+        else:
+            self.setCursor(QCursor(Qt.CursorShape.SizeAllCursor))
+        super().hoverMoveEvent(event)
+
+    def mousePressEvent(self, event) -> None:
+        self._drag_edge = self._get_edge(event.pos())
+        self._drag_start_rect = self._rect
+        if self._drag_edge != "center":
+            event.accept()
+        else:
+            super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event) -> None:
+        if self._drag_edge and self._drag_edge != "center":
+            pos = event.pos()
+            r = QRectF(self._drag_start_rect)
+            if "left" in self._drag_edge: r.setLeft(min(pos.x(), r.right() - 10))
+            if "right" in self._drag_edge: r.setRight(max(pos.x(), r.left() + 10))
+            if "top" in self._drag_edge: r.setTop(min(pos.y(), r.bottom() - 10))
+            if "bottom" in self._drag_edge: r.setBottom(max(pos.y(), r.top() + 10))
+            
+            self.prepareGeometryChange()
+            self._rect = r
+        else:
+            super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:
+        self._drag_edge = None
+        super().mouseReleaseEvent(event)
 
     def paint(self, painter: QPainter, option, widget) -> None:
-        if self._rect.isEmpty():
+        if self._rect.width() < 1 or self._rect.height() < 1:
             return
             
-        # Draw a semi-transparent dark mask over the entire scene, with a hole
-        # We can't easily draw over the whole scene from *inside* the item's paint 
-        # unless its bounding rect spans the scene. For an instant crop tool,
-        # drawing just a dashed box is perfectly fine for now.
-        
         pen = QPen(Qt.GlobalColor.white, 2, Qt.PenStyle.DashLine)
-        # Add a subtle black outline shadow so it's visible on light and dark backgrounds
         
-        # Outer black solid line
+        # Outer black solid line for contrast
         painter.setPen(QPen(Qt.GlobalColor.black, 2, Qt.PenStyle.SolidLine))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRect(self._rect)
@@ -536,3 +588,18 @@ class CropItem(QGraphicsItem):
         # Inner white dashed line
         painter.setPen(pen)
         painter.drawRect(self._rect)
+        
+        # Draw handles
+        painter.setPen(QPen(Qt.GlobalColor.black, 1))
+        painter.setBrush(QBrush(Qt.GlobalColor.white))
+        
+        r = self._rect
+        s = 8  # handle size
+        points = [
+            QPointF(r.left(), r.top()), QPointF(r.center().x(), r.top()), QPointF(r.right(), r.top()),
+            QPointF(r.left(), r.center().y()),                            QPointF(r.right(), r.center().y()),
+            QPointF(r.left(), r.bottom()), QPointF(r.center().x(), r.bottom()), QPointF(r.right(), r.bottom()),
+        ]
+        
+        for p in points:
+            painter.drawRect(QRectF(p.x() - s/2, p.y() - s/2, s, s))
