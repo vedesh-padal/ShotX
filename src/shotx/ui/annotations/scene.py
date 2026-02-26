@@ -114,6 +114,22 @@ class AnnotationScene(QGraphicsScene):
         return QPointF(x, y)
 
     def keyPressEvent(self, event) -> None:
+        if event.key() in (Qt.Key.Key_Enter, Qt.Key.Key_Return):
+            for item in self.items():
+                if isinstance(item, CropItem):
+                    crop_rect = item.get_crop_rect().toRect()
+                    self.removeItem(item)
+                    if crop_rect.width() > 10 and crop_rect.height() > 10:
+                        self.crop_requested.emit(QRectF(crop_rect))
+                    event.accept()
+                    return
+        elif event.key() == Qt.Key.Key_Escape:
+            for item in self.items():
+                if isinstance(item, CropItem):
+                    self.removeItem(item)
+                    event.accept()
+                    return
+                    
         if event.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
             selected_items = self.selectedItems()
             if selected_items:
@@ -157,6 +173,9 @@ class AnnotationScene(QGraphicsScene):
         elif tool == AnnotationTool.BLUR:
             self._active_item = BlurItem(pos, color, thick, backdrop=self.backdrop_crop)
         elif tool == AnnotationTool.CROP:
+            for item in self.items():
+                if isinstance(item, CropItem):
+                    self.removeItem(item)
             self._active_item = CropItem(pos)
         elif tool == AnnotationTool.TEXT:
             item = EditableTextItem(pos, color, thick)
@@ -201,11 +220,7 @@ class AnnotationScene(QGraphicsScene):
     def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         if self._active_item:
             if isinstance(self._active_item, CropItem):
-                crop_rect = self._active_item.get_crop_rect().toRect()
-                self.removeItem(self._active_item)
                 self._active_item = None
-                if crop_rect.width() > 10 and crop_rect.height() > 10:
-                    self.crop_requested.emit(QRectF(crop_rect))
             else:
                 self.undo_stack.push(AddItemCommand(self, self._active_item))
                 self._active_item = None

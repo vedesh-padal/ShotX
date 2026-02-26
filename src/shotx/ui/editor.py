@@ -8,7 +8,7 @@ from PySide6.QtGui import QImage, QPixmap, QPainter, QIcon, QKeySequence, QShort
 from PySide6.QtWidgets import (
     QMainWindow, QGraphicsView, QGraphicsPixmapItem,
     QToolBar, QVBoxLayout, QWidget, QFileDialog, QMessageBox, QApplication,
-    QDialog, QFormLayout, QSpinBox, QCheckBox, QDialogButtonBox,
+    QDialog, QFormLayout, QSpinBox, QCheckBox, QDialogButtonBox, QDoubleSpinBox,
 )
 
 from shotx.ui.annotations.scene import AnnotationScene, AnnotationTool
@@ -124,17 +124,25 @@ class ResizeDialog(QDialog):
     def __init__(self, current_width: int, current_height: int, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Resize Image")
-        self.setFixedSize(300, 150)
+        self.setMinimumWidth(350)
+        
+        self._orig_width = current_width
+        self._orig_height = current_height
         
         layout = QFormLayout(self)
         
         self.width_spin = QSpinBox(self)
-        self.width_spin.setRange(1, 10000)
+        self.width_spin.setRange(1, 20000)
         self.width_spin.setValue(current_width)
         
         self.height_spin = QSpinBox(self)
-        self.height_spin.setRange(1, 10000)
+        self.height_spin.setRange(1, 20000)
         self.height_spin.setValue(current_height)
+        
+        self.percent_spin = QDoubleSpinBox(self)
+        self.percent_spin.setRange(1.0, 500.0)
+        self.percent_spin.setSuffix(" %")
+        self.percent_spin.setValue(100.0)
         
         self.aspect_ratio_cb = QCheckBox("Maintain Aspect Ratio", self)
         self.aspect_ratio_cb.setChecked(True)
@@ -143,9 +151,11 @@ class ResizeDialog(QDialog):
         
         self.width_spin.valueChanged.connect(self._on_width_changed)
         self.height_spin.valueChanged.connect(self._on_height_changed)
+        self.percent_spin.valueChanged.connect(self._on_percent_changed)
         
         layout.addRow("Width (px):", self.width_spin)
         layout.addRow("Height (px):", self.height_spin)
+        layout.addRow("Scale:", self.percent_spin)
         layout.addRow("", self.aspect_ratio_cb)
         
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self)
@@ -154,12 +164,23 @@ class ResizeDialog(QDialog):
         layout.addRow(buttons)
         
     def _on_width_changed(self, w: int):
-        if self.aspect_ratio_cb.isChecked() and self.width_spin.hasFocus():
-            self.height_spin.setValue(int(w / self._aspect_ratio))
+        if self.width_spin.hasFocus():
+            if self.aspect_ratio_cb.isChecked():
+                self.height_spin.setValue(int(w / self._aspect_ratio))
+            self.percent_spin.setValue((w / self._orig_width) * 100.0)
             
     def _on_height_changed(self, h: int):
-        if self.aspect_ratio_cb.isChecked() and self.height_spin.hasFocus():
-            self.width_spin.setValue(int(h * self._aspect_ratio))
+        if self.height_spin.hasFocus():
+            if self.aspect_ratio_cb.isChecked():
+                self.width_spin.setValue(int(h * self._aspect_ratio))
+            self.percent_spin.setValue((h / self._orig_height) * 100.0)
+
+    def _on_percent_changed(self, p: float):
+        if self.percent_spin.hasFocus():
+            new_w = max(1, int(self._orig_width * (p / 100.0)))
+            new_h = max(1, int(self._orig_height * (p / 100.0)))
+            self.width_spin.setValue(new_w)
+            self.height_spin.setValue(new_h)
 
 class EditorGraphicsView(QGraphicsView):
     """Custom view to handle zooming and specific canvas interactions."""
