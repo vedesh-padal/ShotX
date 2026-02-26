@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 from shotx.ui.annotations.scene import AnnotationScene, AnnotationTool
 from shotx.ui.annotations.toolbar import AnnotationToolbar
 from shotx.ui.effects import EffectsDialog, EffectsCommand
-from shotx.ui.beautify import BeautifyDialog, BeautifyCommand, CombineCommand
+from shotx.ui.beautify import BeautifyDialog, BeautifyCommand, CombineCommand, CombineDialog
 
 # ---------------------------------------------------------------------------
 # Undo Commands for Flattening Vectors
@@ -612,12 +612,11 @@ class ImageEditorWindow(QMainWindow):
         if not file_path:
             return
             
-        from PySide6.QtWidgets import QInputDialog
-        items = ["Horizontal", "Vertical"]
-        mode, ok = QInputDialog.getItem(self, "Combine Orientation", "Append second image direction:", items, 0, False)
-        if ok and mode:
+        dialog = CombineDialog(self)
+        if dialog.exec():
+            config = dialog.get_config()
             try:
-                self.scene.undo_stack.push(CombineCommand(self, file_path, mode))
+                self.scene.undo_stack.push(CombineCommand(self, file_path, config))
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to combine image: {str(e)}")
 

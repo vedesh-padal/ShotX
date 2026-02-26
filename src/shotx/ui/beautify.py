@@ -2,12 +2,12 @@ from PySide6.QtCore import Qt, QRectF, QPointF
 from PySide6.QtGui import QImage, QPixmap, QPainter, QColor, QUndoCommand, QPainterPath, QLinearGradient, QBrush
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QWidget, QFormLayout, 
-    QSpinBox, QPushButton, QComboBox, QDialogButtonBox, QLabel
+    QSpinBox, QPushButton, QComboBox, QDialogButtonBox, QLabel, QColorDialog
 )
 
 class CombineCommand(QUndoCommand):
     """Appends a second image to the current canvas either horizontally or vertically."""
-    def __init__(self, editor, image2_path: str, orientation: str) -> None:
+    def __init__(self, editor, image2_path: str, config: dict) -> None:
         super().__init__("Combine Images")
         self.editor = editor
         
@@ -32,26 +32,57 @@ class CombineCommand(QUndoCommand):
         if img2.isNull():
             raise ValueError(f"Failed to load image from {image2_path}")
             
-        # 3. Calculate new dimensions
+        orientation = config.get('orientation', 'Horizontal')
+        spacing = config.get('spacing', 0)
+        alignment = config.get('alignment', 'Center')
+        bg_color = config.get('bg_color', None)
+            
+        # 3. Calculate new dimensions and offsets
         if orientation == "Horizontal":
-            total_w = img1.width() + img2.width()
+            total_w = img1.width() + img2.width() + spacing
             total_h = max(img1.height(), img2.height())
+            
+            y1, y2 = 0, 0
+            if alignment == "Start (Top/Left)":
+                pass
+            elif alignment == "End (Bottom/Right)":
+                y1 = total_h - img1.height()
+                y2 = total_h - img2.height()
+            else: # Center
+                y1 = (total_h - img1.height()) // 2
+                y2 = (total_h - img2.height()) // 2
+                
+            x1 = 0
+            x2 = img1.width() + spacing
         else: # Vertical
             total_w = max(img1.width(), img2.width())
-            total_h = img1.height() + img2.height()
+            total_h = img1.height() + img2.height() + spacing
+            
+            x1, x2 = 0, 0
+            if alignment == "Start (Top/Left)":
+                pass
+            elif alignment == "End (Bottom/Right)":
+                x1 = total_w - img1.width()
+                x2 = total_w - img2.width()
+            else: # Center
+                x1 = (total_w - img1.width()) // 2
+                x2 = (total_w - img2.width()) // 2
+                
+            y1 = 0
+            y2 = img1.height() + spacing
             
         final_img = QImage(total_w, total_h, QImage.Format.Format_ARGB32)
-        final_img.fill(Qt.GlobalColor.transparent)
+        if bg_color and bg_color.isValid():
+            final_img.fill(bg_color)
+        else:
+            final_img.fill(Qt.GlobalColor.transparent)
         
         p = QPainter(final_img)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         
         # 4. Draw both images
-        p.drawImage(0, 0, img1)
-        if orientation == "Horizontal":
-            p.drawImage(img1.width(), 0, img2)
-        else:
-            p.drawImage(0, img1.height(), img2)
+        p.drawImage(x1, y1, img1)
+        p.drawImage(x2, y2, img2)
             
         p.end()
         
@@ -233,4 +264,53 @@ class BeautifyDialog(QDialog):
             'bg_style': self.bg_style.currentText(),
             'padding': self.padding.value(),
             'radius': self.radius.value()
+        }
+
+
+class CombineDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Combine Images")
+        self.setMinimumWidth(350)
+        
+        layout = QFormLayout(self)
+        
+        self.orientation = QComboBox()
+        self.orientation.addItems(["Horizontal (Side-by-side)", "Vertical (Stacked)"])
+        
+        self.spacing = QSpinBox()
+        self.spacing.setRange(0, 500)
+        self.spacing.setValue(20)
+        self.spacing.setSuffix(" px")
+        
+        self.alignment = QComboBox()
+        self.alignment.addItems(["Center", "Start (Top/Left)", "End (Bottom/Right)"])
+        
+        self.bg_color = QColor(255, 255, 255) # Default White
+        self.btn_bg_color = QPushButton("Pick Fill Color (White)")
+        self.btn_bg_color.clicked.connect(self._pick_bg_color)
+        
+        layout.addRow("Orientation:", self.orientation)
+        layout.addRow("Orthogonal Alignment:", self.alignment)
+        layout.addRow("Gap Spacing:", self.spacing)
+        layout.addRow("Background Fill:", self.btn_bg_color)
+        
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addRow("", buttons)
+
+    def _pick_bg_color(self):
+        color = QColorDialog.getColor(self.bg_color, self, "Select Background Fill Color")
+        if color.isValid():
+            self.bg_color = color
+            self.btn_bg_color.setText(f"Pick Fill Color ({color.name()})")
+
+    def get_config(self) -> dict:
+        orientation_val = "Horizontal" if "Horizontal" in self.orientation.currentText() else "Vertical"
+        return {
+            'orientation': orientation_val,
+            'spacing': self.spacing.value(),
+            'alignment': self.alignment.currentText(),
+            'bg_color': self.bg_color
         }
