@@ -523,7 +523,7 @@ class CropItem(QGraphicsItem):
 
     def _get_edge(self, pos: QPointF) -> str:
         r = self._rect
-        m = 10 # margin for handles
+        m = 15 # larger margin for handles for easier grabbing
         if pos.x() <= r.left() + m and pos.y() <= r.top() + m: return "top-left"
         if pos.x() >= r.right() - m and pos.y() >= r.bottom() - m: return "bottom-right"
         if pos.x() >= r.right() - m and pos.y() <= r.top() + m: return "top-right"
@@ -558,17 +558,43 @@ class CropItem(QGraphicsItem):
 
     def mouseMoveEvent(self, event) -> None:
         if self._drag_edge and self._drag_edge != "center":
-            pos = event.pos()
+            s_pos = event.scenePos()
+            scene_rect = self.scene().sceneRect()
+            
+            # Clamp the grabbed edge position to the scene boundary
+            x = max(scene_rect.left(), min(s_pos.x(), scene_rect.right()))
+            y = max(scene_rect.top(), min(s_pos.y(), scene_rect.bottom()))
+            pos = self.mapFromScene(QPointF(x, y))
+            
             r = QRectF(self._drag_start_rect)
-            if "left" in self._drag_edge: r.setLeft(min(pos.x(), r.right() - 10))
-            if "right" in self._drag_edge: r.setRight(max(pos.x(), r.left() + 10))
-            if "top" in self._drag_edge: r.setTop(min(pos.y(), r.bottom() - 10))
-            if "bottom" in self._drag_edge: r.setBottom(max(pos.y(), r.top() + 10))
+            MIN_SIZE = 20
+            
+            if "left" in self._drag_edge: r.setLeft(min(pos.x(), r.right() - MIN_SIZE))
+            if "right" in self._drag_edge: r.setRight(max(pos.x(), r.left() + MIN_SIZE))
+            if "top" in self._drag_edge: r.setTop(min(pos.y(), r.bottom() - MIN_SIZE))
+            if "bottom" in self._drag_edge: r.setBottom(max(pos.y(), r.top() + MIN_SIZE))
             
             self.prepareGeometryChange()
             self._rect = r
         else:
             super().mouseMoveEvent(event)
+
+    def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value):
+        if change == QGraphicsItem.GraphicsItemChange.ItemPositionChange and self.scene():
+            new_pos = value
+            r = self._rect
+            scene_rect = self.scene().sceneRect()
+            
+            # Avoid dragging crop box off the canvas
+            x = new_pos.x()
+            y = new_pos.y()
+            if x + r.left() < scene_rect.left(): x = scene_rect.left() - r.left()
+            if x + r.right() > scene_rect.right(): x = scene_rect.right() - r.right()
+            if y + r.top() < scene_rect.top(): y = scene_rect.top() - r.top()
+            if y + r.bottom() > scene_rect.bottom(): y = scene_rect.bottom() - r.bottom()
+            
+            return QPointF(x, y)
+        return super().itemChange(change, value)
 
     def mouseReleaseEvent(self, event) -> None:
         self._drag_edge = None

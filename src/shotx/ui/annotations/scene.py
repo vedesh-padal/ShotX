@@ -97,7 +97,7 @@ class AnnotationScene(QGraphicsScene):
         super().__init__(parent)
         self.undo_stack = QUndoStack(self)
 
-        self.current_tool = AnnotationTool.RECTANGLE
+        self._current_tool = AnnotationTool.RECTANGLE
         self.current_color = QColor(255, 0, 0)
         self.current_thickness = 4
 
@@ -106,6 +106,18 @@ class AnnotationScene(QGraphicsScene):
 
         self._active_item: Optional[BaseAnnotationItem] = None
         self._crop_interacting = False
+
+    @property
+    def current_tool(self) -> AnnotationTool:
+        return self._current_tool
+
+    @current_tool.setter
+    def current_tool(self, tool: AnnotationTool) -> None:
+        self._current_tool = tool
+        if tool != AnnotationTool.CROP:
+            for item in self.items():
+                if isinstance(item, CropItem):
+                    self.removeItem(item)
 
     def _clamp_pos(self, pos: QPointF) -> QPointF:
         """Clamp a scene position to the valid sceneRect (the image boundaries)."""
@@ -236,6 +248,10 @@ class AnnotationScene(QGraphicsScene):
             if isinstance(self._active_item, CropItem):
                 if self._crop_interacting:
                     super().mouseReleaseEvent(event)
+                else:
+                    r = self._active_item.get_crop_rect()
+                    if r.width() < 20 or r.height() < 20:
+                        self.removeItem(self._active_item)
                 self._active_item = None
             else:
                 self.undo_stack.push(AddItemCommand(self, self._active_item))
