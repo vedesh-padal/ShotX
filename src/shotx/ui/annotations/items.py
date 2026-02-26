@@ -486,3 +486,53 @@ class BlurItem(BaseAnnotationItem):
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRect(self._rect)
         self._draw_selection_highlight(painter)
+
+
+# ---------------------------------------------------------------------------
+# Crop (Interactive Selection Box)
+# ---------------------------------------------------------------------------
+
+class CropItem(QGraphicsItem):
+    """A temporary dashed rectangle representing a crop selection.
+    
+    This does not subclass BaseAnnotationItem because it doesn't need to be
+    selectable/movable after the drag finishes (the crop action is instant).
+    """
+
+    def __init__(self, start_pos: QPointF) -> None:
+        super().__init__()
+        self._start = QPointF(start_pos)
+        self._rect = QRectF(start_pos, start_pos)
+        self.setZValue(9999)  # Draw above everything else
+
+    def set_end_pos(self, pos: QPointF) -> None:
+        self.prepareGeometryChange()
+        self._rect = QRectF(self._start, pos).normalized()
+
+    def get_crop_rect(self) -> QRectF:
+        """Return the final rounded rectangle to crop."""
+        return self._rect
+
+    def boundingRect(self) -> QRectF:
+        return self._rect.adjusted(-2, -2, 2, 2)
+
+    def paint(self, painter: QPainter, option, widget) -> None:
+        if self._rect.isEmpty():
+            return
+            
+        # Draw a semi-transparent dark mask over the entire scene, with a hole
+        # We can't easily draw over the whole scene from *inside* the item's paint 
+        # unless its bounding rect spans the scene. For an instant crop tool,
+        # drawing just a dashed box is perfectly fine for now.
+        
+        pen = QPen(Qt.GlobalColor.white, 2, Qt.PenStyle.DashLine)
+        # Add a subtle black outline shadow so it's visible on light and dark backgrounds
+        
+        # Outer black solid line
+        painter.setPen(QPen(Qt.GlobalColor.black, 2, Qt.PenStyle.SolidLine))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRect(self._rect)
+        
+        # Inner white dashed line
+        painter.setPen(pen)
+        painter.drawRect(self._rect)

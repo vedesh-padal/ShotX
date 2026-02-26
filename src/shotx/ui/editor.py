@@ -4,14 +4,162 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QRectF, QTimer, Signal, QPointF
-from PySide6.QtGui import QImage, QPixmap, QPainter, QIcon, QKeySequence, QShortcut
+from PySide6.QtGui import QImage, QPixmap, QPainter, QIcon, QKeySequence, QShortcut, QUndoCommand
 from PySide6.QtWidgets import (
     QMainWindow, QGraphicsView, QGraphicsPixmapItem,
-    QToolBar, QVBoxLayout, QWidget, QFileDialog, QMessageBox, QApplication
+    QToolBar, QVBoxLayout, QWidget, QFileDialog, QMessageBox, QApplication,
+    QDialog, QFormLayout, QSpinBox, QCheckBox, QDialogButtonBox,
 )
 
 from shotx.ui.annotations.scene import AnnotationScene, AnnotationTool
 from shotx.ui.annotations.toolbar import AnnotationToolbar
+
+# ---------------------------------------------------------------------------
+# Undo Commands for Flattening Vectors
+# ---------------------------------------------------------------------------
+
+class CropCommand(QUndoCommand):
+    """Crops the image and flattens current vectors."""
+
+    def __init__(self, editor: "ImageEditorWindow", crop_rect: QRectF) -> None:
+        super().__init__("Crop Image")
+        self.editor = editor
+        
+        self.old_pixmap = editor.image_item.pixmap()
+        self.old_scene_rect = editor.scene.sceneRect()
+        self.old_backdrop = editor.scene.backdrop_crop
+        
+        self.vector_items = []
+        for item in editor.scene.items():
+            if item != editor.image_item:
+                self.vector_items.append(item)
+                
+        target_rect = crop_rect.intersected(self.old_scene_rect)
+        if target_rect.width() < 10 or target_rect.height() < 10:
+            target_rect = self.old_scene_rect
+            
+        new_image = QImage(target_rect.size().toSize(), QImage.Format.Format_ARGB32)
+        new_image.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(new_image)
+        editor.scene.render(painter, QRectF(new_image.rect()), target_rect)
+        painter.end()
+        
+        self.new_pixmap = QPixmap.fromImage(new_image)
+        self.new_scene_rect = QRectF(new_image.rect())
+        self.new_backdrop = new_image
+        
+    def redo(self) -> None:
+        for item in self.vector_items:
+            self.editor.scene.removeItem(item)
+        self.editor.image_item.setPixmap(self.new_pixmap)
+        self.editor.scene.setSceneRect(self.new_scene_rect)
+        self.editor.scene.backdrop_crop = self.new_backdrop
+        self.editor.view.fitInView(self.new_scene_rect, Qt.AspectRatioMode.KeepAspectRatio)
+
+    def undo(self) -> None:
+        self.editor.image_item.setPixmap(self.old_pixmap)
+        self.editor.scene.setSceneRect(self.old_scene_rect)
+        self.editor.scene.backdrop_crop = self.old_backdrop
+        for item in self.vector_items:
+            if item.scene() is None:
+                self.editor.scene.addItem(item)
+        self.editor.view.fitInView(self.old_scene_rect, Qt.AspectRatioMode.KeepAspectRatio)
+
+
+class ResizeCommand(QUndoCommand):
+    """Resizes the image and flattens current vectors."""
+
+    def __init__(self, editor: "ImageEditorWindow", new_width: int, new_height: int) -> None:
+        super().__init__("Resize Image")
+        self.editor = editor
+        
+        self.old_pixmap = editor.image_item.pixmap()
+        self.old_scene_rect = editor.scene.sceneRect()
+        self.old_backdrop = editor.scene.backdrop_crop
+        
+        self.vector_items = []
+        for item in editor.scene.items():
+            if item != editor.image_item:
+                self.vector_items.append(item)
+                
+        flattened = QImage(self.old_scene_rect.size().toSize(), QImage.Format.Format_ARGB32)
+        flattened.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(flattened)
+        editor.scene.render(painter, QRectF(flattened.rect()), self.old_scene_rect)
+        painter.end()
+        
+        scaled_image = flattened.scaled(
+            new_width, new_height, 
+            Qt.AspectRatioMode.IgnoreAspectRatio, 
+            Qt.TransformationMode.SmoothTransformation
+        )
+        
+        self.new_pixmap = QPixmap.fromImage(scaled_image)
+        self.new_scene_rect = QRectF(scaled_image.rect())
+        self.new_backdrop = scaled_image
+        
+    def redo(self) -> None:
+        for item in self.vector_items:
+            self.editor.scene.removeItem(item)
+        self.editor.image_item.setPixmap(self.new_pixmap)
+        self.editor.scene.setSceneRect(self.new_scene_rect)
+        self.editor.scene.backdrop_crop = self.new_backdrop
+        self.editor.view.fitInView(self.new_scene_rect, Qt.AspectRatioMode.KeepAspectRatio)
+
+    def undo(self) -> None:
+        self.editor.image_item.setPixmap(self.old_pixmap)
+        self.editor.scene.setSceneRect(self.old_scene_rect)
+        self.editor.scene.backdrop_crop = self.old_backdrop
+        for item in self.vector_items:
+            if item.scene() is None:
+                self.editor.scene.addItem(item)
+        self.editor.view.fitInView(self.old_scene_rect, Qt.AspectRatioMode.KeepAspectRatio)
+
+
+# ---------------------------------------------------------------------------
+# UI Components
+# ---------------------------------------------------------------------------
+
+class ResizeDialog(QDialog):
+    def __init__(self, current_width: int, current_height: int, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Resize Image")
+        self.setFixedSize(300, 150)
+        
+        layout = QFormLayout(self)
+        
+        self.width_spin = QSpinBox(self)
+        self.width_spin.setRange(1, 10000)
+        self.width_spin.setValue(current_width)
+        
+        self.height_spin = QSpinBox(self)
+        self.height_spin.setRange(1, 10000)
+        self.height_spin.setValue(current_height)
+        
+        self.aspect_ratio_cb = QCheckBox("Maintain Aspect Ratio", self)
+        self.aspect_ratio_cb.setChecked(True)
+        
+        self._aspect_ratio = current_width / current_height if current_height > 0 else 1
+        
+        self.width_spin.valueChanged.connect(self._on_width_changed)
+        self.height_spin.valueChanged.connect(self._on_height_changed)
+        
+        layout.addRow("Width (px):", self.width_spin)
+        layout.addRow("Height (px):", self.height_spin)
+        layout.addRow("", self.aspect_ratio_cb)
+        
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addRow(buttons)
+        
+    def _on_width_changed(self, w: int):
+        if self.aspect_ratio_cb.isChecked() and self.width_spin.hasFocus():
+            self.height_spin.setValue(int(w / self._aspect_ratio))
+            
+    def _on_height_changed(self, h: int):
+        if self.aspect_ratio_cb.isChecked() and self.height_spin.hasFocus():
+            self.width_spin.setValue(int(h * self._aspect_ratio))
 
 class EditorGraphicsView(QGraphicsView):
     """Custom view to handle zooming and specific canvas interactions."""
@@ -184,6 +332,11 @@ class ImageEditorWindow(QMainWindow):
         action_open = self.system_toolbar.addAction("📁 Open")
         action_open.triggered.connect(self._on_open_file)
         
+        action_resize = self.system_toolbar.addAction("📐 Resize...")
+        action_resize.triggered.connect(self._on_resize_requested)
+        
+        self.system_toolbar.addSeparator()
+        
         action_paste = self.system_toolbar.addAction("📋 Paste")
         action_paste.triggered.connect(self._on_paste_clipboard)
         
@@ -224,6 +377,7 @@ class ImageEditorWindow(QMainWindow):
         parent_layout.addWidget(self.annotation_toolbar, alignment=Qt.AlignmentFlag.AlignHCenter)
         
         self.annotation_toolbar.tool_selected.connect(self._on_tool_selected)
+        self.scene.crop_requested.connect(self.apply_crop)
         self.annotation_toolbar.undo_requested.connect(self.scene.undo_stack.undo)
         self.annotation_toolbar.redo_requested.connect(self.scene.undo_stack.redo)
         self.annotation_toolbar.color_changed.connect(lambda c: setattr(self.scene, 'current_color', c))
@@ -349,6 +503,22 @@ class ImageEditorWindow(QMainWindow):
         
         # Center the image in the view and scale it down if it's too big
         self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+
+    def apply_crop(self, crop_rect: QRectF) -> None:
+        if self.image_item:
+            self.scene.undo_stack.push(CropCommand(self, crop_rect))
+
+    def _on_resize_requested(self) -> None:
+        if not self.image_item:
+            return
+            
+        rect = self.scene.sceneRect()
+        dialog = ResizeDialog(int(rect.width()), int(rect.height()), self)
+        if dialog.exec():
+            w = dialog.width_spin.value()
+            h = dialog.height_spin.value()
+            if w != int(rect.width()) or h != int(rect.height()):
+                self.scene.undo_stack.push(ResizeCommand(self, w, h))
 
     def _on_open_file(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(

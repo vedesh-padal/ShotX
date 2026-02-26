@@ -11,7 +11,7 @@ import logging
 from enum import Enum, auto
 from typing import Optional
 
-from PySide6.QtCore import Qt, QPointF
+from PySide6.QtCore import Qt, QPointF, Signal, QRectF
 from PySide6.QtGui import QColor, QImage, QUndoStack, QUndoCommand, QTransform
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsSceneMouseEvent
 
@@ -25,6 +25,7 @@ from .items import (
     HighlightItem,
     StepNumberItem,
     BlurItem,
+    CropItem,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,6 +44,7 @@ class AnnotationTool(Enum):
     HIGHLIGHT = auto()
     STEP_NUMBER = auto()
     ERASER = auto()
+    CROP = auto()
 
 
 # ---------------------------------------------------------------------------
@@ -88,6 +90,8 @@ class RemoveItemCommand(QUndoCommand):
 
 class AnnotationScene(QGraphicsScene):
     """A self-contained scene for drawing vectors over the screenshot."""
+
+    crop_requested = Signal(QRectF)
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -152,6 +156,8 @@ class AnnotationScene(QGraphicsScene):
             self._active_item = HighlightItem(pos, color, thick)
         elif tool == AnnotationTool.BLUR:
             self._active_item = BlurItem(pos, color, thick, backdrop=self.backdrop_crop)
+        elif tool == AnnotationTool.CROP:
+            self._active_item = CropItem(pos)
         elif tool == AnnotationTool.TEXT:
             item = EditableTextItem(pos, color, thick)
             self.addItem(item)
@@ -194,8 +200,15 @@ class AnnotationScene(QGraphicsScene):
 
     def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         if self._active_item:
-            self.undo_stack.push(AddItemCommand(self, self._active_item))
-            self._active_item = None
+            if isinstance(self._active_item, CropItem):
+                crop_rect = self._active_item.get_crop_rect().toRect()
+                self.removeItem(self._active_item)
+                self._active_item = None
+                if crop_rect.width() > 10 and crop_rect.height() > 10:
+                    self.crop_requested.emit(QRectF(crop_rect))
+            else:
+                self.undo_stack.push(AddItemCommand(self, self._active_item))
+                self._active_item = None
             event.accept()
             return
 
