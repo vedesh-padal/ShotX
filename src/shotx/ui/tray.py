@@ -179,7 +179,7 @@ class TrayIcon:
         self._menu.addAction(open_folder_action)
 
         history_action = QAction("📋 History", self._menu)
-        history_action.setEnabled(False)  # Implemented in Phase 8
+        history_action.triggered.connect(self._on_history)
         self._menu.addAction(history_action)
 
         settings_action = QAction("⚙️ Settings", self._menu)
@@ -248,6 +248,10 @@ class TrayIcon:
     def _on_qr_scan_clipboard(self) -> None:
         """Trigger QR scan from clipboard image."""
         self._app.scan_qr_from_clipboard()
+
+    def _on_history(self) -> None:
+        """Trigger history viewer."""
+        self._app.open_history_viewer()
 
     def _on_hash_checker(self) -> None:
         """Trigger hash checker tool."""

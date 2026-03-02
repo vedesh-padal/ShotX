@@ -31,6 +31,7 @@ from shotx.upload.ftp import FtpUploader, SftpUploader
 from shotx.upload.custom import CustomUploader, SxcuParser
 from shotx.upload.shortener import ShortenerWorker
 from shotx.upload.base import UploaderBackend, UploadError
+from shotx.db.history import HistoryManager
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,11 @@ class ShotXApp(QObject):
             audio=self.settings.capture.capture_audio,
         )
         self._current_recording_format = "mp4"
+
+        # History database
+        from shotx.config.settings import _default_config_dir
+        db_path = Path(_default_config_dir()) / "history.db"
+        self._history_manager = HistoryManager(db_path)
 
         # Thread pool for background tasks (e.g. uploading)
         self._thread_pool = QThreadPool.globalInstance()
@@ -808,6 +814,18 @@ class ShotXApp(QObject):
             )
             if saved_path:
                 self.last_saved_path = saved_path
+                
+                # Add to history
+                try:
+                    size_bytes = Path(saved_path).stat().st_size
+                except OSError:
+                    size_bytes = 0
+                self._history_manager.add_record(
+                    filepath=saved_path, 
+                    size_bytes=size_bytes, 
+                    capture_type=capture_type
+                )
+                
                 if self._verbose:
                     print(f"Saved to {saved_path}")
             else:
@@ -911,6 +929,9 @@ class ShotXApp(QObject):
             
     def _finalize_upload_success(self, file_path: str, final_url: str) -> None:
         """Final step of upload: clipboard and notification."""
+        # Update URL in history database
+        self._history_manager.update_url_by_path(file_path, final_url)
+
         if self.settings.upload.copy_url_to_clipboard:
             copy_text_to_clipboard(final_url)
             if self._verbose:
@@ -1028,6 +1049,8 @@ class ShotXApp(QObject):
         elif capture_type == "edit":
             image_path = kwargs.get("image_path", "")
             success = self.open_image_editor(image_path, exec_loop=True)
+        elif capture_type == "history":
+            success = self.open_history_viewer(exec_dialog=True)
         else:
             print(f"Unknown capture type: {capture_type}")
             return 1
@@ -1063,6 +1086,25 @@ class ShotXApp(QObject):
         return 0 if success else 1
 
     # --- Private methods ---
+
+    def open_history_viewer(self, exec_dialog: bool = False) -> bool:
+        """Open the History viewer dialog."""
+        logger.info("Opening History Viewer")
+        from PySide6.QtCore import Qt
+        from shotx.ui.history import HistoryDialog
+        
+        # In tray mode, we can just show it natively
+        if not exec_dialog and self._tray:
+            self._history_dialog = HistoryDialog(self)
+            self._history_dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+            self._history_dialog.show()
+            # We don't block the event loop
+            return True
+            
+        # In CLI one-shot mode
+        dialog = HistoryDialog(self)
+        dialog.exec()
+        return True
 
     def _setup_logging(self) -> None:
         """Configure logging based on verbosity."""

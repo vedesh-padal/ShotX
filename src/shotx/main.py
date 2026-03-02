@@ -97,6 +97,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Open the Image Editor (optionally provide a starting image path).",
     )
     parser.add_argument(
+        "--history",
+        action="store_true",
+        help="Open the History Viewer to browse past captures.",
+    )
+    parser.add_argument(
         "--tray",
         action="store_true",
         help="Launch the system tray app (default behavior).",
@@ -188,6 +193,8 @@ def main(argv: list[str] | None = None) -> int:
         return app.run_oneshot("index_dir", start_path=args.index_dir)
     elif args.edit is not None:
         return app.run_oneshot("edit", image_path=args.edit)
+    elif args.history:
+        return app.run_oneshot("history")
 
     # Default: launch tray app
     return app.run_tray()
