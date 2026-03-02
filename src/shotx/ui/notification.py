@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import logging
+import subprocess
 import threading
 from pathlib import Path
 
