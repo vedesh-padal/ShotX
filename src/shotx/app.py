@@ -353,7 +353,7 @@ class ShotXApp(QObject):
         overlay.color_selected.connect(on_color_selected)
         overlay.cancelled.connect(on_cancelled)
         
-        overlay.show_fullscreen()
+        overlay.showFullScreen()
         loop.exec()
         
         if not selected_color:
