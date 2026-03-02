@@ -78,100 +78,115 @@ class TrayIcon:
         logger.debug("Using system theme icon")
 
     def _setup_menu(self) -> None:
-        """Build the right-click context menu."""
-        # Capture actions
-        capture_fullscreen = QAction("📷 Capture Fullscreen", self._menu)
+        """Build the categorized right-click context menu."""
+
+        # ---------------------------------------------------------
+        # 1. Capture Submenu
+        # ---------------------------------------------------------
+        capture_menu = self._menu.addMenu("📷 Capture")
+
+        capture_fullscreen = QAction("Capture Fullscreen", self._menu)
         capture_fullscreen.setShortcut("Print")
         capture_fullscreen.triggered.connect(self._on_capture_fullscreen)
-        self._menu.addAction(capture_fullscreen)
+        capture_menu.addAction(capture_fullscreen)
 
-        capture_region = QAction("📐 Capture Region", self._menu)
+        capture_region = QAction("Capture Region", self._menu)
         capture_region.setShortcut("Ctrl+Print")
         capture_region.triggered.connect(self._on_capture_region)
-        self._menu.addAction(capture_region)
+        capture_menu.addAction(capture_region)
 
-        capture_window = QAction("🪟 Capture Window", self._menu)
+        capture_window = QAction("Capture Window", self._menu)
         capture_window.setShortcut("Alt+Print")
-        capture_window.triggered.connect(self._on_capture_region)  # Same overlay
-        self._menu.addAction(capture_window)
+        capture_window.triggered.connect(self._on_capture_region)
+        capture_menu.addAction(capture_window)
 
-        capture_ocr = QAction("📝 Extract Text (OCR)", self._menu)
-        capture_ocr.triggered.connect(self._on_capture_ocr)
-        self._menu.addAction(capture_ocr)
+        capture_menu.addSeparator()
 
-        pin_region = QAction("📌 Pin to Screen", self._menu)
-        pin_region.triggered.connect(self._on_pin_region)
-        self._menu.addAction(pin_region)
-
-        capture_color = QAction("🎨 Color Picker", self._menu)
-        capture_color.triggered.connect(self._on_capture_color_picker)
-        self._menu.addAction(capture_color)
-
-        capture_ruler = QAction("📏 Screen Ruler", self._menu)
-        capture_ruler.triggered.connect(self._on_capture_ruler)
-        self._menu.addAction(capture_ruler)
-
-        self._menu.addSeparator()
-
-        qr_scan = QAction("🔍 QR Code Scanner", self._menu)
-        qr_scan.triggered.connect(self._on_qr_scan)
-        self._menu.addAction(qr_scan)
-
-        qr_generate = QAction("🖼️ Generate QR from Clipboard", self._menu)
-        qr_generate.triggered.connect(self._on_qr_generate)
-        self._menu.addAction(qr_generate)
-
-        qr_scan_clipboard = QAction("📋 Scan QR from Clipboard Image", self._menu)
-        qr_scan_clipboard_shortcut = " (Img)"
-        qr_scan_clipboard.triggered.connect(self._on_qr_scan_clipboard)
-        self._menu.addAction(qr_scan_clipboard)
-
-        hash_tool = QAction("🔍 Hash Checker", self._menu)
-        hash_tool.triggered.connect(self._on_hash_checker)
-        self._menu.addAction(hash_tool)
-
-        indexer_tool = QAction("📁 Directory Indexer", self._menu)
-        indexer_tool.triggered.connect(self._on_directory_indexer)
-        self._menu.addAction(indexer_tool)
-
-        editor_tool = QAction("🖌️ Image Editor", self._menu)
-        editor_tool.triggered.connect(self._on_image_editor)
-        self._menu.addAction(editor_tool)
-
-        self._menu.addSeparator()
-
-        # Recording actions
-        self._record_mp4_action = QAction("📹 Record Screen (MP4)", self._menu)
+        self._record_mp4_action = QAction("Record Screen (MP4)", self._menu)
         self._record_mp4_action.triggered.connect(self._on_record_mp4)
-        self._menu.addAction(self._record_mp4_action)
+        capture_menu.addAction(self._record_mp4_action)
 
-        self._record_gif_action = QAction("🎞️ Record Screen (GIF)", self._menu)
+        self._record_gif_action = QAction("Record Screen (GIF)", self._menu)
         self._record_gif_action.triggered.connect(self._on_record_gif)
-        self._menu.addAction(self._record_gif_action)
+        capture_menu.addAction(self._record_gif_action)
 
-        self._stop_record_action = QAction("🛑 Stop Recording", self._menu)
+        self._stop_record_action = QAction("Stop Recording", self._menu)
         self._stop_record_action.triggered.connect(self._on_stop_record)
         self._stop_record_action.setVisible(False)
-        self._stop_record_action.setShortcut("Shift+Print") # Basic stop hotkey
-        self._menu.addAction(self._stop_record_action)
+        self._stop_record_action.setShortcut("Shift+Print")
+        capture_menu.addAction(self._stop_record_action)
+
+        capture_menu.addSeparator()
+
+        capture_ocr = QAction("Extract Text (OCR)", self._menu)
+        capture_ocr.triggered.connect(self._on_capture_ocr)
+        capture_menu.addAction(capture_ocr)
+
+        # ---------------------------------------------------------
+        # 2. Tools Submenu
+        # ---------------------------------------------------------
+        tools_menu = self._menu.addMenu("🛠️ Tools")
+
+        editor_tool = QAction("Image Editor", self._menu)
+        editor_tool.triggered.connect(self._on_image_editor)
+        tools_menu.addAction(editor_tool)
+        
+        tools_menu.addSeparator()
+
+        pin_region = QAction("Pin to Screen", self._menu)
+        pin_region.triggered.connect(self._on_pin_region)
+        tools_menu.addAction(pin_region)
+
+        capture_color = QAction("Color Picker", self._menu)
+        capture_color.triggered.connect(self._on_capture_color_picker)
+        tools_menu.addAction(capture_color)
+
+        capture_ruler = QAction("Screen Ruler", self._menu)
+        capture_ruler.triggered.connect(self._on_capture_ruler)
+        tools_menu.addAction(capture_ruler)
+
+        tools_menu.addSeparator()
+
+        qr_scan = QAction("QR Code Scanner", self._menu)
+        qr_scan.triggered.connect(self._on_qr_scan)
+        tools_menu.addAction(qr_scan)
+
+        qr_generate = QAction("Generate QR from Clipboard", self._menu)
+        qr_generate.triggered.connect(self._on_qr_generate)
+        tools_menu.addAction(qr_generate)
+
+        qr_scan_clipboard = QAction("Scan QR from Clipboard Image", self._menu)
+        qr_scan_clipboard.triggered.connect(self._on_qr_scan_clipboard)
+        tools_menu.addAction(qr_scan_clipboard)
+
+        tools_menu.addSeparator()
+
+        hash_tool = QAction("Hash Checker", self._menu)
+        hash_tool.triggered.connect(self._on_hash_checker)
+        tools_menu.addAction(hash_tool)
+
+        indexer_tool = QAction("Directory Indexer", self._menu)
+        indexer_tool.triggered.connect(self._on_directory_indexer)
+        tools_menu.addAction(indexer_tool)
 
         self._menu.addSeparator()
 
-        # File actions
-        open_folder_action = QAction("📂 Open Screenshots Folder", self._menu)
+        # ---------------------------------------------------------
+        # 3. Base application actions
+        # ---------------------------------------------------------
+        open_folder_action = QAction("📂 Screenshots Folder", self._menu)
         open_folder_action.triggered.connect(self._on_open_folder)
         self._menu.addAction(open_folder_action)
 
         history_action = QAction("📋 History", self._menu)
-        history_action.setEnabled(False)  # Phase 8
+        history_action.setEnabled(False)  # Implemented in Phase 8
         self._menu.addAction(history_action)
 
-        self._menu.addSeparator()
-
-        # Settings & quit
-        settings_action = QAction("⚙️  Settings", self._menu)
-        settings_action.setEnabled(False)  # Phase 8
+        settings_action = QAction("⚙️ Settings", self._menu)
+        settings_action.setEnabled(False)  # Implemented in Phase 8
         self._menu.addAction(settings_action)
+
+        self._menu.addSeparator()
 
         quit_action = QAction("❌ Quit", self._menu)
         quit_action.triggered.connect(self._on_quit)
