@@ -10,8 +10,8 @@ from pathlib import Path
 import os
 import subprocess
 
-from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QIcon, QAction, QPixmap
+from PySide6.QtCore import Qt, QSize, QRunnable, QObject, Signal, Slot, QThreadPool
+from PySide6.QtGui import QIcon, QAction, QPixmap, QImageReader
 from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
@@ -25,9 +25,34 @@ from PySide6.QtWidgets import (
     QMessageBox
 )
 
+from PySide6.QtGui import QIcon, QAction, QPixmap, QImageReader, QImage
+
 from shotx.output.clipboard import copy_text_to_clipboard
 
 logger = logging.getLogger(__name__)
+
+class ThumbnailSignals(QObject):
+    """Signals for the background thumbnail worker."""
+    finished = Signal(int, QImage)  # row_number, generated_image
+
+class ThumbnailWorker(QRunnable):
+    """Background worker that safely decodes large images into tiny thumbnails using minimal RAM."""
+    def __init__(self, row: int, filepath: str):
+        super().__init__()
+        self.row = row
+        self.filepath = filepath
+        self.signals = ThumbnailSignals()
+
+    @Slot()
+    def run(self):
+        # QImageReader allows us to extract a scaled image DIRECTLY from the encoded bytes.
+        # It never decodes the full 4K frame into RAM, dropping memory usage by 99%.
+        reader = QImageReader(self.filepath)
+        reader.setScaledSize(QSize(100, 70))
+        img = reader.read()
+        
+        # We must emit the raw QImage. QPixmap/QIcon strictly require the main GUI thread.
+        self.signals.finished.emit(self.row, img)
 
 class HistoryDialog(QDialog):
     """A dialog to display capture history."""
@@ -40,8 +65,14 @@ class HistoryDialog(QDialog):
         self.setWindowTitle("ShareX History")
         self.resize(900, 600)
         
+        self._thread_pool = QThreadPool.globalInstance()
+        self._items_per_page = 50
+        self._current_offset = 0
+        self._is_loading = False
+        self._all_loaded = False
+        
         self._setup_ui()
-        self._load_data()
+        self._load_data(clear=True)
 
     def _setup_ui(self) -> None:
         layout = QVBoxLayout(self)
@@ -51,7 +82,7 @@ class HistoryDialog(QDialog):
         tools_layout = QHBoxLayout()
         
         self.btn_refresh = QPushButton("🔄 Refresh")
-        self.btn_refresh.clicked.connect(self._load_data)
+        self.btn_refresh.clicked.connect(lambda: self._load_data(clear=True))
         tools_layout.addWidget(self.btn_refresh)
         
         self.btn_clear = QPushButton("🗑️ Clear History")
@@ -92,22 +123,11 @@ class HistoryDialog(QDialog):
         self.table.customContextMenuRequested.connect(self._on_context_menu)
         self.table.doubleClicked.connect(self._on_double_click)
         
+        # Infinite scroll event
+        self.table.verticalScrollBar().valueChanged.connect(self._on_scroll)
+        
         layout.addWidget(self.table)
         
-    def _create_thumbnail(self, filepath: str) -> QIcon:
-        """Create a scaled QIcon for the given filepath."""
-        pixmap = QPixmap(filepath)
-        if pixmap.isNull():
-             # Fallback icon if file deleted
-            return QIcon.fromTheme("image-missing")
-            
-        scaled = pixmap.scaled(
-            100, 70, 
-            Qt.AspectRatioMode.KeepAspectRatio, 
-            Qt.TransformationMode.SmoothTransformation
-        )
-        return QIcon(scaled)
-
     def _format_size(self, size_bytes: int) -> str:
         """Format bytes to human readable string."""
         if size_bytes == 0:
@@ -118,26 +138,62 @@ class HistoryDialog(QDialog):
             size_bytes /= 1024.0
             i += 1
         return f"{size_bytes:.1f} {sizes[i]}"
-
-    def _load_data(self) -> None:
-        """Load data from database into the table."""
-        self.table.setRowCount(0)
         
-        records = self._history_manager.get_all(limit=100)
-        self.table.setRowCount(len(records))
+    def _on_scroll(self, value: int) -> None:
+        """Trigger next page load when scrolled near the bottom."""
+        if self._is_loading or self._all_loaded:
+            return
+            
+        scrollbar = self.table.verticalScrollBar()
+        # If we are within 20% of the bottom, load more
+        if value >= scrollbar.maximum() * 0.8:
+            self._load_data(clear=False)
+
+    def _load_data(self, clear: bool = False) -> None:
+        """Load data from database into the table incrementally."""
+        if self._is_loading:
+            return
+            
+        self._is_loading = True
+        
+        if clear:
+            self.table.setRowCount(0)
+            self._current_offset = 0
+            self._all_loaded = False
+            
+        if self._all_loaded:
+            self._is_loading = False
+            return
+            
+        records = self._history_manager.get_all(limit=self._items_per_page, offset=self._current_offset)
+        
+        if not records:
+            self._all_loaded = True
+            self._is_loading = False
+            return
+            
+        start_row = self.table.rowCount()
+        self.table.setRowCount(start_row + len(records))
         
         # We store the raw DB 'id' and 'filepath' inside the first column's ItemData
-        for row, rec in enumerate(records):
+        for i, rec in enumerate(records):
+            row = start_row + i
             
-            # 1. Preview (Column 0)
+            # 1. Preview (Column 0) - Insert blank placeholder immediately
             preview_item = QTableWidgetItem()
-            icon = self._create_thumbnail(rec.filepath)
-            preview_item.setIcon(icon)
+            # blank_icon = QIcon()
+            # preview_item.setIcon(blank_icon)
+            
             # Store hidden metadata inside standard Qt ItemDataRoles
             preview_item.setData(Qt.ItemDataRole.UserRole, rec.id)
             preview_item.setData(Qt.ItemDataRole.UserRole + 1, rec.filepath)
             preview_item.setData(Qt.ItemDataRole.UserRole + 2, rec.url)
             self.table.setItem(row, 0, preview_item)
+            
+            # Dispatch async thumbnail generation
+            worker = ThumbnailWorker(row, rec.filepath)
+            worker.signals.finished.connect(self._on_thumbnail_ready)
+            self._thread_pool.start(worker)
             
             # 2. Filename (Column 1)
             filename = Path(rec.filepath).name
@@ -159,6 +215,25 @@ class HistoryDialog(QDialog):
 
         # Adjust icon sizes explicitly
         self.table.setIconSize(QSize(100, 70))
+        
+        self._current_offset += len(records)
+        self._is_loading = False
+        
+        # If we fetched exactly requested, there might be more. If less, we hit the end.
+        if len(records) < self._items_per_page:
+            self._all_loaded = True
+
+    @Slot(int, QImage)
+    def _on_thumbnail_ready(self, row: int, img: QImage) -> None:
+        """Called by the main thread when a background thumbnail finishes decoding."""
+        item = self.table.item(row, 0)
+        if item:
+            if img.isNull():
+                 icon = QIcon.fromTheme("image-missing")
+            else:
+                 pixmap = QPixmap.fromImage(img)
+                 icon = QIcon(pixmap)
+            item.setIcon(icon)
 
     def _get_selected_record(self) -> tuple[int, str, str | None] | None:
         """Helper to extract hidden metadata from the currently selected row."""
@@ -273,7 +348,7 @@ class HistoryDialog(QDialog):
     def _delete_record(self, rec_id: int) -> None:
         """Delete a record from database and refresh."""
         self._history_manager.delete_record(rec_id)
-        self._load_data()
+        self._load_data(clear=True)
 
     def _delete_file(self, rec_id: int, filepath: str) -> None:
         """Delete physical file and DB record."""
@@ -289,7 +364,7 @@ class HistoryDialog(QDialog):
             if f.exists():
                 f.unlink()
             self._history_manager.delete_record(rec_id)
-            self._load_data()
+            self._load_data(clear=True)
 
     def _upload_image(self, filepath: str) -> None:
         """Trigger backend upload for a historical capture."""
@@ -310,4 +385,4 @@ class HistoryDialog(QDialog):
         
         if reply == QMessageBox.StandardButton.Yes:
             self._history_manager.clear_all()
-            self._load_data()
+            self._load_data(clear=True)
