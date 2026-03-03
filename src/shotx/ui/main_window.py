@@ -65,6 +65,38 @@ class _SidebarButton(QPushButton):
                 subcontrol-origin: padding;
                 right: 8px;
             }
+            QMenu {
+                background-color: #2b2d31;
+                border: 1px solid #404249;
+                border-radius: 6px;
+                padding: 4px 0;
+            }
+            QMenu::item {
+                padding: 6px 24px;
+                color: #dcddde;
+                border-radius: 3px;
+                margin: 1px 4px;
+            }
+            QMenu::item:selected {
+                background-color: #4752c4;
+                color: #ffffff;
+            }
+            QMenu::item:pressed {
+                background-color: #3c45a5;
+            }
+            QMenu::item:disabled {
+                color: #72767d;
+            }
+            QMenu::separator {
+                height: 1px;
+                background: #404249;
+                margin: 4px 8px;
+            }
+            QMenu::indicator {
+                width: 14px;
+                height: 14px;
+                margin-left: 6px;
+            }
             """
         )
 
