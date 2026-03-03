@@ -1085,26 +1085,40 @@ class ShotXApp(QObject):
 
         return 0 if success else 1
 
-    # --- Private methods ---
+
+    def open_main_window(self) -> None:
+        """Open (or raise) the unified ShotX Main Window."""
+        logger.info("Opening Main Window")
+        from PySide6.QtCore import Qt
+        from shotx.ui.main_window import ShotXMainWindow
+
+        if not hasattr(self, '_main_window') or self._main_window is None:
+            self._main_window = ShotXMainWindow(self)
+
+        self._main_window.show()
+        self._main_window.raise_()
+        self._main_window.activateWindow()
 
     def open_history_viewer(self, exec_dialog: bool = False) -> bool:
-        """Open the History viewer dialog."""
+        """Open the History viewer.
+
+        In tray mode, opens the Main Window (which embeds the history table).
+        In CLI oneshot mode, opens the standalone HistoryDialog.
+        """
         logger.info("Opening History Viewer")
-        from PySide6.QtCore import Qt
-        from shotx.ui.history import HistoryDialog
-        
-        # In tray mode, we can just show it natively
+
+        # In tray mode, delegate to the Main Window
         if not exec_dialog and self._tray:
-            self._history_dialog = HistoryDialog(self)
-            self._history_dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-            self._history_dialog.show()
-            # We don't block the event loop
+            self.open_main_window()
             return True
-            
-        # In CLI one-shot mode
+
+        # In CLI one-shot mode, use the standalone dialog wrapper
+        from shotx.ui.history import HistoryDialog
         dialog = HistoryDialog(self)
         dialog.exec()
         return True
+
+    # --- Private methods ---
 
     def _setup_logging(self) -> None:
         """Configure logging based on verbosity."""
