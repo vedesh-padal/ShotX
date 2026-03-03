@@ -548,6 +548,35 @@ class ShotXApp(QObject):
             self._indexer_dialog.show()
         return True
 
+    def open_image_editor(self, initial_image_path: str = "", exec_loop: bool = False) -> bool:
+        """Open the full image editor."""
+        from shotx.ui.editor import ImageEditorWindow
+        from PySide6.QtGui import QImage
+
+        initial_image = None
+        if initial_image_path:
+            initial_image = QImage(initial_image_path)
+            
+        self._image_editor = ImageEditorWindow(initial_image=initial_image)
+        self._image_editor.show()
+        
+        # Since ImageEditorWindow is a QMainWindow, we need to manually spin an event loop
+        # if this is called from the CLI oneshot mode, otherwise the processes exits instantly.
+        if exec_loop:
+            from PySide6.QtCore import QEventLoop
+            loop = QEventLoop()
+            
+            # Trap the window close event to unblock CLI
+            original_closeEvent = self._image_editor.closeEvent
+            def new_closeEvent(event):
+                loop.quit()
+                original_closeEvent(event)
+            self._image_editor.closeEvent = new_closeEvent
+            
+            loop.exec()
+
+        return True
+
     def pin_region(self) -> bool:
         """Capture a region and pin it to the screen."""
         logger.info("Starting Pin to Screen capture")
@@ -996,6 +1025,9 @@ class ShotXApp(QObject):
             # Extract start_path if it was passed via kwargs
             start_path = kwargs.get("start_path", "")
             success = self.open_directory_indexer(start_path, exec_dialog=True)
+        elif capture_type == "edit":
+            image_path = kwargs.get("image_path", "")
+            success = self.open_image_editor(image_path, exec_loop=True)
         else:
             print(f"Unknown capture type: {capture_type}")
             return 1

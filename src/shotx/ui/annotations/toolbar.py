@@ -108,6 +108,7 @@ class AnnotationToolbar(QWidget):
         self._add_tool_btn("↗", "Arrow", AnnotationTool.ARROW, btn_layout)
         self._add_tool_btn("T", "Text", AnnotationTool.TEXT, btn_layout)
         self._add_tool_btn("✎", "Freehand", AnnotationTool.FREEHAND, btn_layout)
+        self._add_tool_btn("✂", "Crop (Drag box, hit Enter)", AnnotationTool.CROP, btn_layout)
         self._add_tool_btn("▓", "Blur / Pixelate", AnnotationTool.BLUR, btn_layout)
         self._add_tool_btn("🖍", "Highlight", AnnotationTool.HIGHLIGHT, btn_layout)
         
