@@ -133,6 +133,9 @@ class HistoryWidget(QWidget):
 
         layout.addWidget(self.table)
 
+        # Listen for new captures correctly
+        self._app.capture_saved.connect(lambda f, s, t: self._load_data(clear=True))
+
     # -- Formatting helpers --------------------------------------------------
 
     @staticmethod

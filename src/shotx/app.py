@@ -49,6 +49,10 @@ class ShotXApp(QObject):
     menu, hotkey callbacks, and CLI one-shot mode.
     """
 
+    # Emitted when a capture is successfully saved to disk and DB (filepath, size_bytes, capture_type)
+    from PySide6.QtCore import Signal
+    capture_saved = Signal(str, int, str)
+
     def __init__(self, config_dir: str | None = None, verbose: bool = False) -> None:
         super().__init__()
         self._verbose = verbose
@@ -825,6 +829,9 @@ class ShotXApp(QObject):
                     size_bytes=size_bytes, 
                     capture_type=capture_type
                 )
+                
+                # Notify UI components that a new record was saved
+                self.capture_saved.emit(saved_path, size_bytes, capture_type)
                 
                 if self._verbose:
                     print(f"Saved to {saved_path}")
