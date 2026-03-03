@@ -132,7 +132,7 @@ def _send_dbus_notification(title: str, body: str, icon: str, urgency: int = 1, 
             {
                 "urgency": GLib.Variant("y", urgency), 
                 "transient": GLib.Variant("b", False),
-                "desktop-entry": GLib.Variant("s", "shotx")
+                "desktop-entry": GLib.Variant("s", "ShotX")
             },                                   # hints (0=low, 1=normal, 2=critical)
             5000 if urgency < 2 else 10000       # expire_timeout
         )),

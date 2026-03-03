@@ -308,7 +308,7 @@ class SettingsManager:
 
         with open(self.settings_path, "w") as f:
             f.write("# ShotX Configuration\n")
-            f.write("# https://github.com/vedesh-padal/shotx\n\n")
+            f.write("# https://github.com/vedesh-padal/ShotX\n\n")
             yaml.dump(data, f, default_flow_style=False, sort_keys=False)
 
         self._settings = settings
