@@ -304,17 +304,12 @@ class ShotXMainWindow(QMainWindow):
 
     def _populate_after_capture_menu(self, menu: QMenu) -> None:
         """Build checkable menu items that read/write settings."""
-        settings = self._app.settings
+        workflow = self._app.settings.workflow
 
-        # Read current after_capture flags (default to True for save/copy)
-        after = getattr(settings, "after_capture", {})
-        if isinstance(after, dict):
-            save = after.get("save_to_file", True)
-            copy = after.get("copy_to_clipboard", True)
-            upload = after.get("upload_image", False)
-            open_editor = after.get("open_in_editor", False)
-        else:
-            save, copy, upload, open_editor = True, True, False, False
+        save = workflow.save_to_file
+        copy = workflow.copy_to_clipboard
+        upload = workflow.upload_image
+        open_editor = workflow.open_in_editor
 
         self._ac_save = menu.addAction("Save image to file")
         self._ac_save.setCheckable(True)
@@ -371,18 +366,8 @@ class ShotXMainWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def _set_after_capture(self, key: str, value: bool) -> None:
-        """Update a single after_capture flag in settings and persist."""
-        settings = self._app.settings
-        if not hasattr(settings, "after_capture") or not isinstance(
-            settings.after_capture, dict
-        ):
-            settings.after_capture = {
-                "save_to_file": True,
-                "copy_to_clipboard": True,
-                "upload_image": False,
-                "open_in_editor": False,
-            }
-        settings.after_capture[key] = value
+        """Update a single after_capture boolean flag in workflow settings."""
+        setattr(self._app.settings.workflow, key, value)
         self._app._settings_manager.save()
         logger.debug("after_capture.%s = %s (saved)", key, value)
 
@@ -401,24 +386,21 @@ class ShotXMainWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def _on_app_settings(self) -> None:
-        """Open Application Settings dialog (placeholder)."""
-        from PySide6.QtWidgets import QMessageBox
-
-        QMessageBox.information(
-            self,
-            "Application Settings",
-            "Application Settings dialog will be implemented next.",
-        )
+        """Open Application Settings dialog."""
+        from shotx.ui.settings_dialog import ApplicationSettingsDialog
+        
+        dialog = ApplicationSettingsDialog(self._app._settings_manager, self)
+        if dialog.exec():
+            # Refresh anything in the UI that depends on settings
+            self._populate_after_capture_menu(self._ac_save.parentWidget())
+            self._populate_destinations_menu(list(self._dest_actions.values())[0].parentWidget())
 
     def _on_task_settings(self) -> None:
-        """Open Task Settings dialog (placeholder)."""
-        from PySide6.QtWidgets import QMessageBox
+        """Open Task Settings dialog."""
+        from shotx.ui.task_settings_dialog import TaskSettingsDialog
 
-        QMessageBox.information(
-            self,
-            "Task Settings",
-            "Task Settings dialog will be implemented next.",
-        )
+        dialog = TaskSettingsDialog(self._app._settings_manager, self)
+        dialog.exec()
 
     def _on_open_folder(self) -> None:
         """Open the screenshots output folder in the file manager."""
