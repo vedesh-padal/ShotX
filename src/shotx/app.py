@@ -52,6 +52,9 @@ class ShotXApp(QObject):
     # Emitted when a capture is successfully saved to disk and DB (filepath, size_bytes, capture_type)
     from PySide6.QtCore import Signal
     capture_saved = Signal(str, int, str)
+    
+    # Emitted when an existing capture is updated (e.g., upload finished, URL added). Payload: filepath
+    capture_updated = Signal(str)
 
     def __init__(self, config_dir: str | None = None, verbose: bool = False) -> None:
         super().__init__()
@@ -938,6 +941,9 @@ class ShotXApp(QObject):
         """Final step of upload: clipboard and notification."""
         # Update URL in history database
         self._history_manager.update_url_by_path(file_path, final_url)
+        
+        # Notify UI components that a record was updated (e.g. HistoryWidget)
+        self.capture_updated.emit(file_path)
 
         if self.settings.upload.copy_url_to_clipboard:
             copy_text_to_clipboard(final_url)

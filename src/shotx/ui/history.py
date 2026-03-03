@@ -135,6 +135,7 @@ class HistoryWidget(QWidget):
 
         # Listen for new captures correctly
         self._app.capture_saved.connect(lambda f, s, t: self._load_data(clear=True))
+        self._app.capture_updated.connect(lambda f: self._load_data(clear=True))
 
     # -- Formatting helpers --------------------------------------------------
 
