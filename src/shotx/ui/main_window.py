@@ -317,6 +317,7 @@ class ShotXMainWindow(QMainWindow):
         settings = self._app.settings
         current_dest = getattr(settings, "upload_destination", "imgur")
 
+        self._dest_actions: dict[str, QAction] = {}  # key → QAction
         destinations = [
             ("Imgur", "imgur"),
             ("Tmpfiles.org", "tmpfiles"),
@@ -331,6 +332,7 @@ class ShotXMainWindow(QMainWindow):
             a.setCheckable(True)
             a.setChecked(current_dest == key)
             a.triggered.connect(lambda checked, k=key: self._set_destination(k))
+            self._dest_actions[key] = a
 
     # ------------------------------------------------------------------
     # Settings Mutators
@@ -358,10 +360,9 @@ class ShotXMainWindow(QMainWindow):
         self._app._settings_manager.save()
         logger.debug("upload_destination = %s (saved)", key)
 
-        # Uncheck all other items in the destinations menu
-        for action in self.sender().parent().actions():
-            if action is not self.sender():
-                action.setChecked(False)
+        # Radio behavior: check only the selected action
+        for k, action in self._dest_actions.items():
+            action.setChecked(k == key)
 
     # ------------------------------------------------------------------
     # Action Handlers
@@ -389,7 +390,10 @@ class ShotXMainWindow(QMainWindow):
 
     def _on_open_folder(self) -> None:
         """Open the screenshots output folder in the file manager."""
-        output_dir = self._app.settings.output_dir
+        from pathlib import Path
+
+        output_dir = Path(self._app.settings.capture.output_dir).expanduser()
+        output_dir.mkdir(parents=True, exist_ok=True)
         open_folder(output_dir)
 
     def _on_history_refresh(self) -> None:
@@ -404,7 +408,7 @@ class ShotXMainWindow(QMainWindow):
         path, _ = QFileDialog.getOpenFileName(
             self,
             "Select image to upload",
-            str(self._app.settings.output_dir),
+            str(Path(self._app.settings.capture.output_dir).expanduser()),
             "Images (*.png *.jpg *.jpeg *.gif *.bmp *.webp)",
         )
         if path:
