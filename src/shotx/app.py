@@ -1223,3 +1223,9 @@ class ShotXApp(QObject):
         notify_error(tray_icon, message)
         if self._verbose:
             print(f"Error: {message}", file=sys.stderr)
+
+    def _notify_info(self, title: str, message: str) -> None:
+        """Show informational notification."""
+        from shotx.ui.notification import notify_info
+        tray_icon = self._tray.tray_icon if self._tray else None
+        notify_info(tray_icon, title, message)

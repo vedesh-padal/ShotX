@@ -266,11 +266,6 @@ class ShotXMainWindow(QMainWindow):
         a = menu.addAction("Upload from Clipboard...")
         a.triggered.connect(self._on_upload_clipboard)
 
-        menu.addSeparator()
-
-        a = menu.addAction("Shorten URL from Clipboard")
-        a.triggered.connect(self._on_shorten_url_clipboard)
-
     def _populate_tools_menu(self, menu: QMenu) -> None:
         a = menu.addAction("Image Editor")
         a.triggered.connect(lambda: self._app.open_image_editor())
@@ -296,6 +291,11 @@ class ShotXMainWindow(QMainWindow):
 
         a = menu.addAction("Scan QR from Clipboard Image")
         a.triggered.connect(lambda: self._app.scan_qr_from_clipboard())
+
+        menu.addSeparator()
+
+        a = menu.addAction("Shorten URL from Clipboard")
+        a.triggered.connect(self._on_shorten_url_clipboard)
 
         menu.addSeparator()
 

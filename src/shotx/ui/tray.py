@@ -169,6 +169,12 @@ class TrayIcon:
 
         tools_menu.addSeparator()
 
+        shorten_url = QAction("Shorten URL from Clipboard", self._menu)
+        shorten_url.triggered.connect(self._on_shorten_url_clipboard)
+        tools_menu.addAction(shorten_url)
+
+        tools_menu.addSeparator()
+
         hash_tool = QAction("Hash Checker", self._menu)
         hash_tool.triggered.connect(self._on_hash_checker)
         tools_menu.addAction(hash_tool)
@@ -267,6 +273,10 @@ class TrayIcon:
     def _on_history(self) -> None:
         """Trigger history viewer."""
         self._app.open_history_viewer()
+
+    def _on_shorten_url_clipboard(self) -> None:
+        """Trigger URL shortening from clipboard."""
+        self._app.shorten_clipboard_url()
 
     def _on_hash_checker(self) -> None:
         """Trigger hash checker tool."""
