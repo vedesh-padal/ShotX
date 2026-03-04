@@ -1131,9 +1131,9 @@ class ShotXApp(QObject):
     def shorten_clipboard_url(self) -> None:
         """Read URL from clipboard and shorten it."""
         import re
-        import subprocess
+        from shotx.output.clipboard import get_text_from_clipboard
 
-        text = self._read_clipboard_text()
+        text = (get_text_from_clipboard() or "").strip()
 
         if not text:
             self._notify_error("Clipboard is empty or does not contain text.")
@@ -1228,44 +1228,3 @@ class ShotXApp(QObject):
         from shotx.ui.notification import notify_info
         tray_icon = self._tray.tray_icon if self._tray else None
         notify_info(tray_icon, title, message)
-
-    @staticmethod
-    def _read_clipboard_text() -> str:
-        """Read text from the system clipboard.
-
-        On Wayland, Qt's clipboard API only works when the requesting
-        window is focused.  Tray menu clicks don't give us focus, so
-        QApplication.clipboard().text() returns '' even when the user
-        has copied something.  We fall back to wl-paste / xclip.
-        """
-        import subprocess
-        from PySide6.QtWidgets import QApplication
-
-        # 1. Try Qt (works when our window is focused)
-        text = QApplication.clipboard().text().strip()
-        if text:
-            return text
-
-        # 2. Try wl-paste (Wayland)
-        try:
-            result = subprocess.run(
-                ["wl-paste", "--no-newline", "--type", "text/plain"],
-                capture_output=True, text=True, timeout=2,
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                return result.stdout.strip()
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            pass
-
-        # 3. Try xclip (X11)
-        try:
-            result = subprocess.run(
-                ["xclip", "-selection", "clipboard", "-o"],
-                capture_output=True, text=True, timeout=2,
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                return result.stdout.strip()
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            pass
-
-        return ""
