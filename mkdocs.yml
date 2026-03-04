@@ -1,0 +1,80 @@
+site_name: ShotX Documentation
+site_description: A free, open-source screenshot and screen capture tool for Linux
+site_url: https://vedesh-padal.github.io/ShotX/
+repo_url: https://github.com/vedesh-padal/ShotX
+repo_name: vedesh-padal/ShotX
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  features:
+    - navigation.instant
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - minify:
+      minify_html: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quickstart.md
+  - Features:
+      - Screen Capture: features/capture.md
+      - Annotation Tools: features/annotation.md
+      - Screen Recording: features/recording.md
+      - Upload Engine: features/upload.md
+      - Image Editor: features/editor.md
+      - Productivity Tools: features/tools.md
+  - Configuration:
+      - Settings Reference: configuration/settings.md
+      - Hotkeys: configuration/hotkeys.md
+      - Custom Uploaders: configuration/custom-uploaders.md
+  - Reference:
+      - CLI Reference: reference/cli.md
+      - Architecture: reference/architecture.md
+      - Platform Caveats: reference/platform-caveats.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/vedesh-padal/ShotX

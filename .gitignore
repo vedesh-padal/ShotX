@@ -49,3 +49,6 @@ screenshots/
 
 # misc
 scripts/test_screencast.py
+
+# MkDocs build output
+site/
