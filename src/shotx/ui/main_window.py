@@ -200,7 +200,7 @@ class ShotXMainWindow(QMainWindow):
         sidebar_layout.addWidget(btn_task_settings)
 
         btn_hotkey_settings = _SidebarButton("⌨️  Hotkey settings...")
-        btn_hotkey_settings.setEnabled(False)  # Future phase
+        btn_hotkey_settings.clicked.connect(self._on_hotkey_settings)
         sidebar_layout.addWidget(btn_hotkey_settings)
 
         sidebar_layout.addWidget(_SidebarSeparator())
@@ -392,14 +392,24 @@ class ShotXMainWindow(QMainWindow):
         """Open Application Settings dialog."""
         from shotx.ui.settings_dialog import ApplicationSettingsDialog
         
-        dialog = ApplicationSettingsDialog(self._app._settings_manager, self)
+        dialog = ApplicationSettingsDialog(self._app._settings_manager, start_page=0, parent=self)
         if dialog.exec():
             # Refresh anything in the UI that depends on settings
+            self._app.apply_hotkeys()
             self._after_capture_menu.clear()
             self._populate_after_capture_menu(self._after_capture_menu)
             
             self._dest_menu.clear()
             self._populate_destinations_menu(self._dest_menu)
+
+    def _on_hotkey_settings(self) -> None:
+        """Open the Application Settings dialog directly to the Hotkeys page."""
+        from shotx.ui.settings_dialog import ApplicationSettingsDialog
+        
+        # 3 is the index of the Hotkeys tab
+        dialog = ApplicationSettingsDialog(self._app._settings_manager, start_page=3, parent=self)
+        if dialog.exec():
+            self._app.apply_hotkeys()
 
     def _on_task_settings(self) -> None:
         """Open Task Settings dialog."""

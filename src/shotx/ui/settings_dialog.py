@@ -24,11 +24,12 @@ from shotx.config.settings import SettingsManager
 class ApplicationSettingsDialog(QDialog):
     """Deep configuration dialog matching ShareX's Application settings."""
 
-    def __init__(self, settings_manager: SettingsManager, parent: QWidget | None = None) -> None:
+    def __init__(self, settings_manager: SettingsManager, start_page: int = 0, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Application Settings - ShotX")
         self.setMinimumSize(700, 500)
         self._settings_manager = settings_manager
+        self._start_page = start_page
 
         from shotx.ui.styles import SETTINGS_QSS
         self.setStyleSheet(SETTINGS_QSS)
@@ -43,7 +44,7 @@ class ApplicationSettingsDialog(QDialog):
         # -- Left Navigation --
         self._nav_list = QListWidget()
         self._nav_list.setFixedWidth(160)
-        self._nav_list.addItems(["General", "Paths", "Upload"])
+        self._nav_list.addItems(["General", "Paths", "Upload", "Hotkeys"])
         self._nav_list.currentRowChanged.connect(self._on_page_changed)
         layout.addWidget(self._nav_list)
 
@@ -55,10 +56,14 @@ class ApplicationSettingsDialog(QDialog):
         self._page_general = self._build_general_page()
         self._page_paths = self._build_paths_page()
         self._page_upload = self._build_upload_page()
+        
+        from shotx.ui.hotkey_settings_page import HotkeySettingsPage
+        self._page_hotkeys = HotkeySettingsPage(self._settings_manager)
 
         self._stack.addWidget(self._page_general)
         self._stack.addWidget(self._page_paths)
         self._stack.addWidget(self._page_upload)
+        self._stack.addWidget(self._page_hotkeys)
 
         right_layout.addWidget(self._stack)
 
@@ -77,7 +82,7 @@ class ApplicationSettingsDialog(QDialog):
         right_layout.addLayout(btn_layout)
         layout.addLayout(right_layout, stretch=1)
 
-        self._nav_list.setCurrentRow(0)
+        self._nav_list.setCurrentRow(self._start_page)
 
     # -------------------------------------------------------------------------
     # Page Builders
@@ -224,6 +229,9 @@ class ApplicationSettingsDialog(QDialog):
         # Upload Page
         s.upload.enabled = self._chk_upload_enabled.isChecked()
         s.upload.default_uploader = self._combo_default_uploader.currentText()
+        
+        # Hotkeys Page (delegates to its own widget)
+        self._page_hotkeys.apply_settings()
         
         self._settings_manager.save()
         super().accept()

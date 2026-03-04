@@ -88,6 +88,10 @@ class ShotXApp(QObject):
         # Thread pool for background tasks (e.g. uploading)
         self._thread_pool = QThreadPool.globalInstance()
 
+        # Global hotkey manager
+        from shotx.ui.hotkeys import HotkeyManager
+        self._hotkeys = HotkeyManager()
+
     @property
     def settings(self) -> AppSettings:
         """Access current settings."""
@@ -1046,6 +1050,9 @@ class ShotXApp(QObject):
         self._tray.show()
 
         logger.info("ShotX tray app started")
+        # Register global hotkeys now that the tray is running
+        self.apply_hotkeys()
+
         if self._verbose:
             print(f"ShotX running in system tray ({self.backend.name} backend)")
             print("Right-click the tray icon for options, or press Print Screen to capture")
@@ -1083,6 +1090,9 @@ class ShotXApp(QObject):
             success = self.scan_qr_from_clipboard()
         elif capture_type == "pin_region":
             success = self.pin_region()
+        elif capture_type == "shorten_url":
+            url = kwargs.get("url")
+            success = self.shorten_clipboard_url(headless=True, url=url)
         elif capture_type == "hash":
             success = self.open_hash_checker(exec_dialog=True)
         elif capture_type == "index_dir":
@@ -1126,23 +1136,52 @@ class ShotXApp(QObject):
                     app.processEvents()
                 time.sleep(0.05)
 
+            # --- RACE CONDITION FIX ---
+            # Even though the worker thread finished (activeThreadCount == 0),
+            # its Qt signals (success/error) were posted to the main thread's queue.
+            # We must aggressively process events one last time so those closures execute
+            # before we `sys.exit()` and destroy the signal queue.
+            if app:
+                app.processEvents()
+                time.sleep(0.1)
+                app.processEvents()
+
         return 0 if success else 1
 
-    def shorten_clipboard_url(self) -> None:
-        """Read URL from clipboard and shorten it."""
+    def shorten_clipboard_url(self, headless: bool = False, url: str | None = None) -> bool:
+        """Shorten a URL.
+        
+        Args:
+            headless: Prints output to stdout/stderr and returns True if successful.
+            url: If provided, shortens this URL. If None, reads from clipboard.
+        """
         import re
-        from shotx.output.clipboard import get_text_from_clipboard
+        import sys
 
-        text = (get_text_from_clipboard() or "").strip()
+        if url is not None:
+            text = url.strip()
+            source_desc = "Provided URL"
+        else:
+            from shotx.output.clipboard import get_text_from_clipboard
+            text = (get_text_from_clipboard() or "").strip()
+            source_desc = "Clipboard"
 
         if not text:
-            self._notify_error("Clipboard is empty or does not contain text.")
-            return
+            msg = f"{source_desc} is empty or does not contain text."
+            if headless:
+                print(f"Error: {msg}", file=sys.stderr)
+            else:
+                self._notify_error(msg)
+            return False
 
         # Very basic URL check
         if not re.match(r"^https?://[^\s/$.?#].[^\s]*$", text):
-            self._notify_error("Clipboard does not contain a valid URL.")
-            return
+            msg = f"{source_desc} does not contain a valid URL."
+            if headless:
+                print(f"Error: {msg}", file=sys.stderr)
+            else:
+                self._notify_error(msg)
+            return False
 
         provider = self.settings.upload.shortener.provider
         logger.info("Shortening clipboard URL via %s", provider)
@@ -1152,11 +1191,18 @@ class ShotXApp(QObject):
 
         def _on_success(short_url: str) -> None:
             copy_text_to_clipboard(short_url)
-            self._notify_info("URL Shortened", f"Copied to clipboard:\n{short_url}")
+            if headless:
+                print(short_url, flush=True)
+            else:
+                self._notify_info("URL Shortened", f"Copied to clipboard:\n{short_url}")
             self._shortener_worker = None  # release reference
 
         def _on_error(err_msg: str) -> None:
-            self._notify_error(f"URL Shortener failed:\n{err_msg}")
+            import sys
+            if headless:
+                print(f"Error: URL Shortener failed: {err_msg}", file=sys.stderr, flush=True)
+            else:
+                self._notify_error(f"URL Shortener failed:\n{err_msg}")
             self._shortener_worker = None
 
         worker.signals.success.connect(_on_success)
@@ -1166,6 +1212,7 @@ class ShotXApp(QObject):
         # signals QObject before the background thread finishes
         self._shortener_worker = worker
         self._thread_pool.start(worker)
+        return True
 
     def open_main_window(self) -> None:
         """Open (or raise) the unified ShotX Main Window."""
@@ -1188,16 +1235,40 @@ class ShotXApp(QObject):
         """
         logger.info("Opening History Viewer")
 
-        # In tray mode, delegate to the Main Window
-        if not exec_dialog and self._tray:
-            self.open_main_window()
+        if exec_dialog:
+            from shotx.ui.history import HistoryDialog
+            dialog = HistoryDialog(self._history_manager)
+            dialog.exec()
             return True
 
-        # In CLI one-shot mode, use the standalone dialog wrapper
-        from shotx.ui.history import HistoryDialog
-        dialog = HistoryDialog(self)
-        dialog.exec()
+        self.open_main_window()
+        
+        # We need to tell the main window to switch to the history tab.
+        if hasattr(self, "_main_window") and self._main_window is not None:
+            self._main_window.switch_to_history()
+            
         return True
+
+    def apply_hotkeys(self) -> None:
+        """Register all configured keyboard shortcuts from settings."""
+        self._hotkeys.unregister_all()
+        
+        bindings = [
+            (self.settings.hotkeys.capture_fullscreen, self.capture_fullscreen, "Fullscreen"),
+            (self.settings.hotkeys.capture_region, self.capture_region, "Region"),
+            (self.settings.hotkeys.capture_window, self.capture_region, "Window"),
+            (self.settings.hotkeys.capture_ocr, self.capture_ocr, "OCR"),
+            (self.settings.hotkeys.capture_color_picker, self.capture_color_picker, "Color Picker"),
+            (self.settings.hotkeys.capture_ruler, self.capture_ruler, "Ruler"),
+            (self.settings.hotkeys.capture_qr_scan, self.capture_qr_scan, "QR Scan"),
+            (self.settings.hotkeys.pin_region, self.pin_region, "Pin Region"),
+        ]
+
+        for keys, handler, desc in bindings:
+            if keys.strip():
+                # We must use lambdas to ignore any arguments passed by the activated signal
+                # because Qt sometimes passes bools to slots if they match.
+                self._hotkeys.register(keys.strip(), lambda h=handler: h(), desc)
 
     # --- Private methods ---
 

@@ -84,8 +84,13 @@ class HotkeySettings:
     """Settings for global keyboard shortcuts."""
 
     capture_fullscreen: str = "Print"
-    capture_region: str = "<Ctrl>Print"
-    capture_window: str = "<Alt>Print"
+    capture_region: str = "Ctrl+Print"
+    capture_window: str = "Alt+Print"
+    capture_ocr: str = ""
+    capture_color_picker: str = ""
+    capture_ruler: str = ""
+    capture_qr_scan: str = ""
+    pin_region: str = ""
 
 
 @dataclass
