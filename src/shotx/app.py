@@ -49,6 +49,13 @@ class ShotXApp(QObject):
     menu, hotkey callbacks, and CLI one-shot mode.
     """
 
+    # Emitted when a capture is successfully saved to disk and DB (filepath, size_bytes, capture_type)
+    from PySide6.QtCore import Signal
+    capture_saved = Signal(str, int, str)
+    
+    # Emitted when an existing capture is updated (e.g., upload finished, URL added). Payload: filepath
+    capture_updated = Signal(str)
+
     def __init__(self, config_dir: str | None = None, verbose: bool = False) -> None:
         super().__init__()
         self._verbose = verbose
@@ -81,6 +88,10 @@ class ShotXApp(QObject):
         # Thread pool for background tasks (e.g. uploading)
         self._thread_pool = QThreadPool.globalInstance()
 
+        # Global hotkey manager
+        from shotx.ui.hotkeys import HotkeyManager
+        self._hotkeys = HotkeyManager()
+
     @property
     def settings(self) -> AppSettings:
         """Access current settings."""
@@ -112,8 +123,20 @@ class ShotXApp(QObject):
         """
         logger.info("Capturing fullscreen (monitor=%s)", monitor_index)
 
+        from PySide6.QtCore import QEventLoop, QTimer
+
+        delay_sec = self.settings.capture.screenshot_delay
+        if delay_sec > 0:
+            logger.info("Waiting %d seconds before fullscreen capture...", delay_sec)
+            loop = QEventLoop()
+            QTimer.singleShot(int(delay_sec * 1000), loop.quit)
+            loop.exec()
+
         try:
-            image = self.backend.capture_fullscreen(monitor_index)
+            image = self.backend.capture_fullscreen(
+                monitor_index=monitor_index,
+                show_cursor=self.settings.capture.show_cursor,
+            )
         except Exception as e:
             logger.error("Capture failed: %s", e)
             self._notify_error(f"Capture failed: {e}")
@@ -145,9 +168,20 @@ class ShotXApp(QObject):
         """
         logger.info("Starting region capture")
 
+        from PySide6.QtCore import QEventLoop, QTimer
+
+        delay_sec = self.settings.capture.screenshot_delay
+        if delay_sec > 0:
+            logger.info("Waiting %d seconds before region capture backdrop...", delay_sec)
+            loop = QEventLoop()
+            QTimer.singleShot(int(delay_sec * 1000), loop.quit)
+            loop.exec()
+
         # Step 1: Grab fullscreen backdrop
         try:
-            backdrop = self.backend.capture_fullscreen()
+            backdrop = self.backend.capture_fullscreen(
+                show_cursor=self.settings.capture.show_cursor
+            )
         except Exception as e:
             logger.error("Backdrop capture failed: %s", e)
             self._notify_error(f"Capture failed: {e}")
@@ -801,9 +835,9 @@ class ShotXApp(QObject):
     def _save_and_notify(self, image: QImage, capture_type: str = "capture") -> bool:
         """Common pipeline: save → local clipboard → upload background worker → notify."""
         saved_path = None
-        workflow = self.settings.workflow.after_capture
+        workflow = self.settings.workflow
 
-        if "save_to_file" in workflow:
+        if workflow.save_to_file:
             saved_path = save_image(
                 image=image,
                 output_dir=self.settings.capture.output_dir,
@@ -826,18 +860,25 @@ class ShotXApp(QObject):
                     capture_type=capture_type
                 )
                 
+                # Notify UI components that a new record was saved
+                self.capture_saved.emit(saved_path, size_bytes, capture_type)
+                
                 if self._verbose:
                     print(f"Saved to {saved_path}")
             else:
                 logger.warning("Failed to save screenshot to file")
 
-        if "copy_to_clipboard" in workflow:
+        if workflow.copy_to_clipboard:
             success = copy_image_to_clipboard(image)
             if self._verbose and success:
                 print("Copied image to clipboard")
 
+        # Open in editor if enabled and a file was saved
+        if workflow.open_in_editor and saved_path:
+            self.open_image_editor(saved_path)
+
         # Kick off upload in the background if enabled and we actually saved a file
-        if "upload_image" in workflow and saved_path:
+        if workflow.upload_image and saved_path:
             self._start_background_upload(saved_path)
         else:
             # If not uploading, show standard success notification now
@@ -921,9 +962,12 @@ class ShotXApp(QObject):
             if self._verbose:
                 print(f"Shortening URL via {provider}...")
                 
-            shortener = ShortenerWorker(url, provider)
-            shortener.signals.success.connect(lambda short_url: self._finalize_upload_success(file_path, short_url))
-            self._thread_pool.start(shortener)
+            worker = ShortenerWorker(url, provider)
+            worker.signals.success.connect(lambda short_url: self._finalize_upload_success(file_path, short_url))
+            worker.signals.error.connect(lambda err: logger.error("Upload URL shortening failed: %s", err))
+            # prevent GC — must outlive the background thread
+            self._upload_shortener_worker = worker
+            self._thread_pool.start(worker)
         else:
             self._finalize_upload_success(file_path, url)
             
@@ -931,6 +975,9 @@ class ShotXApp(QObject):
         """Final step of upload: clipboard and notification."""
         # Update URL in history database
         self._history_manager.update_url_by_path(file_path, final_url)
+        
+        # Notify UI components that a record was updated (e.g. HistoryWidget)
+        self.capture_updated.emit(file_path)
 
         if self.settings.upload.copy_url_to_clipboard:
             copy_text_to_clipboard(final_url)
@@ -1003,6 +1050,9 @@ class ShotXApp(QObject):
         self._tray.show()
 
         logger.info("ShotX tray app started")
+        # Register global hotkeys now that the tray is running
+        self.apply_hotkeys()
+
         if self._verbose:
             print(f"ShotX running in system tray ({self.backend.name} backend)")
             print("Right-click the tray icon for options, or press Print Screen to capture")
@@ -1040,6 +1090,9 @@ class ShotXApp(QObject):
             success = self.scan_qr_from_clipboard()
         elif capture_type == "pin_region":
             success = self.pin_region()
+        elif capture_type == "shorten_url":
+            url = kwargs.get("url")
+            success = self.shorten_clipboard_url(headless=True, url=url)
         elif capture_type == "hash":
             success = self.open_hash_checker(exec_dialog=True)
         elif capture_type == "index_dir":
@@ -1083,28 +1136,141 @@ class ShotXApp(QObject):
                     app.processEvents()
                 time.sleep(0.05)
 
+            # --- RACE CONDITION FIX ---
+            # Even though the worker thread finished (activeThreadCount == 0),
+            # its Qt signals (success/error) were posted to the main thread's queue.
+            # We must aggressively process events one last time so those closures execute
+            # before we `sys.exit()` and destroy the signal queue.
+            if app:
+                app.processEvents()
+                time.sleep(0.1)
+                app.processEvents()
+
         return 0 if success else 1
 
-    # --- Private methods ---
+    def shorten_clipboard_url(self, headless: bool = False, url: str | None = None) -> bool:
+        """Shorten a URL.
+        
+        Args:
+            headless: Prints output to stdout/stderr and returns True if successful.
+            url: If provided, shortens this URL. If None, reads from clipboard.
+        """
+        import re
+        import sys
+
+        if url is not None:
+            text = url.strip()
+            source_desc = "Provided URL"
+        else:
+            from shotx.output.clipboard import get_text_from_clipboard
+            text = (get_text_from_clipboard() or "").strip()
+            source_desc = "Clipboard"
+
+        if not text:
+            msg = f"{source_desc} is empty or does not contain text."
+            if headless:
+                print(f"Error: {msg}", file=sys.stderr)
+            else:
+                self._notify_error(msg)
+            return False
+
+        # Very basic URL check
+        if not re.match(r"^https?://[^\s/$.?#].[^\s]*$", text):
+            msg = f"{source_desc} does not contain a valid URL."
+            if headless:
+                print(f"Error: {msg}", file=sys.stderr)
+            else:
+                self._notify_error(msg)
+            return False
+
+        provider = self.settings.upload.shortener.provider
+        logger.info("Shortening clipboard URL via %s", provider)
+
+        from shotx.upload.shortener import ShortenerWorker
+        worker = ShortenerWorker(text, provider)
+
+        def _on_success(short_url: str) -> None:
+            copy_text_to_clipboard(short_url)
+            if headless:
+                print(short_url, flush=True)
+            else:
+                self._notify_info("URL Shortened", f"Copied to clipboard:\n{short_url}")
+            self._shortener_worker = None  # release reference
+
+        def _on_error(err_msg: str) -> None:
+            import sys
+            if headless:
+                print(f"Error: URL Shortener failed: {err_msg}", file=sys.stderr, flush=True)
+            else:
+                self._notify_error(f"URL Shortener failed:\n{err_msg}")
+            self._shortener_worker = None
+
+        worker.signals.success.connect(_on_success)
+        worker.signals.error.connect(_on_error)
+
+        # prevent GC — Python would destroy the local `worker` and its
+        # signals QObject before the background thread finishes
+        self._shortener_worker = worker
+        self._thread_pool.start(worker)
+        return True
+
+    def open_main_window(self) -> None:
+        """Open (or raise) the unified ShotX Main Window."""
+        logger.info("Opening Main Window")
+        from PySide6.QtCore import Qt
+        from shotx.ui.main_window import ShotXMainWindow
+
+        if not hasattr(self, '_main_window') or self._main_window is None:
+            self._main_window = ShotXMainWindow(self)
+
+        self._main_window.show()
+        self._main_window.raise_()
+        self._main_window.activateWindow()
 
     def open_history_viewer(self, exec_dialog: bool = False) -> bool:
-        """Open the History viewer dialog."""
+        """Open the History viewer.
+
+        In tray mode, opens the Main Window (which embeds the history table).
+        In CLI oneshot mode, opens the standalone HistoryDialog.
+        """
         logger.info("Opening History Viewer")
-        from PySide6.QtCore import Qt
-        from shotx.ui.history import HistoryDialog
-        
-        # In tray mode, we can just show it natively
-        if not exec_dialog and self._tray:
-            self._history_dialog = HistoryDialog(self)
-            self._history_dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-            self._history_dialog.show()
-            # We don't block the event loop
+
+        if exec_dialog:
+            from shotx.ui.history import HistoryDialog
+            dialog = HistoryDialog(self._history_manager)
+            dialog.exec()
             return True
+
+        self.open_main_window()
+        
+        # We need to tell the main window to switch to the history tab.
+        if hasattr(self, "_main_window") and self._main_window is not None:
+            self._main_window.switch_to_history()
             
-        # In CLI one-shot mode
-        dialog = HistoryDialog(self)
-        dialog.exec()
         return True
+
+    def apply_hotkeys(self) -> None:
+        """Register all configured keyboard shortcuts from settings."""
+        self._hotkeys.unregister_all()
+        
+        bindings = [
+            (self.settings.hotkeys.capture_fullscreen, self.capture_fullscreen, "Fullscreen"),
+            (self.settings.hotkeys.capture_region, self.capture_region, "Region"),
+            (self.settings.hotkeys.capture_window, self.capture_region, "Window"),
+            (self.settings.hotkeys.capture_ocr, self.capture_ocr, "OCR"),
+            (self.settings.hotkeys.capture_color_picker, self.capture_color_picker, "Color Picker"),
+            (self.settings.hotkeys.capture_ruler, self.capture_ruler, "Ruler"),
+            (self.settings.hotkeys.capture_qr_scan, self.capture_qr_scan, "QR Scan"),
+            (self.settings.hotkeys.pin_region, self.pin_region, "Pin Region"),
+        ]
+
+        for keys, handler, desc in bindings:
+            if keys.strip():
+                # We must use lambdas to ignore any arguments passed by the activated signal
+                # because Qt sometimes passes bools to slots if they match.
+                self._hotkeys.register(keys.strip(), lambda h=handler: h(), desc)
+
+    # --- Private methods ---
 
     def _setup_logging(self) -> None:
         """Configure logging based on verbosity."""
@@ -1127,3 +1293,9 @@ class ShotXApp(QObject):
         notify_error(tray_icon, message)
         if self._verbose:
             print(f"Error: {message}", file=sys.stderr)
+
+    def _notify_info(self, title: str, message: str) -> None:
+        """Show informational notification."""
+        from shotx.ui.notification import notify_info
+        tray_icon = self._tray.tray_icon if self._tray else None
+        notify_info(tray_icon, title, message)

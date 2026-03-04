@@ -32,7 +32,7 @@ class X11CaptureBackend(CaptureBackend):
         """Check if X11 display is available."""
         return bool(os.environ.get("DISPLAY"))
 
-    def capture_fullscreen(self, monitor_index: int | None = None) -> QImage | None:
+    def capture_fullscreen(self, monitor_index: int | None = None, show_cursor: bool = False) -> QImage | None:
         """Capture the full screen using Qt6's grabWindow on X11.
 
         On X11, grabWindow(0) captures the root window which contains

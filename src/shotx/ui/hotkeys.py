@@ -61,6 +61,7 @@ class HotkeyManager:
 
         try:
             shortcut = QShortcut(QKeySequence(key_sequence), self._widget)
+            shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
             shortcut.activated.connect(callback)
             self._shortcuts.append(shortcut)
 

@@ -78,6 +78,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Capture a region and pin it as a floating window"
     )
     parser.add_argument(
+        "--shorten-url",
+        type=str,
+        nargs="?",
+        const="USE_CLIPBOARD",
+        default=None,
+        help="Shorten a URL. If no URL is provided, reads from the clipboard. Prints to stdout.",
+    )
+    parser.add_argument(
         "--hash",
         action="store_true",
         help="Open the hash checker tool",
@@ -135,6 +143,20 @@ def main(argv: list[str] | None = None) -> int:
     """
     args = parse_args(argv)
 
+    # Determine if this is a one-shot command or the tray app
+    is_oneshot = (
+        args.capture_fullscreen or args.capture_region or args.capture_window or
+        args.ocr or args.color_picker or args.ruler or args.qr_scan or
+        args.qr_generate or args.qr_scan_clipboard or args.pin_region or
+        args.shorten_url is not None or args.hash or args.index_dir is not None or
+        args.edit is not None or args.history
+    )
+
+    if is_oneshot:
+        import os
+        # Suppress benign Qt Wayland DBus app registration warnings that clutter stdout
+        os.environ["QT_LOGGING_RULES"] = "qt.qpa.*=false"
+
     # Ensure Ctrl+C from terminal instantly kills the process, even if 
     # the PySide6 C++ event loop (exec_) is running and blocking Python.
     import signal
@@ -149,6 +171,7 @@ def main(argv: list[str] | None = None) -> int:
     if qt_app is None:
         qt_app = QApplication(sys.argv)
     qt_app.setApplicationName("ShotX")
+    qt_app.setDesktopFileName("ShotX")
     qt_app.setApplicationVersion(_get_version())
     qt_app.setStyleSheet("QToolTip { color: white; background-color: #2b2b2b; border: 1px solid #555; }")
 
@@ -187,6 +210,9 @@ def main(argv: list[str] | None = None) -> int:
 
     elif args.pin_region:
         return app.run_oneshot("pin_region")
+    elif args.shorten_url is not None:
+        url_to_shorten = None if args.shorten_url == "USE_CLIPBOARD" else args.shorten_url
+        return app.run_oneshot("shorten_url", url=url_to_shorten)
     elif args.hash:
         return app.run_oneshot("hash")
     elif args.index_dir is not None:

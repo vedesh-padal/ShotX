@@ -38,6 +38,12 @@ class RulerOverlay(QWidget):
         self.setCursor(Qt.CursorShape.CrossCursor)
         self.setMouseTracking(True)
 
+    def show_fullscreen(self) -> None:
+        """Show the overlay in fullscreen mode."""
+        self.showFullScreen()
+        self.activateWindow()
+        self.raise_()
+
     def paintEvent(self, event: QPaintEvent) -> None:
         """Render the backdrop and the measurement tools."""
         painter = QPainter(self)

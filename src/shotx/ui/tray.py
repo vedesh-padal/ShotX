@@ -81,6 +81,14 @@ class TrayIcon:
         """Build the categorized right-click context menu."""
 
         # ---------------------------------------------------------
+        # 0. Open Main Window (top of menu, like ShareX)
+        # ---------------------------------------------------------
+        open_main = QAction("🏠 Open ShotX", self._menu)
+        open_main.triggered.connect(self._on_open_main_window)
+        self._menu.addAction(open_main)
+        self._menu.addSeparator()
+
+        # ---------------------------------------------------------
         # 1. Capture Submenu
         # ---------------------------------------------------------
         capture_menu = self._menu.addMenu("📷 Capture")
@@ -161,6 +169,12 @@ class TrayIcon:
 
         tools_menu.addSeparator()
 
+        shorten_url = QAction("Shorten URL from Clipboard", self._menu)
+        shorten_url.triggered.connect(self._on_shorten_url_clipboard)
+        tools_menu.addAction(shorten_url)
+
+        tools_menu.addSeparator()
+
         hash_tool = QAction("Hash Checker", self._menu)
         hash_tool.triggered.connect(self._on_hash_checker)
         tools_menu.addAction(hash_tool)
@@ -209,6 +223,9 @@ class TrayIcon:
         if reason == QSystemTrayIcon.ActivationReason.Trigger:
             # Left click → capture fullscreen
             self._on_capture_fullscreen()
+        elif reason == QSystemTrayIcon.ActivationReason.DoubleClick:
+            # Double click → open Main Window
+            self._on_open_main_window()
         # Right click is handled by the context menu automatically
 
     def _on_capture_fullscreen(self) -> None:
@@ -249,9 +266,17 @@ class TrayIcon:
         """Trigger QR scan from clipboard image."""
         self._app.scan_qr_from_clipboard()
 
+    def _on_open_main_window(self) -> None:
+        """Open the unified ShotX Main Window."""
+        self._app.open_main_window()
+
     def _on_history(self) -> None:
         """Trigger history viewer."""
         self._app.open_history_viewer()
+
+    def _on_shorten_url_clipboard(self) -> None:
+        """Trigger URL shortening from clipboard."""
+        self._app.shorten_clipboard_url()
 
     def _on_hash_checker(self) -> None:
         """Trigger hash checker tool."""

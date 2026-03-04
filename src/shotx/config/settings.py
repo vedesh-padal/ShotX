@@ -46,6 +46,8 @@ class CaptureSettings:
     auto_detect_regions: bool = True
     after_capture_action: str = "edit"  # "edit" or "save"
     last_annotation_color: str = "#ff0000"  # Persisted between sessions
+    show_cursor: bool = False
+    screenshot_delay: int = 0
     video_fps: int = 30
     capture_audio: bool = False
 
@@ -82,8 +84,13 @@ class HotkeySettings:
     """Settings for global keyboard shortcuts."""
 
     capture_fullscreen: str = "Print"
-    capture_region: str = "<Ctrl>Print"
-    capture_window: str = "<Alt>Print"
+    capture_region: str = "Ctrl+Print"
+    capture_window: str = "Alt+Print"
+    capture_ocr: str = ""
+    capture_color_picker: str = ""
+    capture_ruler: str = ""
+    capture_qr_scan: str = ""
+    pin_region: str = ""
 
 
 @dataclass
@@ -145,10 +152,10 @@ class UploadSettings:
 @dataclass
 class WorkflowSettings:
     """Configurable pipeline of actions to execute sequentially after a capture."""
-    after_capture: list[str] = field(default_factory=lambda: [
-        "save_to_file",
-        "copy_to_clipboard",
-    ])
+    save_to_file: bool = True
+    copy_to_clipboard: bool = True
+    upload_image: bool = False
+    open_in_editor: bool = False
 
 
 @dataclass
@@ -177,16 +184,19 @@ class AppSettings:
         upload_data = data.get("upload", {})
         workflow_data = data.get("workflow", {})
 
-        # Backward compatibility for old boolean-based capture/upload settings
+        # Backward compatibility for old boolean-based capture/upload settings (v1)
         if "workflow" not in data:
-            after_cap = []
-            if capture_data.get("save_to_file", True):
-                after_cap.append("save_to_file")
-            if capture_data.get("copy_to_clipboard", True):
-                after_cap.append("copy_to_clipboard")
-            if upload_data.get("enabled", False):
-                after_cap.append("upload_image")
-            workflow_data["after_capture"] = after_cap
+            workflow_data["save_to_file"] = capture_data.get("save_to_file", True)
+            workflow_data["copy_to_clipboard"] = capture_data.get("copy_to_clipboard", True)
+            workflow_data["upload_image"] = upload_data.get("enabled", False)
+            
+        # Backward compatibility for old list-based workflow settings (v2)
+        if "after_capture" in workflow_data and isinstance(workflow_data["after_capture"], list):
+            old_list = workflow_data.pop("after_capture")
+            workflow_data["save_to_file"] = "save_to_file" in old_list
+            workflow_data["copy_to_clipboard"] = "copy_to_clipboard" in old_list
+            workflow_data["upload_image"] = "upload_image" in old_list
+            workflow_data["open_in_editor"] = "open_in_editor" in old_list
 
         # Filter to only known fields to avoid TypeError on unexpected keys
         capture_fields = {f.name for f in CaptureSettings.__dataclass_fields__.values()}
@@ -308,7 +318,7 @@ class SettingsManager:
 
         with open(self.settings_path, "w") as f:
             f.write("# ShotX Configuration\n")
-            f.write("# https://github.com/vedesh-padal/shotx\n\n")
+            f.write("# https://github.com/vedesh-padal/ShotX\n\n")
             yaml.dump(data, f, default_flow_style=False, sort_keys=False)
 
         self._settings = settings

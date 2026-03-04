@@ -53,6 +53,7 @@ def shorten_url_sync(long_url: str, provider: str = "tinyurl") -> str:
 
 class ShortenerSignals(QObject):
     success = Signal(str)  # short_url
+    error = Signal(str)    # error message
 
 
 class ShortenerWorker(QRunnable):
@@ -65,5 +66,13 @@ class ShortenerWorker(QRunnable):
         self.signals = ShortenerSignals()
 
     def run(self) -> None:
-        short_url = shorten_url_sync(self.long_url, self.provider)
-        self.signals.success.emit(short_url)
+        try:
+            short_url = shorten_url_sync(self.long_url, self.provider)
+            if short_url == self.long_url:
+                # shorten_url_sync returns the original URL on failure
+                self.signals.error.emit(f"Shortener returned the original URL (provider: {self.provider})")
+            else:
+                self.signals.success.emit(short_url)
+        except Exception as e:
+            logger.error("ShortenerWorker failed: %s", e)
+            self.signals.error.emit(str(e))

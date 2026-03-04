@@ -56,12 +56,13 @@ class CaptureBackend(ABC):
         ...
 
     @abstractmethod
-    def capture_fullscreen(self, monitor_index: int | None = None) -> "QImage | None":
+    def capture_fullscreen(self, monitor_index: int | None = None, show_cursor: bool = False) -> "QImage | None":
         """Capture the entire screen.
 
         Args:
             monitor_index: If specified, capture only this monitor.
                            If None, capture the primary monitor.
+            show_cursor: Whether to include the mouse cursor in the capture.
 
         Returns:
             QImage of the captured screen, or None if capture failed.
