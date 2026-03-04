@@ -269,36 +269,6 @@ def notify_info(
     logger.info("Info notification %s: %s", title, message)
 
 
-def open_file(file_path: Path) -> bool:
-    """Open a file with the default application.
-
-    Uses xdg-open which works on all Linux desktop environments.
-    """
-    try:
-        subprocess.Popen(
-            ["xdg-open", str(file_path)],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        return True
-    except FileNotFoundError:
-        logger.error("xdg-open not found — cannot open file")
-        return False
-
-
-def open_folder(file_path: Path) -> bool:
-    """Open the containing folder in the file manager.
-
-    Shows the folder that contains the given file.
-    """
-    folder = file_path.parent if file_path.is_file() else file_path
-    try:
-        subprocess.Popen(
-            ["xdg-open", str(folder)],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        return True
-    except FileNotFoundError:
-        logger.error("xdg-open not found — cannot open folder")
-        return False
+# Re-export from core.xdg for backward compatibility.
+# Modules that already import from notification will keep working.
+from shotx.core.xdg import open_file, open_folder  # noqa: F401

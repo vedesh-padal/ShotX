@@ -33,10 +33,8 @@ class HotkeySettingsPage(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         
-        import os
-        is_wayland = os.environ.get("XDG_SESSION_TYPE", "").lower() == "wayland"
-        if not is_wayland and os.environ.get("WAYLAND_DISPLAY"):
-            is_wayland = True
+        from shotx.core.platform import is_wayland
+        _is_wayland = is_wayland()
         
         # --- Standard Hotkeys Group ---
         group_internal = QGroupBox("Internal App Keyboard Shortcuts")
@@ -125,7 +123,7 @@ class HotkeySettingsPage(QWidget):
         banner_layout.addLayout(cmd_layout)
         layout.addWidget(banner)
         
-        if is_wayland:
+        if _is_wayland:
             group_internal.setVisible(False)
             banner.setVisible(True)
         else:

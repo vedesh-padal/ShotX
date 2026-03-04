@@ -17,25 +17,13 @@ logger = logging.getLogger(__name__)
 def detect_session_type() -> str:
     """Detect the current display session type.
 
-    Checks XDG_SESSION_TYPE environment variable, which is set by
-    the login manager (GDM, SDDM, etc.) on all modern Linux distros.
+    Delegates to the centralized :func:`shotx.core.platform.session_type`.
 
     Returns:
         'wayland', 'x11', or 'unknown'
     """
-    session_type = os.environ.get("XDG_SESSION_TYPE", "").lower().strip()
-    if session_type in ("wayland", "x11"):
-        return session_type
-
-    # Fallback: check for Wayland-specific env vars
-    if os.environ.get("WAYLAND_DISPLAY"):
-        return "wayland"
-
-    # Fallback: check for X11-specific env vars
-    if os.environ.get("DISPLAY"):
-        return "x11"
-
-    return "unknown"
+    from shotx.core.platform import session_type
+    return session_type()
 
 
 def create_capture_backend(force_backend: str | None = None) -> CaptureBackend:

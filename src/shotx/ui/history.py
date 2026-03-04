@@ -326,7 +326,8 @@ class HistoryWidget(QWidget):
 
     def _open_file(self, filepath: str) -> None:
         if Path(filepath).exists():
-            subprocess.Popen(["xdg-open", filepath])
+            from shotx.core.xdg import open_file
+            open_file(filepath)
         else:
             QMessageBox.warning(
                 self, "File Not Found", f"The file no longer exists:\n{filepath}"
@@ -335,7 +336,8 @@ class HistoryWidget(QWidget):
     def _open_folder(self, filepath: str) -> None:
         folder = Path(filepath).parent
         if folder.exists():
-            subprocess.Popen(["xdg-open", str(folder)])
+            from shotx.core.xdg import open_folder
+            open_folder(folder)
 
     def _open_url(self, url: str) -> None:
         import webbrowser
