@@ -723,17 +723,17 @@ class CaptureController(QObject):
                 capture_type=capture_type,
             )
             if saved_path:
-                self.last_saved_path = saved_path
+                self.last_saved_path = str(saved_path)
                 try:
                     size_bytes = Path(saved_path).stat().st_size
                 except OSError:
                     size_bytes = 0
                 self._history.add_record(
-                    filepath=saved_path,
+                    filepath=str(saved_path),
                     size_bytes=size_bytes,
                     capture_type=capture_type,
                 )
-                event_bus.capture_completed.emit(saved_path, size_bytes, capture_type)
+                event_bus.capture_completed.emit(str(saved_path), size_bytes, capture_type)
 
                 if self._verbose:
                     print(f"Saved to {saved_path}")
@@ -749,9 +749,9 @@ class CaptureController(QObject):
             event_bus.tool_requested.emit("editor")
 
         if workflow.upload_image and saved_path:
-            event_bus.upload_requested.emit(saved_path)
+            event_bus.upload_requested.emit(str(saved_path))
         else:
             if self.settings.capture.show_notification:
-                notify_capture_success(None, saved_path)
+                notify_capture_success(None, str(saved_path) if saved_path else None)
 
         return True
