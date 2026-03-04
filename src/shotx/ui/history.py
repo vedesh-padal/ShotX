@@ -133,9 +133,9 @@ class HistoryWidget(QWidget):
 
         layout.addWidget(self.table)
 
-        # Listen for new captures correctly
-        self._app.capture_saved.connect(lambda f, s, t: self._load_data(clear=True))
-        self._app.capture_updated.connect(lambda f: self._load_data(clear=True))
+        # Listen for new/updated captures via EventBus
+        from shotx.core.events import event_bus
+        event_bus.capture_completed.connect(lambda f, s, t: self._load_data(clear=True))
 
     # -- Formatting helpers --------------------------------------------------
 
@@ -374,7 +374,8 @@ class HistoryWidget(QWidget):
 
     def _upload_image(self, filepath: str) -> None:
         if Path(filepath).exists():
-            self._app._start_background_upload(Path(filepath))
+            from shotx.core.events import event_bus
+            event_bus.upload_requested.emit(filepath)
         else:
             QMessageBox.warning(
                 self, "File Not Found", f"Cannot upload missing file:\n{filepath}"
