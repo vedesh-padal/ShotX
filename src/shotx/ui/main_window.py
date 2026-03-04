@@ -442,7 +442,8 @@ class ShotXMainWindow(QMainWindow):
             "Images (*.png *.jpg *.jpeg *.gif *.bmp *.webp)",
         )
         if path:
-            self._app._start_background_upload(Path(path))
+            from shotx.core.events import event_bus
+            event_bus.upload_requested.emit(path)
 
     def _on_upload_clipboard(self) -> None:
         """Upload the current clipboard image."""
@@ -463,7 +464,8 @@ class ShotXMainWindow(QMainWindow):
         # Save to a temp file then upload
         tmp = Path(tempfile.mktemp(suffix=".png", prefix="shotx_clipboard_"))
         img.save(str(tmp))
-        self._app._start_background_upload(tmp)
+        from shotx.core.events import event_bus
+        event_bus.upload_requested.emit(str(tmp))
 
     def _on_shorten_url_clipboard(self) -> None:
         """Shorten any URL currently in the clipboard."""
