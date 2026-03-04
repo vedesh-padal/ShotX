@@ -119,8 +119,19 @@ class ShotXApp(QObject):
         """
         logger.info("Capturing fullscreen (monitor=%s)", monitor_index)
 
+        delay_sec = self.settings.capture.screenshot_delay
+        if delay_sec > 0:
+            logger.info("Waiting %d seconds before fullscreen capture...", delay_sec)
+            from PySide6.QtCore import QEventLoop, QTimer
+            loop = QEventLoop()
+            QTimer.singleShot(int(delay_sec * 1000), loop.quit)
+            loop.exec()
+
         try:
-            image = self.backend.capture_fullscreen(monitor_index)
+            image = self.backend.capture_fullscreen(
+                monitor_index=monitor_index,
+                show_cursor=self.settings.capture.show_cursor,
+            )
         except Exception as e:
             logger.error("Capture failed: %s", e)
             self._notify_error(f"Capture failed: {e}")
@@ -152,9 +163,19 @@ class ShotXApp(QObject):
         """
         logger.info("Starting region capture")
 
+        delay_sec = self.settings.capture.screenshot_delay
+        if delay_sec > 0:
+            logger.info("Waiting %d seconds before region capture backdrop...", delay_sec)
+            from PySide6.QtCore import QEventLoop, QTimer
+            loop = QEventLoop()
+            QTimer.singleShot(int(delay_sec * 1000), loop.quit)
+            loop.exec()
+
         # Step 1: Grab fullscreen backdrop
         try:
-            backdrop = self.backend.capture_fullscreen()
+            backdrop = self.backend.capture_fullscreen(
+                show_cursor=self.settings.capture.show_cursor
+            )
         except Exception as e:
             logger.error("Backdrop capture failed: %s", e)
             self._notify_error(f"Capture failed: {e}")
@@ -1102,6 +1123,39 @@ class ShotXApp(QObject):
 
         return 0 if success else 1
 
+    def shorten_clipboard_url(self) -> None:
+        """Read URL from clipboard and shorten it."""
+        from PySide6.QtWidgets import QApplication
+        import re
+
+        clipboard = QApplication.clipboard()
+        text = clipboard.text().strip()
+
+        if not text:
+            self._notify_error("Clipboard is empty.")
+            return
+
+        # Very basic URL check
+        if not re.match(r"^https?://[^\s/$.?#].[^\s]*$", text):
+            self._notify_error("Clipboard does not contain a valid URL.")
+            return
+
+        provider = self.settings.upload.shortener.provider
+        logger.info("Shortening clipboard URL via %s", provider)
+
+        from shotx.upload.shortener import ShortenerWorker
+        shortener = ShortenerWorker(text, provider)
+
+        def _on_success(short_url: str) -> None:
+            clipboard.setText(short_url)
+            self._notify_info("URL Shortened", f"Copied to clipboard:\n{short_url}")
+
+        def _on_error(err_msg: str) -> None:
+            self._notify_error(f"URL Shortener failed:\n{err_msg}")
+
+        shortener.signals.success.connect(_on_success)
+        shortener.signals.error.connect(_on_error)
+        self._thread_pool.start(shortener)
 
     def open_main_window(self) -> None:
         """Open (or raise) the unified ShotX Main Window."""

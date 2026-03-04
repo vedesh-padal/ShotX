@@ -47,7 +47,7 @@ class WaylandCaptureBackend(CaptureBackend):
         wayland_display = os.environ.get("WAYLAND_DISPLAY", "")
         return session_type == "wayland" or bool(wayland_display)
 
-    def capture_fullscreen(self, monitor_index: int | None = None) -> QImage | None:
+    def capture_fullscreen(self, monitor_index: int | None = None, show_cursor: bool = False) -> QImage | None:
         """Capture the full screen on Wayland.
 
         Tries methods in order:
@@ -56,13 +56,14 @@ class WaylandCaptureBackend(CaptureBackend):
         3. Qt6 grabWindow (last resort)
         """
         # Strategy 1: Portal (works on GNOME, KDE, most compositors)
+        # GNOME/Portal natively handles cursor visibility interactively
         image = self._capture_via_portal()
         if image is not None:
             return image
 
         # Strategy 2: grim (wlroots: Sway, Hyprland, etc.)
         logger.info("Portal capture failed, trying grim")
-        image = self._capture_via_grim(monitor_index)
+        image = self._capture_via_grim(monitor_index, show_cursor)
         if image is not None:
             return image
 
@@ -274,7 +275,7 @@ class WaylandCaptureBackend(CaptureBackend):
             logger.warning("Portal capture failed: %s", e)
             return None
 
-    def _capture_via_grim(self, monitor_index: int | None = None) -> QImage | None:
+    def _capture_via_grim(self, monitor_index: int | None = None, show_cursor: bool = False) -> QImage | None:
         """Fallback capture using grim (for wlroots-based compositors).
 
         grim works with wlr-screencopy-unstable-v1 protocol
@@ -309,6 +310,8 @@ class WaylandCaptureBackend(CaptureBackend):
                 cmd = ["grim"]
                 if screen_name:
                     cmd.extend(["-o", screen_name])
+                if show_cursor:
+                    cmd.append("-c")
                 cmd.append(tmp_path)
 
                 result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)

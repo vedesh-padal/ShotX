@@ -30,6 +30,9 @@ class ApplicationSettingsDialog(QDialog):
         self.setMinimumSize(700, 500)
         self._settings_manager = settings_manager
 
+        from shotx.ui.styles import SETTINGS_QSS
+        self.setStyleSheet(SETTINGS_QSS)
+
         self._init_ui()
         self._load_current_settings()
 
@@ -40,7 +43,7 @@ class ApplicationSettingsDialog(QDialog):
         # -- Left Navigation --
         self._nav_list = QListWidget()
         self._nav_list.setFixedWidth(160)
-        self._nav_list.addItems(["General", "Paths", "Upload", "History", "Advanced"])
+        self._nav_list.addItems(["General", "Paths", "Upload"])
         self._nav_list.currentRowChanged.connect(self._on_page_changed)
         layout.addWidget(self._nav_list)
 
@@ -52,14 +55,10 @@ class ApplicationSettingsDialog(QDialog):
         self._page_general = self._build_general_page()
         self._page_paths = self._build_paths_page()
         self._page_upload = self._build_upload_page()
-        self._page_history = self._build_history_page()
-        self._page_advanced = self._build_advanced_page()
 
         self._stack.addWidget(self._page_general)
         self._stack.addWidget(self._page_paths)
         self._stack.addWidget(self._page_upload)
-        self._stack.addWidget(self._page_history)
-        self._stack.addWidget(self._page_advanced)
 
         right_layout.addWidget(self._stack)
 
@@ -116,7 +115,7 @@ class ApplicationSettingsDialog(QDialog):
         l = QVBoxLayout(w)
         l.setContentsMargins(0, 0, 0, 0)
         
-        group = QGroupBox("Directories & Output Patterns")
+        group = QGroupBox("Directories and Output Patterns")
         form = QFormLayout(group)
         
         # Output directory row
@@ -131,8 +130,20 @@ class ApplicationSettingsDialog(QDialog):
         # Filename pattern
         self._edit_filename = QLineEdit()
         self._edit_filename.setPlaceholderText("ShotX_{date}_{time}")
-        self._edit_filename.setToolTip("Available variables: {date}, {time}, {y}, {m}, {d}, {h}, {min}, {s}, {rnd}")
+        
+        help_text = QLabel(
+            "<small>Available variables: {date}, {time}, {y}, {m}, {d}, {h}, {min}, {s}, {rnd}</small>"
+        )
+        help_text.setStyleSheet("color: #666;")
+        
+        self._label_preview = QLabel("Preview: ")
+        self._label_preview.setStyleSheet("font-style: italic; color: #444;")
+        
+        self._edit_filename.textChanged.connect(self._update_filename_preview)
+        
         form.addRow("Filename pattern:", self._edit_filename)
+        form.addRow("", help_text)
+        form.addRow("", self._label_preview)
         
         l.addWidget(group)
         l.addStretch()
@@ -157,21 +168,7 @@ class ApplicationSettingsDialog(QDialog):
         l.addStretch()
         return w
 
-    def _build_history_page(self) -> QWidget:
-        w = QWidget()
-        l = QVBoxLayout(w)
-        
-        l.addWidget(QLabel("History retention functionality goes here."))
-        l.addStretch()
-        return w
 
-    def _build_advanced_page(self) -> QWidget:
-        w = QWidget()
-        l = QVBoxLayout(w)
-        
-        l.addWidget(QLabel("Advanced/developer functionality goes here."))
-        l.addStretch()
-        return w
 
     # -------------------------------------------------------------------------
     # Data Binding
@@ -190,6 +187,7 @@ class ApplicationSettingsDialog(QDialog):
         # Paths Page
         self._edit_out_dir.setText(s.capture.output_dir)
         self._edit_filename.setText(s.capture.filename_pattern)
+        self._update_filename_preview(s.capture.filename_pattern)
         
         # Upload Page
         self._chk_upload_enabled.setChecked(s.upload.enabled)
@@ -199,15 +197,29 @@ class ApplicationSettingsDialog(QDialog):
 
     def accept(self) -> None:
         """Save settings and close dialog."""
+        from PySide6.QtWidgets import QMessageBox
+        
         s = self._settings_manager.settings
         
+        # Validation
+        pattern = self._edit_filename.text().strip()
+        if not pattern:
+            QMessageBox.warning(self, "Validation Error", "Filename pattern cannot be empty.")
+            return
+            
+        try:
+            self._render_preview(pattern)
+        except Exception:
+            QMessageBox.warning(self, "Validation Error", "Invalid variable used in filename pattern.")
+            return
+
         # General Page
         s.capture.auto_detect_regions = self._check_auto_detect.isChecked()
         s.capture.after_capture_action = "edit" if self._combo_after_cap_action.currentIndex() == 0 else "save"
         
         # Paths Page
         s.capture.output_dir = self._edit_out_dir.text()
-        s.capture.filename_pattern = self._edit_filename.text()
+        s.capture.filename_pattern = pattern
         
         # Upload Page
         s.upload.enabled = self._chk_upload_enabled.isChecked()
@@ -228,3 +240,33 @@ class ApplicationSettingsDialog(QDialog):
         new_dir = QFileDialog.getExistingDirectory(self, "Select Screenshots Folder", start_dir)
         if new_dir:
             self._edit_out_dir.setText(new_dir)
+
+    def _render_preview(self, pattern: str) -> str:
+        """Helper to test a pattern."""
+        import datetime
+        import random
+        now = datetime.datetime.now()
+        vars_dict = {
+            "date": now.strftime("%Y-%m-%d"),
+            "time": now.strftime("%H-%M-%S"),
+            "y": now.strftime("%Y"),
+            "m": now.strftime("%m"),
+            "d": now.strftime("%d"),
+            "h": now.strftime("%H"),
+            "min": now.strftime("%M"),
+            "s": now.strftime("%S"),
+            "rnd": f"{random.randint(0, 9999):04d}",
+        }
+        return pattern.format(**vars_dict)
+
+    def _update_filename_preview(self, text: str) -> None:
+        try:
+            preview = self._render_preview(text)
+            self._label_preview.setText(f"Preview: {preview}.png")
+            self._label_preview.setStyleSheet("font-style: italic; color: #444;")
+        except KeyError as e:
+            self._label_preview.setText(f"Invalid variable: {e}")
+            self._label_preview.setStyleSheet("color: red;")
+        except ValueError:
+            self._label_preview.setText("Invalid pattern formatting")
+            self._label_preview.setStyleSheet("color: red;")

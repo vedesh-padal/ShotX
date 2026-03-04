@@ -176,16 +176,16 @@ class ShotXMainWindow(QMainWindow):
 
         # -- After capture tasks submenu (checkable) --
         btn_after_capture = _SidebarButton("📋  After capture tasks")
-        after_capture_menu = QMenu(btn_after_capture)
-        self._populate_after_capture_menu(after_capture_menu)
-        btn_after_capture.setMenu(after_capture_menu)
+        self._after_capture_menu = QMenu(btn_after_capture)
+        self._populate_after_capture_menu(self._after_capture_menu)
+        btn_after_capture.setMenu(self._after_capture_menu)
         sidebar_layout.addWidget(btn_after_capture)
 
         # -- Destinations submenu (radio) --
         btn_destinations = _SidebarButton("☁️  Destinations")
-        dest_menu = QMenu(btn_destinations)
-        self._populate_destinations_menu(dest_menu)
-        btn_destinations.setMenu(dest_menu)
+        self._dest_menu = QMenu(btn_destinations)
+        self._populate_destinations_menu(self._dest_menu)
+        btn_destinations.setMenu(self._dest_menu)
         sidebar_layout.addWidget(btn_destinations)
 
         sidebar_layout.addWidget(_SidebarSeparator())
@@ -265,8 +265,8 @@ class ShotXMainWindow(QMainWindow):
 
         menu.addSeparator()
 
-        a = menu.addAction("Shorten URL...")
-        a.setEnabled(False)  # Wired when shortener pipeline is exposed
+        a = menu.addAction("Shorten URL from Clipboard")
+        a.triggered.connect(self._on_shorten_url_clipboard)
 
     def _populate_tools_menu(self, menu: QMenu) -> None:
         a = menu.addAction("Image Editor")
@@ -392,8 +392,11 @@ class ShotXMainWindow(QMainWindow):
         dialog = ApplicationSettingsDialog(self._app._settings_manager, self)
         if dialog.exec():
             # Refresh anything in the UI that depends on settings
-            self._populate_after_capture_menu(self._ac_save.parentWidget())
-            self._populate_destinations_menu(list(self._dest_actions.values())[0].parentWidget())
+            self._after_capture_menu.clear()
+            self._populate_after_capture_menu(self._after_capture_menu)
+            
+            self._dest_menu.clear()
+            self._populate_destinations_menu(self._dest_menu)
 
     def _on_task_settings(self) -> None:
         """Open Task Settings dialog."""
@@ -449,16 +452,23 @@ class ShotXMainWindow(QMainWindow):
         img.save(str(tmp))
         self._app._start_background_upload(tmp)
 
+    def _on_shorten_url_clipboard(self) -> None:
+        """Shorten any URL currently in the clipboard."""
+        self._app.shorten_clipboard_url()
+
     def _on_about(self) -> None:
         """Show a simple About dialog."""
         from PySide6.QtWidgets import QMessageBox
 
-        QMessageBox.about(
-            self,
-            "About ShotX",
+        box = QMessageBox(self)
+        box.setWindowTitle("About ShotX")
+        box.setTextFormat(Qt.TextFormat.RichText)
+        box.setText(
             "<b>ShotX</b><br>"
             "A full-featured ShareX clone for Linux.<br><br>"
             "Built with Python + PySide6 (Qt6).<br>"
             "Wayland-first, X11 fallback.<br><br>"
-            "© 2026 ShotX Contributors",
+            "© 2026 ShotX Contributors"
         )
+        box.setMinimumWidth(350)
+        box.exec()

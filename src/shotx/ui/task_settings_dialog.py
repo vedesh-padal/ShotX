@@ -26,6 +26,9 @@ class TaskSettingsDialog(QDialog):
         self.setMinimumSize(600, 450)
         self._settings_manager = settings_manager
 
+        from shotx.ui.styles import SETTINGS_QSS
+        self.setStyleSheet(SETTINGS_QSS)
+
         self._init_ui()
         self._load_current_settings()
 
@@ -38,12 +41,9 @@ class TaskSettingsDialog(QDialog):
         self._nav_list.setFixedWidth(160)
         self._nav_list.addItems(
             [
-                "General",
                 "Notifications",
                 "Image",
-                "Capture",
-                "→ Region capture",
-                "→ Screen recorder",
+                "Capture Options",
                 "Upload",
             ]
         )
@@ -55,20 +55,14 @@ class TaskSettingsDialog(QDialog):
         self._stack = QStackedWidget()
 
         # Build pages
-        self._page_general = self._build_general_page()
         self._page_notifications = self._build_notifications_page()
         self._page_image = self._build_image_page()
         self._page_capture = self._build_capture_page()
-        self._page_region = self._build_region_page()
-        self._page_recorder = self._build_recorder_page()
         self._page_upload = self._build_upload_page()
 
-        self._stack.addWidget(self._page_general)
         self._stack.addWidget(self._page_notifications)
         self._stack.addWidget(self._page_image)
         self._stack.addWidget(self._page_capture)
-        self._stack.addWidget(self._page_region)
-        self._stack.addWidget(self._page_recorder)
         self._stack.addWidget(self._page_upload)
 
         right_layout.addWidget(self._stack)
@@ -94,12 +88,7 @@ class TaskSettingsDialog(QDialog):
     # Page Builders
     # -------------------------------------------------------------------------
 
-    def _build_general_page(self) -> QWidget:
-        w = QWidget()
-        l = QVBoxLayout(w)
-        l.addWidget(QLabel("General task settings (Placeholder)"))
-        l.addStretch()
-        return w
+
 
     def _build_notifications_page(self) -> QWidget:
         w = QWidget()
@@ -141,43 +130,30 @@ class TaskSettingsDialog(QDialog):
         w = QWidget()
         l = QVBoxLayout(w)
         
-        group = QGroupBox("General Capture")
-        form = QFormLayout(group)
+        group_cap = QGroupBox("General Capture")
+        form_cap = QFormLayout(group_cap)
         
         self._chk_cursor = QCheckBox("Show cursor in screenshots")
-        form.addRow("", self._chk_cursor)
+        form_cap.addRow("", self._chk_cursor)
         
         self._spin_delay = QSpinBox()
         self._spin_delay.setSuffix(" sec")
-        self._spin_delay.setRange(0, 60)
-        form.addRow("Screenshot delay:", self._spin_delay)
+        self._spin_delay.setRange(0, 10)  # Restricted to 10s maximum
+        form_cap.addRow("Screenshot delay:", self._spin_delay)
         
-        l.addWidget(group)
-        l.addStretch()
-        return w
+        l.addWidget(group_cap)
 
-    def _build_region_page(self) -> QWidget:
-        w = QWidget()
-        l = QVBoxLayout(w)
-        l.addWidget(QLabel("Region Capture options (Placeholder)"))
-        l.addStretch()
-        return w
-
-    def _build_recorder_page(self) -> QWidget:
-        w = QWidget()
-        l = QVBoxLayout(w)
-        
-        group = QGroupBox("Screen Recorder")
-        form = QFormLayout(group)
+        group_rec = QGroupBox("Screen Recorder")
+        form_rec = QFormLayout(group_rec)
         
         self._spin_fps = QSpinBox()
         self._spin_fps.setRange(1, 120)
-        form.addRow("Video FPS:", self._spin_fps)
+        form_rec.addRow("Video FPS:", self._spin_fps)
         
         self._chk_audio = QCheckBox("Capture Audio (PulseAudio/PipeWire)")
-        form.addRow("", self._chk_audio)
+        form_rec.addRow("", self._chk_audio)
         
-        l.addWidget(group)
+        l.addWidget(group_rec)
         l.addStretch()
         return w
 
