@@ -119,10 +119,11 @@ class ShotXApp(QObject):
         """
         logger.info("Capturing fullscreen (monitor=%s)", monitor_index)
 
+        from PySide6.QtCore import QEventLoop, QTimer
+
         delay_sec = self.settings.capture.screenshot_delay
         if delay_sec > 0:
             logger.info("Waiting %d seconds before fullscreen capture...", delay_sec)
-            from PySide6.QtCore import QEventLoop, QTimer
             loop = QEventLoop()
             QTimer.singleShot(int(delay_sec * 1000), loop.quit)
             loop.exec()
@@ -163,10 +164,11 @@ class ShotXApp(QObject):
         """
         logger.info("Starting region capture")
 
+        from PySide6.QtCore import QEventLoop, QTimer
+
         delay_sec = self.settings.capture.screenshot_delay
         if delay_sec > 0:
             logger.info("Waiting %d seconds before region capture backdrop...", delay_sec)
-            from PySide6.QtCore import QEventLoop, QTimer
             loop = QEventLoop()
             QTimer.singleShot(int(delay_sec * 1000), loop.quit)
             loop.exec()
@@ -956,9 +958,12 @@ class ShotXApp(QObject):
             if self._verbose:
                 print(f"Shortening URL via {provider}...")
                 
-            shortener = ShortenerWorker(url, provider)
-            shortener.signals.success.connect(lambda short_url: self._finalize_upload_success(file_path, short_url))
-            self._thread_pool.start(shortener)
+            worker = ShortenerWorker(url, provider)
+            worker.signals.success.connect(lambda short_url: self._finalize_upload_success(file_path, short_url))
+            worker.signals.error.connect(lambda err: logger.error("Upload URL shortening failed: %s", err))
+            # prevent GC — must outlive the background thread
+            self._upload_shortener_worker = worker
+            self._thread_pool.start(worker)
         else:
             self._finalize_upload_success(file_path, url)
             
@@ -1144,18 +1149,24 @@ class ShotXApp(QObject):
         logger.info("Shortening clipboard URL via %s", provider)
 
         from shotx.upload.shortener import ShortenerWorker
-        shortener = ShortenerWorker(text, provider)
+        worker = ShortenerWorker(text, provider)
 
         def _on_success(short_url: str) -> None:
             clipboard.setText(short_url)
             self._notify_info("URL Shortened", f"Copied to clipboard:\n{short_url}")
+            self._shortener_worker = None  # release reference
 
         def _on_error(err_msg: str) -> None:
             self._notify_error(f"URL Shortener failed:\n{err_msg}")
+            self._shortener_worker = None
 
-        shortener.signals.success.connect(_on_success)
-        shortener.signals.error.connect(_on_error)
-        self._thread_pool.start(shortener)
+        worker.signals.success.connect(_on_success)
+        worker.signals.error.connect(_on_error)
+
+        # prevent GC — Python would destroy the local `worker` and its
+        # signals QObject before the background thread finishes
+        self._shortener_worker = worker
+        self._thread_pool.start(worker)
 
     def open_main_window(self) -> None:
         """Open (or raise) the unified ShotX Main Window."""

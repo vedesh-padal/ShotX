@@ -243,6 +243,9 @@ class ShotXMainWindow(QMainWindow):
         a = menu.addAction("Region")
         a.triggered.connect(lambda: self._app.capture_region())
 
+        a = menu.addAction("Window")
+        a.triggered.connect(lambda: self._app.capture_region())
+
         menu.addSeparator()
 
         a = menu.addAction("Screen Recording (MP4)")
@@ -458,17 +461,34 @@ class ShotXMainWindow(QMainWindow):
 
     def _on_about(self) -> None:
         """Show a simple About dialog."""
-        from PySide6.QtWidgets import QMessageBox
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton
 
-        box = QMessageBox(self)
-        box.setWindowTitle("About ShotX")
-        box.setTextFormat(Qt.TextFormat.RichText)
-        box.setText(
-            "<b>ShotX</b><br>"
+        dlg = QDialog(self)
+        dlg.setWindowTitle("About ShotX")
+        dlg.setFixedSize(400, 225)
+
+        layout = QVBoxLayout(dlg)
+        layout.setContentsMargins(24, 20, 24, 16)
+        layout.setSpacing(8)
+
+        title = QLabel("<b style='font-size:16px;'>ShotX</b>")
+        title.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(title)
+
+        desc = QLabel(
             "A full-featured ShareX clone for Linux.<br><br>"
             "Built with Python + PySide6 (Qt6).<br>"
             "Wayland-first, X11 fallback.<br><br>"
-            "© 2026 ShotX Contributors"
+            "© 2026 Vedesh Padal"
         )
-        box.setMinimumWidth(350)
-        box.exec()
+        desc.setWordWrap(True)
+        layout.addWidget(desc)
+
+        layout.addStretch()
+
+        btn = QPushButton("OK")
+        btn.setFixedWidth(80)
+        btn.clicked.connect(dlg.accept)
+        layout.addWidget(btn, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        dlg.exec()
