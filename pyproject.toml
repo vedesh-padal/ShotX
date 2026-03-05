@@ -69,3 +69,6 @@ warn_unused_configs = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[dependency-groups]
+docs = ["mkdocs-material>=9.7.4", "mkdocs-minify-plugin>=0.8.0"]
