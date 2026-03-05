@@ -78,4 +78,7 @@ warn_unused_configs = true
 testpaths = ["tests"]
 
 [dependency-groups]
+dev = [
+    "pytest-qt>=4.5.0",
+]
 docs = ["mkdocs-material>=9.7.4", "mkdocs-minify-plugin>=0.8.0"]
