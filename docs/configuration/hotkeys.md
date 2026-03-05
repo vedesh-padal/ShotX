@@ -52,11 +52,11 @@ Examples: `Alt+Shift+X`, `Ctrl+Print`, `F5`
 !!! warning "Wayland Limitation"
 On Wayland, applications cannot globally intercept keyboard shortcuts due to security isolation. Hotkeys only work when the ShotX window/tray is focused.
 
-    **Workaround:** Configure your desktop environment to run ShotX CLI commands as custom keyboard shortcuts:
+**Workaround:** Configure your desktop environment to run ShotX CLI commands as custom keyboard shortcuts:
 
-    | Desktop | Where to configure |
-    |---------|--------------------|
-    | GNOME | Settings → Keyboard → Custom Shortcuts |
-    | KDE Plasma | System Settings → Shortcuts → Custom Shortcuts |
-    | Sway | `~/.config/sway/config`: `bindsym Print exec shotx --capture-fullscreen` |
-    | Hyprland | `~/.config/hypr/hyprland.conf`: `bind = , Print, exec, shotx --capture-region` |
+| Desktop    | Where to configure                                                             |
+| ---------- | ------------------------------------------------------------------------------ |
+| GNOME      | Settings → Keyboard → Custom Shortcuts                                         |
+| KDE Plasma | System Settings → Shortcuts → Custom Shortcuts                                 |
+| Sway       | `~/.config/sway/config`: `bindsym Print exec shotx --capture-fullscreen`       |
+| Hyprland   | `~/.config/hypr/hyprland.conf`: `bind = , Print, exec, shotx --capture-region` |
