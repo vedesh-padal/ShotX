@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
-
-import boto3
 import mimetypes
-from botocore.exceptions import BotoCoreError, ClientError
+from pathlib import Path
 
 from .base import UploaderBackend, UploadError
 
@@ -41,6 +38,11 @@ class S3Uploader(UploaderBackend):
         self.bucket_name = bucket_name
         self.public_url_format = public_url_format or "https://{bucket}.s3.amazonaws.com/{key}"
         
+        try:
+            import boto3
+        except ImportError:
+            raise UploadError("S3 uploading requires the `boto3` package. Install with: pip install shotx[s3]")
+
         try:
             # We explicitly pass the endpoint_url so it works with any S3-compatible service
             self.s3_client = boto3.client(
@@ -82,9 +84,13 @@ class S3Uploader(UploaderBackend):
                 object_name,
                 ExtraArgs=extra_args
             )
-        except (BotoCoreError, ClientError) as e:
-            logger.error("S3 upload failed: %s", e)
-            raise UploadError(f"Failed to upload to S3: {e}")
+        except Exception as e:
+            # Catching Exception because botocore isn't imported at module level
+            from botocore.exceptions import BotoCoreError, ClientError
+            if isinstance(e, (BotoCoreError, ClientError)):
+                logger.error("S3 upload failed: %s", e)
+                raise UploadError(f"Failed to upload to S3: {e}")
+            raise
 
         # Construct the final public URL
         link = self.public_url_format.format(

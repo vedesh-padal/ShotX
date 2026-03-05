@@ -29,9 +29,6 @@ dependencies = [
     "Pillow>=10",
     "dbus-next>=0.2",
     "httpx>=0.28.1",
-    "boto3>=1.42.54",
-    "paramiko>=4.0.0",
-    "pygobject>=3.54.5",
     "pytesseract>=0.3.13",
     "pyzbar>=0.1.9",
     "qrcode>=8.2",
@@ -39,10 +36,20 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7", "pytest-cov>=4", "ruff>=0.4", "mypy>=1.0"]
-# Sub-region auto-detection via AT-SPI2 accessibility API.
-# Requires system headers: sudo apt install libgirepository1.0-dev libcairo2-dev pkg-config
-atspi = ["PyGObject>=3.42"]
+dev = [
+    "pytest>=7",
+    "pytest-cov>=4",
+    "ruff>=0.4",
+    "mypy>=1.0",
+    "pytest-qt>=4.4.0",
+]
+# Optional upload backends
+s3 = ["boto3>=1.42.54"]
+sftp = ["paramiko>=4.0.0"]
+# Sub-region auto-detection via AT-SPI2 accessibility API
+atspi = ["pygobject>=3.54.5"]
+# Install all optional features
+all = ["shotx[s3,sftp,atspi]"]
 
 [project.scripts]
 shotx = "shotx.main:main"

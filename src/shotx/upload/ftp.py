@@ -6,8 +6,6 @@ import ftplib
 import logging
 from pathlib import Path
 
-import paramiko
-
 from .base import UploaderBackend, UploadError
 
 logger = logging.getLogger(__name__)
@@ -88,6 +86,11 @@ class SftpUploader(UploaderBackend):
             raise UploadError("SFTP uploader requires a public_url_format in settings (e.g. https://my-site.com/images/{key})")
 
     def upload(self, file_path: Path) -> str:
+        try:
+            import paramiko
+        except ImportError:
+            raise UploadError("SFTP uploading requires the `paramiko` package. Install with: pip install shotx[sftp]")
+
         if not file_path.exists():
             raise UploadError(f"File not found: {file_path}")
 
