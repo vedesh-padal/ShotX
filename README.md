@@ -4,7 +4,7 @@
 
 ShotX brings the power of ShareX to the Linux desktop: instant screen capture, region selection with auto-detect, annotation tools, screen recording, image editing, OCR, and upload to multiple destinations — all from a single hotkey press or system tray.
 
-> **Status: Alpha** — Core features complete, under active development.
+> **Status: Beta** — Core features complete, under active development.
 
 ## Features
 

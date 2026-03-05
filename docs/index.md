@@ -39,5 +39,5 @@ ShotX is **Wayland-first** with full X11 fallback:
 - **Wayland**: xdg-desktop-portal D-Bus API (GNOME, KDE, Sway, Hyprland)
 - **X11**: XCB/Xlib capture backend
 
-!!! note "Alpha Status"
+!!! note "Beta Status"
 ShotX is under active development. Core features are complete and stable, with documentation and packaging improvements ongoing.
