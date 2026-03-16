@@ -226,6 +226,7 @@ def main(argv: list[str] | None = None) -> int:
     qt_app = QApplication.instance()
     if qt_app is None:
         qt_app = QApplication(sys.argv)
+    
     qt_app.setApplicationName("ShotX")
     qt_app.setDesktopFileName("shotx")
     qt_app.setApplicationVersion(_get_version())

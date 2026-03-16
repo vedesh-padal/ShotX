@@ -1529,6 +1529,7 @@ dependencies = [
     { name = "httpx" },
     { name = "jinja2" },
     { name = "pillow" },
+    { name = "pygobject" },
     { name = "pyside6" },
     { name = "pytesseract" },
     { name = "pyyaml" },
@@ -1540,10 +1541,6 @@ dependencies = [
 all = [
     { name = "boto3" },
     { name = "paramiko" },
-    { name = "pygobject" },
-]
-atspi = [
-    { name = "pygobject" },
 ]
 dev = [
     { name = "mypy" },
@@ -1577,7 +1574,7 @@ requires-dist = [
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0" },
     { name = "paramiko", marker = "extra == 'sftp'", specifier = ">=4.0.0" },
     { name = "pillow", specifier = ">=10" },
-    { name = "pygobject", marker = "extra == 'atspi'", specifier = ">=3.54.5" },
+    { name = "pygobject", specifier = ">=3.54.5" },
     { name = "pyside6", specifier = ">=6.6" },
     { name = "pytesseract", specifier = ">=0.3.13" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7" },
@@ -1587,9 +1584,9 @@ requires-dist = [
     { name = "pyzbar", specifier = ">=0.1.9" },
     { name = "qrcode", specifier = ">=8.2" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
-    { name = "shotx", extras = ["s3", "sftp", "atspi"], marker = "extra == 'all'" },
+    { name = "shotx", extras = ["s3", "sftp"], marker = "extra == 'all'" },
 ]
-provides-extras = ["dev", "s3", "sftp", "atspi", "all"]
+provides-extras = ["dev", "s3", "sftp", "all"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest-qt", specifier = ">=4.5.0" }]

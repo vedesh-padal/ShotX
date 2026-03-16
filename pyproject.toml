@@ -33,6 +33,7 @@ dependencies = [
     "pyzbar>=0.1.9",
     "qrcode>=8.2",
     "jinja2>=3.1.6",
+    "pygobject>=3.54.5",
 ]
 
 [project.optional-dependencies]
@@ -46,10 +47,8 @@ dev = [
 # Optional upload backends
 s3 = ["boto3>=1.42.54"]
 sftp = ["paramiko>=4.0.0"]
-# Sub-region auto-detection via AT-SPI2 accessibility API
-atspi = ["pygobject>=3.54.5"]
 # Install all optional features
-all = ["shotx[s3,sftp,atspi]"]
+all = ["shotx[s3,sftp]"]
 
 [project.scripts]
 shotx = "shotx.main:main"

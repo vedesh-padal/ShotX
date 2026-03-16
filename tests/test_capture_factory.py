@@ -14,6 +14,13 @@ import pytest
 from shotx.capture.factory import detect_session_type
 from shotx.capture.wayland import WaylandCaptureBackend
 from shotx.capture.x11 import X11CaptureBackend
+from shotx.core.platform import session_type
+
+
+@pytest.fixture(autouse=True)
+def clear_session_cache() -> None:
+    """Clear the session_type lru_cache before every test to prevent env var leaks."""
+    session_type.cache_clear()
 
 
 class TestDetectSessionType:

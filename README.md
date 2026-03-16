@@ -94,7 +94,7 @@ cd ShotX
 
 # Set up with uv (recommended)
 uv venv --python 3.12
-uv pip install -e ".[dev]"
+uv pip install -e ".[all,dev]"
 
 # Run
 uv run shotx          # Launch system tray

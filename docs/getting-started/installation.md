@@ -17,7 +17,7 @@ cd ShotX
 
 # Set up with uv
 uv venv --python 3.12
-uv pip install -e ".[dev]"
+uv pip install -e ".[all,dev]"
 
 # Launch
 uv run shotx           # System tray mode
@@ -31,7 +31,7 @@ git clone https://github.com/vedesh-padal/ShotX.git
 cd ShotX
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ".[all,dev]"
 shotx
 ```
 
@@ -62,21 +62,7 @@ Some features require system packages. ShotX works without them but with reduced
 | `grim`          | Screenshots on Sway/Hyprland           | `sudo apt install grim`          |
 | `slurp`         | Region selection on Sway/Hyprland      | `sudo apt install slurp`         |
 
-### AT-SPI2 (Sub-Region Auto-Detection)
-
-For automatic detection of UI elements within windows:
-
-```bash
-# System headers (required to compile PyGObject)
-sudo apt install libgirepository1.0-dev libcairo2-dev pkg-config
-
-# Install PyGObject
-pip install PyGObject
-# or: sudo apt install python3-gi gir1.2-atspi-2.0
-```
-
-!!! note
-AT-SPI2 is fully optional. Region capture works with manual drag selection without it.
+> **Note:** PyGObject is automatically downloaded as a core Python dependency for native DBus notifications. However, if you are building from source on a distro that does not supply pre-compiled wheels, you may need to install the system headers: `sudo apt install libcairo2-dev libgirepository1.0-dev pkg-config`.
 
 ## PyPI (Coming Soon)
 
