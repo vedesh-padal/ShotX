@@ -196,7 +196,7 @@ class TrayIcon:
         self._menu.addAction(history_action)
 
         settings_action = QAction("⚙️ Settings", self._menu)
-        settings_action.setEnabled(False)  # Implemented in Phase 8
+        settings_action.triggered.connect(self._on_settings)
         self._menu.addAction(settings_action)
 
         self._menu.addSeparator()
@@ -272,6 +272,10 @@ class TrayIcon:
     def _on_history(self) -> None:
         """Trigger history viewer."""
         self._app.open_history_viewer()
+
+    def _on_settings(self) -> None:
+        """Open the Application Settings dialog."""
+        self._app.open_settings_dialog()
 
     def _on_shorten_url_clipboard(self) -> None:
         """Trigger URL shortening from clipboard."""

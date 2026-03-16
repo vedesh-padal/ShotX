@@ -217,6 +217,18 @@ class ShotXApp(QObject):
         self._main_window.raise_()
         self._main_window.activateWindow()
 
+    def open_settings_dialog(self) -> None:
+        """Open the Settings dialog directly."""
+        logger.info("Opening Settings dialog")
+        if hasattr(self, '_main_window') and self._main_window and self._main_window.isVisible():
+            self._main_window._on_app_settings()
+        else:
+            from shotx.ui.settings_dialog import ApplicationSettingsDialog
+            dialog = ApplicationSettingsDialog(self._settings_manager, parent=None)
+            dialog.exec()
+            # Re-apply hotkeys in case they were changed
+            self.apply_hotkeys()
+
     def open_history_viewer(self, exec_dialog: bool = False) -> bool:
         """Open the History viewer."""
         return self._tools.open_history_viewer(exec_dialog=exec_dialog)
