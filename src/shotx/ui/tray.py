@@ -56,19 +56,18 @@ class TrayIcon:
     def _setup_icon(self) -> None:
         """Set the tray icon image.
 
-        Tries the bundled icon first, falls back to a system theme icon.
+        Tries the bundled asset first, falls back to a system theme icon.
         """
-        # Try bundled icon
-        icon_paths = [
-            Path(__file__).parent.parent.parent.parent / "resources" / "icons" / "shotx-tray.svg",
-            Path(__file__).parent.parent.parent.parent / "resources" / "icons" / "shotx.svg",
-        ]
-
-        for icon_path in icon_paths:
+        import importlib.resources as pkg_resources
+        
+        try:
+            icon_path = pkg_resources.files("shotx.assets").joinpath("shotx.png")
             if icon_path.exists():
                 self._tray.setIcon(QIcon(str(icon_path)))
-                logger.debug("Using icon: %s", icon_path)
+                logger.debug("Using bundled tray icon: %s", icon_path)
                 return
+        except Exception as e:
+            logger.warning("Failed to load bundled tray icon: %s", e)
 
         # Fallback to system theme icon
         icon = QIcon.fromTheme("camera-photo")

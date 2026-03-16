@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/logo.png" width="160" alt="ShotX Logo">
+</p>
+
 # ShotX
 
 **A free, open-source screenshot and screen capture tool for Linux — inspired by [ShareX](https://getsharex.com).**
@@ -90,7 +94,7 @@ cd ShotX
 
 # Set up with uv (recommended)
 uv venv --python 3.12
-uv pip install -e ".[dev]"
+uv pip install -e ".[all,dev]"
 
 # Run
 uv run shotx          # Launch system tray

@@ -16,8 +16,6 @@ class TestCaptureSettings:
         s = CaptureSettings()
         assert s.image_format == "png"
         assert s.jpeg_quality == 95
-        assert s.copy_to_clipboard is True
-        assert s.save_to_file is True
         assert s.show_notification is True
         assert s.play_sound is False
         assert "ShotX" in s.output_dir
@@ -56,7 +54,7 @@ class TestAppSettings:
 
         assert restored.capture.image_format == original.capture.image_format
         assert restored.capture.jpeg_quality == original.capture.jpeg_quality
-        assert restored.capture.copy_to_clipboard == original.capture.copy_to_clipboard
+        assert restored.workflow.copy_to_clipboard == original.workflow.copy_to_clipboard
         assert restored.hotkeys.capture_fullscreen == original.hotkeys.capture_fullscreen
         assert restored.first_run == original.first_run
 
@@ -68,7 +66,7 @@ class TestAppSettings:
         assert settings.capture.image_format == "jpg"
         # Missing keys should have default values
         assert settings.capture.jpeg_quality == 95
-        assert settings.capture.copy_to_clipboard is True
+        assert settings.workflow.copy_to_clipboard is True
         assert settings.hotkeys.capture_fullscreen == "Print"
         assert settings.first_run is True
 

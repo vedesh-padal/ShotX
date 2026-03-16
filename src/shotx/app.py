@@ -175,15 +175,16 @@ class ShotXApp(QObject):
             return 1
 
         # Drain thread pool so background workers (uploads) can finish
+        from shotx.core.tasks import task_manager
         pool = QThreadPool.globalInstance()
-        if success and pool.activeThreadCount() > 0:
+        if success and (pool.activeThreadCount() > 0 or task_manager.active_count > 0):
             if self._verbose:
                 print("Waiting for background tasks to finish...")
 
             app = QApplication.instance()
             start_time = time.time()
 
-            while pool.activeThreadCount() > 0:
+            while pool.activeThreadCount() > 0 or task_manager.active_count > 0:
                 if time.time() - start_time > 30.0:
                     if self._verbose:
                         print("Background task timed out.")

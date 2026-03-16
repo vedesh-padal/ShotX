@@ -115,6 +115,26 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Launch the system tray app (default behavior).",
     )
     parser.add_argument(
+        "--setup-desktop",
+        action="store_true",
+        help="Install the ShotX .desktop file to the application menu.",
+    )
+    parser.add_argument(
+        "--remove-desktop",
+        action="store_true",
+        help="Remove the ShotX .desktop file from the application menu.",
+    )
+    parser.add_argument(
+        "--install-autostart",
+        action="store_true",
+        help="Install the ShotX autostart entry so it launches on login.",
+    )
+    parser.add_argument(
+        "--remove-autostart",
+        action="store_true",
+        help="Remove the ShotX autostart entry.",
+    )
+    parser.add_argument(
         "--config-dir",
         type=str,
         default=None,
@@ -143,6 +163,42 @@ def main(argv: list[str] | None = None) -> int:
     """
     args = parse_args(argv)
 
+    if args.install_autostart:
+        from shotx.core.desktop import install_autostart
+        if install_autostart():
+            print("Successfully installed XDG autostart entry.")
+            return 0
+        else:
+            print("Failed to install XDG autostart entry.", file=sys.stderr)
+            return 1
+
+    if args.remove_autostart:
+        from shotx.core.desktop import remove_autostart
+        if remove_autostart():
+            print("Successfully removed XDG autostart entry.")
+            return 0
+        else:
+            print("Failed to remove XDG autostart entry.", file=sys.stderr)
+            return 1
+            
+    if args.setup_desktop:
+        from shotx.core.desktop import install_desktop_menu
+        if install_desktop_menu():
+            print("Successfully installed ShotX to application menu.")
+            return 0
+        else:
+            print("Failed to install ShotX to application menu.", file=sys.stderr)
+            return 1
+
+    if args.remove_desktop:
+        from shotx.core.desktop import remove_desktop_menu
+        if remove_desktop_menu():
+            print("Successfully removed ShotX from application menu.")
+            return 0
+        else:
+            print("Failed to remove ShotX from application menu.", file=sys.stderr)
+            return 1
+
     # Determine if this is a one-shot command or the tray app
     is_oneshot = (
         args.capture_fullscreen or args.capture_region or args.capture_window or
@@ -170,9 +226,22 @@ def main(argv: list[str] | None = None) -> int:
     qt_app = QApplication.instance()
     if qt_app is None:
         qt_app = QApplication(sys.argv)
+    
     qt_app.setApplicationName("ShotX")
-    qt_app.setDesktopFileName("ShotX")
+    qt_app.setDesktopFileName("shotx")
     qt_app.setApplicationVersion(_get_version())
+    
+    # Load and set application icon
+    try:
+        from PySide6.QtGui import QIcon
+        import importlib.resources as pkg_resources
+        icon_path = pkg_resources.files("shotx.assets").joinpath("shotx.png")
+        if icon_path.exists():
+            qt_app.setWindowIcon(QIcon(str(icon_path)))
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to load application icon: %s", e)
+        
     qt_app.setStyleSheet("QToolTip { color: white; background-color: #2b2b2b; border: 1px solid #555; }")
 
     # Create the app controller
