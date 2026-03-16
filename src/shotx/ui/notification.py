@@ -19,8 +19,16 @@ from PySide6.QtCore import QTimer
 import gi
 gi.require_version('Gio', '2.0')
 from gi.repository import Gio, GLib
+import importlib.resources as pkg_resources
 
 logger = logging.getLogger(__name__)
+
+def _get_icon_path() -> str:
+    """Safely get the absolute path to the bundled logo for native dbus."""
+    try:
+        return str(pkg_resources.files("shotx.assets").joinpath("shotx.png"))
+    except Exception:
+        return "camera-photo"
 
 # Raw DBus connection (safe to mix with Qt, unlike Gio.Application)
 _dbus_conn = None
@@ -167,11 +175,10 @@ def notify_capture_success(
             message = "Copied to clipboard"
 
     try:
-        # Urgency 1 = Normal (Allows timeout to work, transient=False keeps it in history)
         _send_dbus_notification(
             title="ShotX \u2014 Screenshot captured",
             body=message,
-            icon="camera-photo",
+            icon=_get_icon_path(),
             urgency=1,
             file_path=str(file_path) if file_path else None
         )
@@ -208,7 +215,7 @@ def notify_error(
         _send_dbus_notification(
             title="ShotX \u2014 Error",
             body=message,
-            icon="dialog-error",
+            icon=_get_icon_path(),
             urgency=2,
             file_path=str(file_path) if file_path else None
         )
@@ -249,7 +256,7 @@ def notify_info(
         _send_dbus_notification(
             title=title,
             body=message,
-            icon="dialog-information",
+            icon=_get_icon_path(),
             urgency=1,
             file_path=file_path,
             actions_dict=actions_dict,

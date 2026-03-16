@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/logo.png" width="160" alt="ShotX Logo">
+</p>
+
 # ShotX
 
 **A free, open-source screenshot and screen capture tool for Linux — inspired by [ShareX](https://getsharex.com).**

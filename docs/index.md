@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" width="160" alt="ShotX Logo">
+</p>
+
 # ShotX
 
 **A free, open-source screenshot and screen capture tool for Linux — inspired by [ShareX](https://getsharex.com).**
@@ -13,7 +17,7 @@ ShotX brings the power of ShareX to the Linux desktop: instant screen capture, r
 | **Record**   | Screen recording to MP4 or GIF with audio capture                                 |
 | **Upload**   | Imgur, ImgBB, tmpfiles.org, S3, FTP/SFTP, custom `.sxcu` uploaders                |
 | **Edit**     | Crop, resize, effects, beautifier, combiner                                       |
-| **Tools**    | OCR, color picker, ruler, QR code, hash checker, pin-to-screen, directory indexer |
+| **Tools**    | OCR, color picker, ruler, hash checker, directory indexer. `--setup-desktop`: Install app menu entry. `--install-autostart`: Create start-on-login entry. |
 
 ## Quick Example
 

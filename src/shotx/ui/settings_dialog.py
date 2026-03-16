@@ -98,6 +98,10 @@ class ApplicationSettingsDialog(QDialog):
         gl_tray = QVBoxLayout(group_tray)
         self._chk_show_tray = QCheckBox("Show tray icon")
         gl_tray.addWidget(self._chk_show_tray)
+        
+        self._chk_autostart = QCheckBox("Start ShotX on login")
+        gl_tray.addWidget(self._chk_autostart)
+        
         l.addWidget(group_tray)
         
         # Capture Config behavior
@@ -185,6 +189,10 @@ class ApplicationSettingsDialog(QDialog):
         
         # General Page
         self._chk_show_tray.setChecked(True)  # Placeholder: Actually needs matching in AppSettings later
+        
+        from shotx.core.desktop import is_autostart_enabled
+        self._chk_autostart.setChecked(is_autostart_enabled())
+        
         self._check_auto_detect.setChecked(s.capture.auto_detect_regions)
         action_idx = 0 if s.capture.after_capture_action == "edit" else 1
         self._combo_after_cap_action.setCurrentIndex(action_idx)
@@ -221,6 +229,14 @@ class ApplicationSettingsDialog(QDialog):
         # General Page
         s.capture.auto_detect_regions = self._check_auto_detect.isChecked()
         s.capture.after_capture_action = "edit" if self._combo_after_cap_action.currentIndex() == 0 else "save"
+        
+        from shotx.core.desktop import is_autostart_enabled, install_autostart, remove_autostart
+        currently_enabled = is_autostart_enabled()
+        should_enable = self._chk_autostart.isChecked()
+        if should_enable and not currently_enabled:
+            install_autostart()
+        elif not should_enable and currently_enabled:
+            remove_autostart()
         
         # Paths Page
         s.capture.output_dir = self._edit_out_dir.text()
