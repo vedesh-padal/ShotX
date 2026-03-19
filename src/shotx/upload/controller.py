@@ -223,17 +223,23 @@ class UploadController(QObject):
         event_bus.capture_completed.emit(file_path, 0, "upload")
 
         settings = self._settings.settings
+        url_copied = False
         if settings.upload.copy_url_to_clipboard:
             copy_text_to_clipboard(final_url)
+            url_copied = True
             if self._verbose:
                 print(f"Copied URL to clipboard: {final_url}")
 
         if settings.capture.show_notification:
             actions = {"📂 View Local": file_path, "🌐 Open Link": final_url}
+            if url_copied:
+                message = f"Link copied to clipboard:\n{final_url}"
+            else:
+                message = f"Upload complete:\n{final_url}"
             notify_info(
                 tray_icon=None,
                 title="Upload Successful",
-                message=f"Link copied to clipboard:\n{final_url}",
+                message=message,
                 actions_dict=actions,
                 default_action=file_path,
             )
