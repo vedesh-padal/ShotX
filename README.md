@@ -61,6 +61,14 @@ Built into both the capture overlay and the standalone editor:
 - **Pin to Screen** — pin a captured region as a floating always-on-top window
 - **Directory Indexer** — generate styled HTML index of a directory tree
 
+### 📜 History & Image History
+
+- **Thumbnail Grid** — browse recent captures edge-to-edge in the Main Window
+- **Split-View History** — spreadsheet viewer with live preview panel
+- **Search & Filtering** — find captures by filename, extension, or URL
+- **Batch Operations** — multi-select and delete files/records in bulk
+- **ShareX Formats** — copy links as Markdown, HTML, or plain text codes
+
 ### 🖥️ Platform Support
 
 - **Wayland-first** — xdg-desktop-portal D-Bus API for capture
@@ -176,7 +184,10 @@ main.py (CLI)
 - [x] **Phase 6** — Productivity tools (OCR, color picker, ruler, QR, etc.)
 - [x] **Phase 7** — Image editor (effects, beautifier, combiner)
 - [x] **Phase 8** — Main Window, history, settings, architecture refactoring
-- [ ] **Phase 9** — Documentation site, PyPI packaging, testing, auto-start
+- [x] **Phase 9** — Documentation site, initial PyPI packaging, testing, auto-start
+- [x] **Phase 10** — Image History grid (1:1 parity) & enhanced History viewer
+- [ ] **Phase 11** — Automated release pipeline (CI/CD)
+- [ ] **Phase 12** — System packaging (.deb, AppImage, Flatpak)
 - [ ] **Future** — Wayland global hotkeys, active window capture, PipeWire recording
 
 ## Tech Stack

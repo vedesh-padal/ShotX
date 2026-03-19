@@ -64,6 +64,10 @@ nav:
       - Screen Recording: features/recording.md
       - Upload Engine: features/upload.md
       - Image Editor: features/editor.md
+      - Image Beautifier: features/image_beautifier.md
+      - Image Combiner: features/image_combiner.md
+      - Image Effects: features/image_effects.md
+      - Capture History: features/history.md
       - Productivity Tools: features/tools.md
   - Configuration:
       - Settings Reference: configuration/settings.md
@@ -73,6 +77,7 @@ nav:
       - CLI Reference: reference/cli.md
       - Architecture: reference/architecture.md
       - Platform Caveats: reference/platform-caveats.md
+      - Feature Caveats: CAVEATS.md
 
 extra:
   social:

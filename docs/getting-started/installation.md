@@ -62,6 +62,7 @@ Some features require system packages. ShotX works without them but with reduced
 | `grim`          | Screenshots on Sway/Hyprland           | `sudo apt install grim`          |
 | `slurp`         | Region selection on Sway/Hyprland      | `sudo apt install slurp`         |
 
+<a name="at-spi2-sub-region-auto-detection"></a>
 > **Note:** PyGObject is automatically downloaded as a core Python dependency for native DBus notifications. However, if you are building from source on a distro that does not supply pre-compiled wheels, you may need to install the system headers: `sudo apt install libcairo2-dev libgirepository1.0-dev pkg-config`.
 
 ## PyPI (Coming Soon)
