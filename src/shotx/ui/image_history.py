@@ -124,13 +124,15 @@ class ImageHistoryWidget(QWidget):
         self._grid.setViewMode(QListWidget.ViewMode.IconMode)
         self._grid.setResizeMode(QListWidget.ResizeMode.Adjust)
         self._grid.setIconSize(_THUMB_SIZE)
-        self._grid.setGridSize(QSize(_THUMB_SIZE.width() + 20, _THUMB_SIZE.height() + 40))
+        self._grid.setGridSize(QSize(_THUMB_SIZE.width() + 30, _THUMB_SIZE.height() + 50))
         self._grid.setMovement(QListWidget.Movement.Static)
         self._grid.setWrapping(True)
         self._grid.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self._grid.setWordWrap(True)
-        self._grid.setSpacing(8)
-        self._grid.setUniformItemSizes(True)
+        self._grid.setSpacing(6)
+        self._grid.setTextElideMode(Qt.TextElideMode.ElideMiddle)
+        # Flow edge-to-edge: no internal margins
+        self._grid.setFlow(QListWidget.Flow.LeftToRight)
 
         # Context menu
         self._grid.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -182,10 +184,16 @@ class ImageHistoryWidget(QWidget):
             return
 
         for rec in records:
+            filename = Path(rec.filepath).name
             item = QListWidgetItem()
-            item.setText(Path(rec.filepath).name)
+            item.setText(filename)
+            item.setToolTip(
+                f"{filename}\n"
+                f"{rec.timestamp.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"{rec.filepath}"
+            )
             item.setIcon(QIcon.fromTheme("image-loading"))
-            item.setSizeHint(QSize(_THUMB_SIZE.width() + 20, _THUMB_SIZE.height() + 40))
+            item.setSizeHint(QSize(_THUMB_SIZE.width() + 30, _THUMB_SIZE.height() + 50))
 
             # Store metadata in UserRole slots (same convention as HistoryWidget)
             item.setData(Qt.ItemDataRole.UserRole, rec.id)

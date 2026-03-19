@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QSplitter,
     QLabel,
+    QLineEdit,
     QSizePolicy,
 )
 
@@ -81,6 +82,7 @@ class HistoryWidget(QWidget):
         self._current_offset = 0
         self._is_loading = False
         self._all_loaded = False
+        self._search_query = ""
 
         self._setup_ui()
         self._load_data(clear=True)
@@ -91,6 +93,13 @@ class HistoryWidget(QWidget):
 
         # Tools bar
         tools_layout = QHBoxLayout()
+
+        self._search_input = QLineEdit()
+        self._search_input.setPlaceholderText("🔍 File name, date/time, URL...")
+        self._search_input.setClearButtonEnabled(True)
+        self._search_input.returnPressed.connect(self._on_search)
+        self._search_input.textChanged.connect(self._on_search_text_changed)
+        tools_layout.addWidget(self._search_input, stretch=1)
 
         self.btn_refresh = QPushButton("🔄 Refresh")
         self.btn_refresh.clicked.connect(lambda: self._load_data(clear=True))
@@ -208,6 +217,19 @@ class HistoryWidget(QWidget):
         )
         self._preview_label.setPixmap(scaled)
 
+    # -- Search --------------------------------------------------------------
+
+    def _on_search(self) -> None:
+        """Run the search when Enter is pressed."""
+        self._search_query = self._search_input.text().strip()
+        self._load_data(clear=True)
+
+    def _on_search_text_changed(self, text: str) -> None:
+        """Live-search: reload when the search box is cleared."""
+        if not text and self._search_query:
+            self._search_query = ""
+            self._load_data(clear=True)
+
     # -- Data loading --------------------------------------------------------
 
     def _on_scroll(self, value: int) -> None:
@@ -235,7 +257,8 @@ class HistoryWidget(QWidget):
             return
 
         records = self._history_manager.get_all(
-            limit=self._items_per_page, offset=self._current_offset
+            limit=self._items_per_page, offset=self._current_offset,
+            search=self._search_query,
         )
 
         if not records:
