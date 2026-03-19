@@ -97,16 +97,29 @@ class HistoryManager:
             logger.error(f"Failed to update URL by path in history: {e}")
             return False
 
-    def get_all(self, limit: int = 200, offset: int = 0) -> List[HistoryRecord]:
-        """Retrieve recent history records."""
+    def get_all(self, limit: int = 200, offset: int = 0, search: str = "") -> List[HistoryRecord]:
+        """Retrieve recent history records, optionally filtered by search query.
+
+        The search query matches against filepath and url columns using
+        case-insensitive LIKE.
+        """
         records = []
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
-                cursor = conn.execute(
-                    "SELECT * FROM history ORDER BY timestamp DESC LIMIT ? OFFSET ?",
-                    (limit, offset)
-                )
+                if search:
+                    pattern = f"%{search}%"
+                    cursor = conn.execute(
+                        "SELECT * FROM history "
+                        "WHERE filepath LIKE ? OR url LIKE ? "
+                        "ORDER BY timestamp DESC LIMIT ? OFFSET ?",
+                        (pattern, pattern, limit, offset),
+                    )
+                else:
+                    cursor = conn.execute(
+                        "SELECT * FROM history ORDER BY timestamp DESC LIMIT ? OFFSET ?",
+                        (limit, offset),
+                    )
                 
                 for row in cursor.fetchall():
                     # Parse timestamp (SQLite defaults to 'YYYY-MM-DD HH:MM:SS')

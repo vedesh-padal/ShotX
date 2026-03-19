@@ -1,22 +1,25 @@
 """History Viewer UI for ShotX.
 
-Displays a tabulated view of past captures loaded from the SQLite database.
+Displays a tabulated view of past captures loaded from the SQLite database,
+with a side-by-side image preview panel (QSplitter) and a rich right-click
+context menu mirroring the ShareX "History" window.
 
 HistoryWidget is the embeddable QWidget used inside the Main Window.
-HistoryDialog is a thin QDialog wrapper for standalone / CLI usage.
+HistoryDialog is a thin QDialog wrapper for standalone / CLI / tray usage.
 """
 
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
-import subprocess
 
 from PySide6.QtCore import Qt, QSize, QRunnable, QObject, Signal, Slot, QThreadPool
 from PySide6.QtGui import QIcon, QAction, QPixmap, QImageReader, QImage
 from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
+    QHBoxLayout,
     QWidget,
     QTableWidget,
     QTableWidgetItem,
@@ -24,8 +27,11 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QMenu,
     QPushButton,
-    QHBoxLayout,
     QMessageBox,
+    QSplitter,
+    QLabel,
+    QLineEdit,
+    QSizePolicy,
 )
 
 from shotx.output.clipboard import copy_text_to_clipboard
@@ -63,7 +69,8 @@ class ThumbnailWorker(QRunnable):
 # ---------------------------------------------------------------------------
 
 class HistoryWidget(QWidget):
-    """Embeddable history viewer widget with async thumbnails and infinite scroll."""
+    """Embeddable history viewer widget with async thumbnails, infinite scroll,
+    a split-pane preview panel, and a ShareX-style context menu."""
 
     def __init__(self, app_controller, parent=None):
         super().__init__(parent)
@@ -75,6 +82,7 @@ class HistoryWidget(QWidget):
         self._current_offset = 0
         self._is_loading = False
         self._all_loaded = False
+        self._search_query = ""
 
         self._setup_ui()
         self._load_data(clear=True)
@@ -85,6 +93,13 @@ class HistoryWidget(QWidget):
 
         # Tools bar
         tools_layout = QHBoxLayout()
+
+        self._search_input = QLineEdit()
+        self._search_input.setPlaceholderText("🔍 File name, date/time, URL...")
+        self._search_input.setClearButtonEnabled(True)
+        self._search_input.returnPressed.connect(self._on_search)
+        self._search_input.textChanged.connect(self._on_search_text_changed)
+        tools_layout.addWidget(self._search_input, stretch=1)
 
         self.btn_refresh = QPushButton("🔄 Refresh")
         self.btn_refresh.clicked.connect(lambda: self._load_data(clear=True))
@@ -97,7 +112,10 @@ class HistoryWidget(QWidget):
         tools_layout.addStretch()
         layout.addLayout(tools_layout)
 
-        # Table
+        # ----- Split pane: Table | Preview -----
+        self._splitter = QSplitter(Qt.Orientation.Horizontal)
+
+        # Left: Table
         self.table = QTableWidget()
         self.table.setColumnCount(5)
         self.table.setHorizontalHeaderLabels([
@@ -106,6 +124,7 @@ class HistoryWidget(QWidget):
 
         # Table configurations
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.verticalHeader().setVisible(True)
         self.table.setAlternatingRowColors(True)
@@ -128,10 +147,31 @@ class HistoryWidget(QWidget):
         self.table.customContextMenuRequested.connect(self._on_context_menu)
         self.table.doubleClicked.connect(self._on_double_click)
 
+        # Selection changed → update preview
+        self.table.itemSelectionChanged.connect(self._on_selection_changed)
+
         # Infinite scroll
         self.table.verticalScrollBar().valueChanged.connect(self._on_scroll)
 
-        layout.addWidget(self.table)
+        self._splitter.addWidget(self.table)
+
+        # Right: Preview panel
+        self._preview_label = QLabel()
+        self._preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._preview_label.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
+        self._preview_label.setMinimumWidth(250)
+        self._preview_label.setStyleSheet(
+            "QLabel { background-color: #1e1f22; border: none; }"
+        )
+        self._preview_label.setText("Select an item to preview")
+
+        self._splitter.addWidget(self._preview_label)
+        self._splitter.setStretchFactor(0, 3)  # Table gets 3/4 of space
+        self._splitter.setStretchFactor(1, 1)  # Preview gets 1/4
+
+        layout.addWidget(self._splitter)
 
         # Listen for new/updated captures via EventBus
         from shotx.core.events import event_bus
@@ -150,6 +190,46 @@ class HistoryWidget(QWidget):
             size_bytes /= 1024.0
             i += 1
         return f"{size_bytes:.1f} {sizes[i]}"
+
+    # -- Preview panel -------------------------------------------------------
+
+    def _on_selection_changed(self) -> None:
+        """Update the preview panel when a row is selected."""
+        record = self._get_selected_record()
+        if not record:
+            self._preview_label.setText("Select an item to preview")
+            return
+
+        _rec_id, filepath, _url = record
+        if not Path(filepath).exists():
+            self._preview_label.setText("⚠️ File not found on disk")
+            return
+
+        pixmap = QPixmap(filepath)
+        if pixmap.isNull():
+            self._preview_label.setText("⚠️ Could not load image")
+            return
+
+        # Scale the pixmap to fit the preview label while preserving aspect ratio
+        scaled = pixmap.scaled(
+            self._preview_label.size(),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        self._preview_label.setPixmap(scaled)
+
+    # -- Search --------------------------------------------------------------
+
+    def _on_search(self) -> None:
+        """Run the search when Enter is pressed."""
+        self._search_query = self._search_input.text().strip()
+        self._load_data(clear=True)
+
+    def _on_search_text_changed(self, text: str) -> None:
+        """Live-search: reload when the search box is cleared."""
+        if not text and self._search_query:
+            self._search_query = ""
+            self._load_data(clear=True)
 
     # -- Data loading --------------------------------------------------------
 
@@ -178,7 +258,8 @@ class HistoryWidget(QWidget):
             return
 
         records = self._history_manager.get_all(
-            limit=self._items_per_page, offset=self._current_offset
+            limit=self._items_per_page, offset=self._current_offset,
+            search=self._search_query,
         )
 
         if not records:
@@ -256,64 +337,161 @@ class HistoryWidget(QWidget):
             preview_item.data(Qt.ItemDataRole.UserRole + 2),
         )
 
+    def _get_all_selected_records(self) -> list[tuple[int, str, str | None]]:
+        """Extract metadata from ALL selected rows (for batch operations)."""
+        seen_rows: set[int] = set()
+        records = []
+        for item in self.table.selectedItems():
+            r = item.row()
+            if r in seen_rows:
+                continue
+            seen_rows.add(r)
+            preview_item = self.table.item(r, 0)
+            records.append((
+                preview_item.data(Qt.ItemDataRole.UserRole),
+                preview_item.data(Qt.ItemDataRole.UserRole + 1),
+                preview_item.data(Qt.ItemDataRole.UserRole + 2),
+            ))
+        return records
+
     # -- Context menu --------------------------------------------------------
 
     def _on_context_menu(self, pos) -> None:
-        """Show contextual actions for a history record."""
+        """Show ShareX-style contextual actions for a history record."""
         record = self._get_selected_record()
         if not record:
             return
 
         rec_id, filepath, url = record
+        file_exists = Path(filepath).exists()
+        has_url = bool(url)
+        filename = Path(filepath).name
+
         menu = QMenu(self)
 
-        open_action = QAction("📂 Open Image", menu)
-        open_action.triggered.connect(lambda: self._open_file(filepath))
-        menu.addAction(open_action)
+        # ---- Open submenu ----
+        open_menu = menu.addMenu("📂 Open")
 
-        edit_action = QAction("🖌️ Edit Image", menu)
-        edit_action.triggered.connect(lambda: self._app.open_image_editor(filepath))
-        menu.addAction(edit_action)
+        a_open_file = open_menu.addAction("File")
+        a_open_file.setEnabled(file_exists)
+        a_open_file.triggered.connect(lambda: self._open_file(filepath))
+
+        a_open_folder = open_menu.addAction("Folder")
+        a_open_folder.setEnabled(file_exists)
+        a_open_folder.triggered.connect(lambda: self._open_folder(filepath))
+
+        if has_url:
+            a_open_url = open_menu.addAction("URL in Browser")
+            a_open_url.triggered.connect(lambda: self._open_url(url))
+
+        # ---- Copy submenu ----
+        copy_menu = menu.addMenu("📋 Copy")
+
+        a_copy_image = copy_menu.addAction("Image")
+        a_copy_image.setShortcut("Alt+C")
+        a_copy_image.setEnabled(file_exists)
+        a_copy_image.triggered.connect(lambda: self._copy_image(filepath))
+
+        a_copy_file = copy_menu.addAction("File")
+        a_copy_file.setShortcut("Shift+C")
+        a_copy_file.setEnabled(file_exists)
+        a_copy_file.triggered.connect(
+            lambda: copy_text_to_clipboard(filepath)
+        )
+
+        copy_menu.addSeparator()
+
+        a_copy_url = copy_menu.addAction("URL")
+        a_copy_url.setShortcut("Ctrl+C")
+        a_copy_url.setEnabled(has_url)
+        a_copy_url.triggered.connect(lambda: copy_text_to_clipboard(url))
+
+        copy_menu.addSeparator()
+
+        a_copy_path = copy_menu.addAction("File path")
+        a_copy_path.setShortcut("Ctrl+Shift+C")
+        a_copy_path.triggered.connect(lambda: copy_text_to_clipboard(filepath))
+
+        a_copy_filename = copy_menu.addAction("File name")
+        a_copy_filename.triggered.connect(
+            lambda: copy_text_to_clipboard(filename)
+        )
+
+        a_copy_filename_ext = copy_menu.addAction("File name with extension")
+        a_copy_filename_ext.triggered.connect(
+            lambda: copy_text_to_clipboard(filename)
+        )
+
+        a_copy_folder = copy_menu.addAction("Folder")
+        a_copy_folder.triggered.connect(
+            lambda: copy_text_to_clipboard(str(Path(filepath).parent))
+        )
+
+        copy_menu.addSeparator()
+
+        # Markdown / HTML link formats (only when URL is present)
+        a_md_link = copy_menu.addAction("Markdown link")
+        a_md_link.setEnabled(has_url)
+        a_md_link.triggered.connect(
+            lambda: copy_text_to_clipboard(f"[{filename}]({url})")
+        )
+
+        a_md_img = copy_menu.addAction("Markdown image")
+        a_md_img.setEnabled(has_url)
+        a_md_img.triggered.connect(
+            lambda: copy_text_to_clipboard(f"![{filename}]({url})")
+        )
+
+        a_md_linked_img = copy_menu.addAction("Markdown linked image")
+        a_md_linked_img.setEnabled(has_url)
+        a_md_linked_img.triggered.connect(
+            lambda: copy_text_to_clipboard(f"[![{filename}]({url})]({url})")
+        )
+
+        a_html_link = copy_menu.addAction("HTML link")
+        a_html_link.setEnabled(has_url)
+        a_html_link.triggered.connect(
+            lambda: copy_text_to_clipboard(
+                f'<a href="{url}">{filename}</a>'
+            )
+        )
+
+        a_html_img = copy_menu.addAction("HTML linked image")
+        a_html_img.setEnabled(has_url)
+        a_html_img.triggered.connect(
+            lambda: copy_text_to_clipboard(
+                f'<a href="{url}"><img src="{url}" alt="{filename}"></a>'
+            )
+        )
 
         menu.addSeparator()
 
-        copy_img_action = QAction("🖼️ Copy Image to Clipboard", menu)
-        copy_img_action.triggered.connect(lambda: self._copy_image(filepath))
-        menu.addAction(copy_img_action)
+        # ---- Image preview ----
+        a_preview = menu.addAction("🖼️ Image preview...")
+        a_preview.setEnabled(file_exists)
+        a_preview.triggered.connect(lambda: self._open_file(filepath))
 
-        copy_path_action = QAction("📄 Copy File Path", menu)
-        copy_path_action.triggered.connect(lambda: copy_text_to_clipboard(filepath))
-        menu.addAction(copy_path_action)
+        # ---- Upload / Edit ----
+        a_upload = menu.addAction("☁️ Upload file")
+        a_upload.setEnabled(file_exists)
+        a_upload.triggered.connect(lambda: self._upload_image(filepath))
 
-        folder_action = QAction("📁 Open Containing Folder", menu)
-        folder_action.triggered.connect(lambda: self._open_folder(filepath))
-        menu.addAction(folder_action)
-
-        if url:
-            menu.addSeparator()
-            copy_url_action = QAction("📋 Copy URL", menu)
-            copy_url_action.triggered.connect(lambda: copy_text_to_clipboard(url))
-            menu.addAction(copy_url_action)
-
-            open_url_action = QAction("🌐 Open URL in Browser", menu)
-            open_url_action.triggered.connect(lambda: self._open_url(url))
-            menu.addAction(open_url_action)
+        a_edit = menu.addAction("🖌️ Edit image...")
+        a_edit.setEnabled(file_exists)
+        a_edit.triggered.connect(lambda: self._edit_image(filepath))
 
         menu.addSeparator()
 
-        upload_action = QAction("☁️ Upload Image", menu)
-        upload_action.triggered.connect(lambda: self._upload_image(filepath))
-        menu.addAction(upload_action)
+        # ---- Delete (multi-select aware) ----
+        all_selected = self._get_all_selected_records()
+        count = len(all_selected)
+        suffix = f" ({count} items)" if count > 1 else ""
 
-        menu.addSeparator()
+        a_remove = menu.addAction(f"📤 Remove from list{suffix}")
+        a_remove.triggered.connect(lambda: self._delete_records_batch(all_selected))
 
-        delete_action = QAction("❌ Delete Record", menu)
-        delete_action.triggered.connect(lambda: self._delete_record(rec_id))
-        menu.addAction(delete_action)
-
-        delete_file_action = QAction("🗑️ Delete File and Record", menu)
-        delete_file_action.triggered.connect(lambda: self._delete_file(rec_id, filepath))
-        menu.addAction(delete_file_action)
+        a_delete_file = menu.addAction(f"🗑️ Delete file(s) locally...{suffix}")
+        a_delete_file.triggered.connect(lambda: self._delete_files_batch(all_selected))
 
         menu.exec(self.table.viewport().mapToGlobal(pos))
 
@@ -353,6 +531,13 @@ class HistoryWidget(QWidget):
                 self, "Warning", f"Could not load image to copy:\n{filepath}"
             )
 
+    def _edit_image(self, filepath: str) -> None:
+        """Launch the image editor with the selected file."""
+        from shotx.core.events import event_bus
+        event_bus.tool_requested_with_args.emit(
+            "editor", {"initial_image_path": filepath}
+        )
+
     def _delete_record(self, rec_id: int) -> None:
         self._history_manager.delete_record(rec_id)
         self._load_data(clear=True)
@@ -370,6 +555,30 @@ class HistoryWidget(QWidget):
             if f.exists():
                 f.unlink()
             self._history_manager.delete_record(rec_id)
+            self._load_data(clear=True)
+
+    def _delete_records_batch(self, records: list[tuple[int, str, str | None]]) -> None:
+        """Remove multiple records from the history database."""
+        for rec_id, _fp, _url in records:
+            self._history_manager.delete_record(rec_id)
+        self._load_data(clear=True)
+
+    def _delete_files_batch(self, records: list[tuple[int, str, str | None]]) -> None:
+        """Delete multiple files from disk and remove their DB records."""
+        count = len(records)
+        reply = QMessageBox.question(
+            self,
+            "Delete Files",
+            f"Are you sure you want to permanently delete {count} file(s) from disk?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            for rec_id, filepath, _url in records:
+                f = Path(filepath)
+                if f.exists():
+                    f.unlink()
+                self._history_manager.delete_record(rec_id)
             self._load_data(clear=True)
 
     def _upload_image(self, filepath: str) -> None:
@@ -396,16 +605,17 @@ class HistoryWidget(QWidget):
 
 
 # ---------------------------------------------------------------------------
-# HistoryDialog — thin wrapper for standalone / CLI usage (shotx --history)
+# HistoryDialog — standalone floating window (ShareX "History" paradigm)
 # ---------------------------------------------------------------------------
 
 class HistoryDialog(QDialog):
-    """Standalone dialog that wraps HistoryWidget for CLI and tray-menu use."""
+    """Standalone dialog that wraps HistoryWidget for CLI, tray-menu,
+    and sidebar 'History...' button use."""
 
     def __init__(self, app_controller, parent=None):
         super().__init__(parent)
         self.setWindowTitle("ShotX - History")
-        self.resize(900, 600)
+        self.resize(1100, 650)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
