@@ -29,7 +29,12 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgirepository1.0-dev libcairo2-dev pkg-config
+          sudo apt-get install -y \
+            libcairo2-dev \
+            pkg-config \
+            gobject-introspection \
+            libglib2.0-dev \
+            libgirepository-2.0-dev
 
       - name: Set up Python
         run: uv python install 3.12
