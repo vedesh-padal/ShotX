@@ -1,5 +1,17 @@
 <p align="center">
-  <img src="docs/assets/logo.png" width="160" alt="ShotX Logo">
+  <img src="docs/assets/logo.png" width="100" alt="ShotX Logo">
+  <br>
+  <b>ShotX</b>
+  <br><br>
+  <a href="https://github.com/vedesh-padal/ShotX/actions/workflows/ci.yml">
+    <img src="https://github.com/vedesh-padal/ShotX/actions/workflows/ci.yml/badge.svg" alt="CI">
+  </a>
+  <a href="https://github.com/vedesh-padal/ShotX/actions/workflows/docs.yml">
+    <img src="https://github.com/vedesh-padal/ShotX/actions/workflows/docs.yml/badge.svg" alt="Documentation">
+  </a>
+  <img src="https://img.shields.io/github/license/vedesh-padal/ShotX" alt="License">
+  <img src="https://img.shields.io/badge/Status-Beta-purple" alt="Status">
+  <img src="https://img.shields.io/badge/Python-3.10+-blue" alt="Python">
 </p>
 
 # ShotX
