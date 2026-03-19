@@ -2,7 +2,7 @@
 
 Left sidebar provides categorized menus (Capture, Upload, Tools) and
 quick-access items (Settings, History, Screenshots folder).
-Center panel permanently displays the History viewer.
+Center panel permanently displays the Image History thumbnail grid.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
     QLabel,
 )
 
-from shotx.ui.history import HistoryWidget
+from shotx.ui.image_history import ImageHistoryWidget
 from shotx.ui.notification import open_folder
 
 if TYPE_CHECKING:
@@ -211,11 +211,11 @@ class ShotXMainWindow(QMainWindow):
         sidebar_layout.addWidget(btn_screenshots)
 
         btn_history = _SidebarButton("🕒  History...")
-        btn_history.clicked.connect(self._on_history_refresh)
+        btn_history.clicked.connect(self._on_open_history)
         sidebar_layout.addWidget(btn_history)
 
-        btn_image_history = _SidebarButton("🖼️  Image history...")
-        btn_image_history.setEnabled(False)  # Future phase
+        btn_image_history = _SidebarButton("🖼️  Image history")
+        btn_image_history.clicked.connect(self._on_image_history_refresh)
         sidebar_layout.addWidget(btn_image_history)
 
         sidebar_layout.addWidget(_SidebarSeparator())
@@ -228,9 +228,9 @@ class ShotXMainWindow(QMainWindow):
 
         root_layout.addWidget(sidebar)
 
-        # ---- Center Panel: History ----
-        self._history_widget = HistoryWidget(self._app, self)
-        root_layout.addWidget(self._history_widget, stretch=1)
+        # ---- Center Panel: Image History (thumbnail grid) ----
+        self._image_history_widget = ImageHistoryWidget(self._app, self)
+        root_layout.addWidget(self._image_history_widget, stretch=1)
 
     # ------------------------------------------------------------------
     # Menu Builders
@@ -426,9 +426,17 @@ class ShotXMainWindow(QMainWindow):
         output_dir.mkdir(parents=True, exist_ok=True)
         open_folder(output_dir)
 
-    def _on_history_refresh(self) -> None:
-        """Refresh the embedded history table."""
-        self._history_widget._load_data(clear=True)
+    def _on_open_history(self) -> None:
+        """Open the History spreadsheet in a floating standalone window."""
+        from shotx.ui.history import HistoryDialog
+        self._history_dialog = HistoryDialog(self._app, self)
+        self._history_dialog.show()
+        self._history_dialog.raise_()
+        self._history_dialog.activateWindow()
+
+    def _on_image_history_refresh(self) -> None:
+        """Refresh the embedded image history thumbnail grid."""
+        self._image_history_widget._load_data(clear=True)
 
     def _on_upload_file(self) -> None:
         """Open a file dialog and upload the selected image."""
