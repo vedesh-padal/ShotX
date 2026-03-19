@@ -18,14 +18,14 @@ jobs:
       - name: Set up latest uv
         uses: astral-sh/setup-uv@v5
 
-      - name: Install dependencies
-        run: uv sync --all-groups
-        
-      # Required for AT-SPI2 region detection
+      # Required for AT-SPI2 region detection and pycairo build
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libgirepository1.0-dev libcairo2-dev pkg-config
+
+      - name: Install dependencies
+        run: uv sync --all-groups
 
       - name: Lint with ruff
         run: uv run ruff check src/
