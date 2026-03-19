@@ -105,34 +105,23 @@ class ImageHistoryWidget(QWidget):
     def _setup_ui(self) -> None:
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-
-        # Toolbar
-        tools = QHBoxLayout()
-        btn_refresh = QPushButton("🔄 Refresh")
-        btn_refresh.clicked.connect(lambda: self._load_data(clear=True))
-        tools.addWidget(btn_refresh)
-
-        btn_clear = QPushButton("🗑️ Clear History")
-        btn_clear.clicked.connect(self._on_clear_history)
-        tools.addWidget(btn_clear)
-
-        tools.addStretch()
-        layout.addLayout(tools)
+        layout.setSpacing(0)
 
         # Grid
         self._grid = QListWidget()
         self._grid.setViewMode(QListWidget.ViewMode.IconMode)
         self._grid.setResizeMode(QListWidget.ResizeMode.Adjust)
         self._grid.setIconSize(_THUMB_SIZE)
-        self._grid.setGridSize(QSize(_THUMB_SIZE.width() + 30, _THUMB_SIZE.height() + 50))
+        self._grid.setGridSize(QSize(_THUMB_SIZE.width() + 20, _THUMB_SIZE.height() + 40))
         self._grid.setMovement(QListWidget.Movement.Static)
         self._grid.setWrapping(True)
         self._grid.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self._grid.setWordWrap(True)
-        self._grid.setSpacing(6)
-        self._grid.setTextElideMode(Qt.TextElideMode.ElideMiddle)
-        # Flow edge-to-edge: no internal margins
+        self._grid.setSpacing(4)
+        self._grid.setTextElideMode(Qt.TextElideMode.ElideNone)
         self._grid.setFlow(QListWidget.Flow.LeftToRight)
+        # Eliminate internal viewport padding to keep grid edge-to-edge
+        self._grid.setStyleSheet("QListWidget { padding: 0px; }")
 
         # Context menu
         self._grid.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -184,16 +173,24 @@ class ImageHistoryWidget(QWidget):
             return
 
         for rec in records:
-            filename = Path(rec.filepath).name
+            full_name = Path(rec.filepath).name
+            # Show a compact label: strip the "ShotX_" prefix and extension
+            # so the date/time is visible without truncation
+            stem = Path(rec.filepath).stem
+            if stem.startswith("ShotX_"):
+                display_name = stem[6:]  # e.g. "2026-03-19_20-53-03"
+            else:
+                display_name = stem
+
             item = QListWidgetItem()
-            item.setText(filename)
+            item.setText(display_name)
             item.setToolTip(
-                f"{filename}\n"
+                f"{full_name}\n"
                 f"{rec.timestamp.strftime('%Y-%m-%d %H:%M:%S')}\n"
                 f"{rec.filepath}"
             )
             item.setIcon(QIcon.fromTheme("image-loading"))
-            item.setSizeHint(QSize(_THUMB_SIZE.width() + 30, _THUMB_SIZE.height() + 50))
+            item.setSizeHint(QSize(_THUMB_SIZE.width() + 20, _THUMB_SIZE.height() + 40))
 
             # Store metadata in UserRole slots (same convention as HistoryWidget)
             item.setData(Qt.ItemDataRole.UserRole, rec.id)

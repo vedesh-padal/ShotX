@@ -124,6 +124,7 @@ class HistoryWidget(QWidget):
 
         # Table configurations
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.verticalHeader().setVisible(True)
         self.table.setAlternatingRowColors(True)
@@ -336,6 +337,23 @@ class HistoryWidget(QWidget):
             preview_item.data(Qt.ItemDataRole.UserRole + 2),
         )
 
+    def _get_all_selected_records(self) -> list[tuple[int, str, str | None]]:
+        """Extract metadata from ALL selected rows (for batch operations)."""
+        seen_rows: set[int] = set()
+        records = []
+        for item in self.table.selectedItems():
+            r = item.row()
+            if r in seen_rows:
+                continue
+            seen_rows.add(r)
+            preview_item = self.table.item(r, 0)
+            records.append((
+                preview_item.data(Qt.ItemDataRole.UserRole),
+                preview_item.data(Qt.ItemDataRole.UserRole + 1),
+                preview_item.data(Qt.ItemDataRole.UserRole + 2),
+            ))
+        return records
+
     # -- Context menu --------------------------------------------------------
 
     def _on_context_menu(self, pos) -> None:
@@ -464,13 +482,16 @@ class HistoryWidget(QWidget):
 
         menu.addSeparator()
 
-        # ---- Delete ----
-        a_remove = menu.addAction("📤 Remove task from list")
-        a_remove.triggered.connect(lambda: self._delete_record(rec_id))
+        # ---- Delete (multi-select aware) ----
+        all_selected = self._get_all_selected_records()
+        count = len(all_selected)
+        suffix = f" ({count} items)" if count > 1 else ""
 
-        a_delete_file = menu.addAction("🗑️ Delete file locally...")
-        a_delete_file.setEnabled(file_exists)
-        a_delete_file.triggered.connect(lambda: self._delete_file(rec_id, filepath))
+        a_remove = menu.addAction(f"📤 Remove from list{suffix}")
+        a_remove.triggered.connect(lambda: self._delete_records_batch(all_selected))
+
+        a_delete_file = menu.addAction(f"🗑️ Delete file(s) locally...{suffix}")
+        a_delete_file.triggered.connect(lambda: self._delete_files_batch(all_selected))
 
         menu.exec(self.table.viewport().mapToGlobal(pos))
 
@@ -534,6 +555,30 @@ class HistoryWidget(QWidget):
             if f.exists():
                 f.unlink()
             self._history_manager.delete_record(rec_id)
+            self._load_data(clear=True)
+
+    def _delete_records_batch(self, records: list[tuple[int, str, str | None]]) -> None:
+        """Remove multiple records from the history database."""
+        for rec_id, _fp, _url in records:
+            self._history_manager.delete_record(rec_id)
+        self._load_data(clear=True)
+
+    def _delete_files_batch(self, records: list[tuple[int, str, str | None]]) -> None:
+        """Delete multiple files from disk and remove their DB records."""
+        count = len(records)
+        reply = QMessageBox.question(
+            self,
+            "Delete Files",
+            f"Are you sure you want to permanently delete {count} file(s) from disk?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            for rec_id, filepath, _url in records:
+                f = Path(filepath)
+                if f.exists():
+                    f.unlink()
+                self._history_manager.delete_record(rec_id)
             self._load_data(clear=True)
 
     def _upload_image(self, filepath: str) -> None:

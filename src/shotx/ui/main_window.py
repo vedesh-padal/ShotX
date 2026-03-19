@@ -120,7 +120,7 @@ class ShotXMainWindow(QMainWindow):
         self._app = app
 
         self.setWindowTitle("ShotX")
-        self.resize(1050, 650)
+        self.resize(1100, 700)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False)
 
         self._build_ui()
@@ -429,7 +429,9 @@ class ShotXMainWindow(QMainWindow):
     def _on_open_history(self) -> None:
         """Open the History spreadsheet in a floating standalone window."""
         from shotx.ui.history import HistoryDialog
-        self._history_dialog = HistoryDialog(self._app, self)
+        # Open without parent so it's an independent top-level window
+        # that doesn't always stack on top of the main window.
+        self._history_dialog = HistoryDialog(self._app)
         self._history_dialog.show()
         self._history_dialog.raise_()
         self._history_dialog.activateWindow()
