@@ -203,10 +203,12 @@ class ApplicationSettingsDialog(QDialog):
         self._update_filename_preview(s.capture.filename_pattern)
         
         # Upload Page
-        self._chk_upload_enabled.setChecked(s.upload.enabled)
-        idx = self._combo_default_uploader.findText(s.upload.default_uploader)
-        if idx >= 0:
-            self._combo_default_uploader.setCurrentIndex(idx)
+        self._chk_upload_enabled.setChecked(s.workflow.upload_image)
+        uploader = s.upload.default_uploader.lower()
+        for i in range(self._combo_default_uploader.count()):
+            if self._combo_default_uploader.itemText(i).lower() == uploader:
+                self._combo_default_uploader.setCurrentIndex(i)
+                break
 
     def accept(self) -> None:
         """Save settings and close dialog."""
@@ -243,8 +245,8 @@ class ApplicationSettingsDialog(QDialog):
         s.capture.filename_pattern = pattern
         
         # Upload Page
-        s.upload.enabled = self._chk_upload_enabled.isChecked()
-        s.upload.default_uploader = self._combo_default_uploader.currentText()
+        s.workflow.upload_image = self._chk_upload_enabled.isChecked()
+        s.upload.default_uploader = self._combo_default_uploader.currentText().lower()
         
         # Hotkeys Page (delegates to its own widget)
         self._page_hotkeys.apply_settings()

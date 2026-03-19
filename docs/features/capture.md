@@ -71,11 +71,14 @@ AT-SPI2 requires PyGObject. See [Installation](../getting-started/installation.m
 
 The after-capture pipeline is a configurable sequence of actions:
 
-| Action            | Description                         | Default |
-| ----------------- | ----------------------------------- | ------- |
+| After-Capture Task | What it does | Default |
+| :--- | :--- | :--- |
 | Save to File      | Save screenshot to output directory | ✅ On   |
-| Copy to Clipboard | Copy image to system clipboard      | ✅ On   |
-| Upload Image      | Upload to configured destination    | ❌ Off  |
-| Open in Editor    | Open in the image editor            | ❌ Off  |
+| Copy to Clipboard | Send image bytes to system clipboard | ✅ On   |
+| Upload Image      | Trigger the background upload engine | ❌ Off  |
+| Open in Editor    | Launch internal drawing tool        | ❌ Off  |
+
+> [!NOTE] Disk Spooling Fallback
+> The **Upload** and **Editor** tools fundamentally require a physical file path to read or transmit image bytes. If you have "Save to file" **unchecked** but still request an Upload or Edit action, ShotX will automatically save a silent, high-quality temporary file to `/tmp/shotx/` so the background workers don't crash. Since Linux automatically clears the `/tmp` RAM-disk upon reboot or memory pressure, no manual cleanup is required!
 
 Configure via Main Window sidebar → After Capture Tasks, or Settings → Workflow.

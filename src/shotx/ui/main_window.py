@@ -345,7 +345,7 @@ class ShotXMainWindow(QMainWindow):
     def _populate_destinations_menu(self, menu: QMenu) -> None:
         """Build radio-style destination selector."""
         settings = self._app.settings
-        current_dest = getattr(settings, "upload_destination", "imgur")
+        current_dest = settings.upload.default_uploader.lower()
 
         self._dest_actions: dict[str, QAction] = {}  # key → QAction
         destinations = [
@@ -376,9 +376,9 @@ class ShotXMainWindow(QMainWindow):
 
     def _set_destination(self, key: str) -> None:
         """Set the active upload destination and persist."""
-        self._app.settings.upload_destination = key
+        self._app.settings.upload.default_uploader = key
         self._app._settings_manager.save()
-        logger.debug("upload_destination = %s (saved)", key)
+        logger.debug("upload.default_uploader = %s (saved)", key)
 
         # Radio behavior: check only the selected action
         for k, action in self._dest_actions.items():

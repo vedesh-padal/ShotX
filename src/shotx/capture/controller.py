@@ -739,6 +739,19 @@ class CaptureController(QObject):
                     print(f"Saved to {saved_path}")
             else:
                 logger.warning("Failed to save screenshot to file")
+        else:
+            # We must save to a secure temporary file because uploader and editor need a file
+            import tempfile
+            import os
+            tmp_dir = Path(tempfile.gettempdir()) / "shotx"
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+            fd, tmp_path_str = tempfile.mkstemp(dir=tmp_dir, suffix=".png", prefix="cap_")
+            os.close(fd)
+            # Use fixed high quality PNG for temp transit
+            if image.save(tmp_path_str, "PNG"):
+                saved_path = Path(tmp_path_str)
+            else:
+                logger.error("Failed to save temporary image to %s", tmp_path_str)
 
         if workflow.copy_to_clipboard:
             success = copy_image_to_clipboard(image)
@@ -746,7 +759,7 @@ class CaptureController(QObject):
                 print("Copied image to clipboard")
 
         if workflow.open_in_editor and saved_path:
-            event_bus.tool_requested.emit("editor")
+            event_bus.tool_requested_with_args.emit("editor", {"initial_image_path": str(saved_path)})
 
         if workflow.upload_image and saved_path:
             event_bus.upload_requested.emit(str(saved_path))
