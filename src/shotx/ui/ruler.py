@@ -8,8 +8,19 @@ from __future__ import annotations
 
 import logging
 import math
-from PySide6.QtCore import Qt, QPoint, Signal, QRect
-from PySide6.QtGui import QPainter, QImage, QColor, QPen, QFont, QPaintEvent, QMouseEvent, QKeyEvent, QPixmap, QCursor
+
+from PySide6.QtCore import QPoint, QRect, Qt, Signal
+from PySide6.QtGui import (
+    QColor,
+    QFont,
+    QImage,
+    QKeyEvent,
+    QMouseEvent,
+    QPainter,
+    QPaintEvent,
+    QPen,
+    QPixmap,
+)
 from PySide6.QtWidgets import QWidget
 
 logger = logging.getLogger(__name__)
@@ -22,9 +33,9 @@ class RulerOverlay(QWidget):
 
     def __init__(self, backdrop: QImage | QPixmap) -> None:
         super().__init__()
-        
+
         self._backdrop = backdrop
-        
+
         self._start_pos: QPoint | None = None
         self._current_pos: QPoint | None = None
         self._is_dragging = False
@@ -78,7 +89,7 @@ class RulerOverlay(QWidget):
         rect_pen = QPen(QColor(255, 255, 255, 120), 1, Qt.PenStyle.DashLine)
         painter.setPen(rect_pen)
         painter.setBrush(QColor(255, 255, 255, 20))
-        
+
         rx = min(x1, x2)
         ry = min(y1, y2)
         painter.drawRect(rx, ry, width, height)
@@ -97,11 +108,11 @@ class RulerOverlay(QWidget):
         # 4. Render tooltip info near the cursor
         box_width = 200
         box_height = 100
-        
+
         # Offset cursor
         mag_x = x2 + 15
         mag_y = y2 + 15
-        
+
         if mag_x + box_width > self.width():
             mag_x = x2 - box_width - 15  # flip left
         if mag_y + box_height > self.height():
@@ -116,7 +127,7 @@ class RulerOverlay(QWidget):
         painter.setPen(QColor(255, 255, 255))
         painter.setFont(QFont("Cousine", 14, QFont.Weight.Bold))
         text_rect = QRect(mag_x + 15, mag_y + 10, box_width - 30, box_height - 20)
-        
+
         info_text = (
             f"W: {width} px\n"
             f"H: {height} px\n"
