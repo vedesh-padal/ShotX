@@ -29,16 +29,16 @@ hotkeys:
 
 ## Available Hotkeys
 
-| Action             | Default         | Description                     |
-| ------------------ | --------------- | ------------------------------- |
-| Fullscreen Capture | (none)          | Capture entire screen           |
-| Region Capture     | ++alt+shift+x++ | Select and capture a region     |
-| Window Capture     | (none)          | Capture a window                |
-| OCR                | (none)          | Extract text from screen region |
-| Color Picker       | ++alt+shift+q++ | Pick a color from screen        |
-| Ruler              | (none)          | Measure pixel distances         |
-| QR Scan            | (none)          | Scan QR code from screen        |
-| Pin Region         | (none)          | Pin a region as floating window |
+| Action                  | Default         | Description                           |
+| ----------------------- | --------------- | ------------------------------------- |
+| Fullscreen Capture      | (none)          | Capture entire screen                 |
+| Region Capture          | ++alt+shift+x++ | Select and capture a region           |
+| Window Capture          | (none)          | Capture a window                      |
+| OCR                     | (none)          | Extract text from screen region       |
+| Color Picker            | ++alt+shift+q++ | Pick a color from screen              |
+| Ruler                   | (none)          | Measure pixel distances               |
+| QR Scan (screen)        | (none)          | Scan QR code from screen region       |
+| Pin Region              | (none)          | Capture region and pin as floating window |
 
 ## Key Format
 

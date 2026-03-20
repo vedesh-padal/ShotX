@@ -66,13 +66,26 @@ QR scanning requires zbar. Install: `sudo apt install libzbar0`
 
 ## Pin to Screen
 
-Capture a region and pin it as a floating always-on-top window.
+Pins an image as a floating, always-on-top window. There are two ways to invoke it:
+
+### From Tray / CLI / Hotkey
+Captures a region first, then pins the cropped result:
 
 ```bash
 shotx --pin-region
 ```
 
-**Controls:**
+**Flow:** Full-screen backdrop captured → region overlay shown → select region → cropped image appears as pinned floating window.
+
+### From Image History (Right-click → Pin)
+Pins the already-saved image directly — **no new capture required**:
+
+1. Open Main Window
+2. Right-click any thumbnail in the Image History grid
+3. Select **Pin to Screen**
+4. The image appears immediately as a floating window
+
+**Controls (both modes):**
 
 - Drag to move
 - Resize from bottom-right corner handle

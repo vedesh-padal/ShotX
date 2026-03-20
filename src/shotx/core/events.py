@@ -48,6 +48,10 @@ class EventBus(QObject):
     # Payload: (tool_name: str, kwargs: dict)
     tool_requested_with_args = Signal(str, dict)
 
+    # Emitted to pin an existing image file directly (no capture overlay).
+    # Payload: filepath str
+    pin_image_requested = Signal(str)
+
     # ---- Upload signals ----
     # Request to start a background upload.
     # Payload: filepath str

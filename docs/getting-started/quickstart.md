@@ -46,7 +46,7 @@ Run a single command and exit:
 
 ## Main Window
 
-Double-click the tray icon (or select "Open Main Window" from the menu) to access the unified ShotX hub with:
+Click the tray icon or select **Open Main Window** from the tray menu to access the unified ShotX hub with:
 
 - **Sidebar navigation** for all capture types, tools, and upload options
 - **Capture history** with thumbnails and infinite scroll

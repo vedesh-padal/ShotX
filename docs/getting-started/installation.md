@@ -50,9 +50,10 @@ Some features require system packages. ShotX works without them but with reduced
 
 ### Recommended
 
-| Package | Purpose                          | Install (Ubuntu/Debian)  |
-| ------- | -------------------------------- | ------------------------ |
-| `xclip` | Persistent clipboard in CLI mode | `sudo apt install xclip` |
+| Package      | Purpose                                      | Install (Ubuntu/Debian)       |
+| ------------ | -------------------------------------------- | ----------------------------- |
+| `xclip`      | Persistent clipboard in X11 CLI mode         | `sudo apt install xclip`      |
+| `wl-copy`    | Persistent clipboard in Wayland CLI mode     | `sudo apt install wl-clipboard` |
 
 ### Optional (Feature-Specific)
 
@@ -66,10 +67,11 @@ Some features require system packages. ShotX works without them but with reduced
 | `slurp`         | Region selection on Sway/Hyprland      | `sudo apt install slurp`         |
 
 <a name="at-spi2-sub-region-auto-detection"></a>
-> **Note:** PyGObject is automatically downloaded as a core Python dependency for native DBus notifications. However, if you are building from source on a distro that does not supply pre-compiled wheels, you may need to install the system headers: `sudo apt install libcairo2-dev libgirepository1.0-dev pkg-config`.
+> **Note:** PyGObject is automatically downloaded as a core Python dependency for native DBus notifications. However, if you are building from source, you may need to install the system headers. The exact package name depends on your Ubuntu/Debian version:
+>
+> - **Ubuntu 22.04 / Debian 11**: `sudo apt install libcairo2-dev libgirepository1.0-dev pkg-config`
+> - **Ubuntu 24.04+ / Debian 12+**: `sudo apt install libcairo2-dev libgirepository-2.0-dev pkg-config`
 
 ## PyPI (Coming Soon)
 
-```bash
-pip install shotx
-```
+ShotX is not yet published to PyPI. Install from source (above) or watch the [releases page](https://github.com/vedesh-padal/ShotX/releases).
