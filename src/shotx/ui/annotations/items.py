@@ -94,7 +94,8 @@ class RectangleItem(BaseAnnotationItem):
 
     def boundingRect(self) -> QRectF:
         p = self.thickness / 2.0
-        return self._rect.adjusted(-p, -p, p, p)
+        # +2px margin for the dashed selection highlight
+        return self._rect.adjusted(-p - 2, -p - 2, p + 2, p + 2)
 
     def shape(self) -> QPainterPath:
         path = QPainterPath()
@@ -128,7 +129,8 @@ class EllipseItem(BaseAnnotationItem):
 
     def boundingRect(self) -> QRectF:
         p = self.thickness / 2.0
-        return self._rect.adjusted(-p, -p, p, p)
+        # +2px margin for the dashed selection highlight
+        return self._rect.adjusted(-p - 2, -p - 2, p + 2, p + 2)
 
     def shape(self) -> QPainterPath:
         path = QPainterPath()
@@ -169,7 +171,8 @@ class ArrowItem(BaseAnnotationItem):
     def boundingRect(self) -> QRectF:
         head_len = self._head_length()
         p = head_len + self.thickness
-        return QRectF(self._start, self._end).normalized().adjusted(-p, -p, p, p)
+        # +2px margin for the dashed selection highlight
+        return QRectF(self._start, self._end).normalized().adjusted(-p - 2, -p - 2, p + 2, p + 2)
 
     def _head_length(self) -> float:
         """Arrow head length scales with pen thickness."""
@@ -263,7 +266,8 @@ class FreehandItem(BaseAnnotationItem):
 
     def boundingRect(self) -> QRectF:
         p = self.thickness / 2.0
-        return self._path.boundingRect().adjusted(-p, -p, p, p)
+        # +2px margin for the dashed selection highlight
+        return self._path.boundingRect().adjusted(-p - 2, -p - 2, p + 2, p + 2)
 
     def shape(self) -> QPainterPath:
         stroker = QPainterPathStroker()
@@ -385,7 +389,8 @@ class HighlightItem(BaseAnnotationItem):
         self._rect = QRectF(self._start, pos).normalized()
 
     def boundingRect(self) -> QRectF:
-        return self._rect
+        # +2px margin for the dashed selection highlight (item has NoPen for fills)
+        return self._rect.adjusted(-2, -2, 2, 2)
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget | None = None) -> None:
         fill = QColor(self.color)
@@ -472,7 +477,8 @@ class BlurItem(BaseAnnotationItem):
         self._rect = QRectF(self._start, pos).normalized()
 
     def boundingRect(self) -> QRectF:
-        return self._rect
+        # Expand the rect by 2px to account for the dashed border and selection highlight
+        return self._rect.adjusted(-2, -2, 2, 2)
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget | None = None) -> None:
         rect = self._rect.toRect()
