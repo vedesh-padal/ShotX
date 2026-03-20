@@ -32,7 +32,7 @@ theme:
   icon:
     repo: fontawesome/brands/github
   logo: assets/logo.png
-  favicon: assets/logo.png
+  favicon: assets/logo.svg
 
 plugins:
   - search
