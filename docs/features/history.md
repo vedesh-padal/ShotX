@@ -14,7 +14,7 @@ The central area of the ShotX Main Window features a responsive thumbnail grid. 
     - **Copy**: Copy the image itself to the clipboard.
     - **Upload**: Re-upload the file to your default provider.
     - **Edit**: Open the image in the ShotX Editor.
-    - **Pin**: Pin the region as a floating always-on-top window.
+    - **Pin**: Pin this image directly as a floating always-on-top window (no new capture).
     - **OCR**: Extract text from the image.
     - **Delete**: Remove from history or delete the file from disk.
 

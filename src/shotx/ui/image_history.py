@@ -344,8 +344,7 @@ class ImageHistoryWidget(QWidget):
 
     def _pin_image(self, filepath: str) -> None:
         from shotx.core.events import event_bus
-        # pin_region is dispatched via capture_requested in CaptureController
-        event_bus.capture_requested.emit("pin_region")
+        event_bus.pin_image_requested.emit(filepath)
 
     def _upload_image(self, filepath: str) -> None:
         if Path(filepath).exists():

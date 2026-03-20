@@ -6,19 +6,23 @@ ShotX stores configuration in `~/.config/shotx/settings.yaml`. Settings can be e
 
 ```yaml
 capture:
-    output_dir: ~/Pictures/ShotX # Where screenshots are saved
-    filename_pattern: "ShotX_{datetime}" # Filename template
-    image_format: png # png, jpg, jpeg, webp
-    jpeg_quality: 95 # Quality for JPEG/WebP (1-100)
-    screenshot_delay: 0 # Seconds to wait before capture
-    show_cursor: false # Include cursor in screenshots
-    auto_detect_regions: true # Auto-detect windows/widgets
-    after_capture_action: annotate # annotate, save, capture
-    show_notification: true # Show desktop notification
-    last_annotation_color: "#FF0000" # Last used annotation color
-    video_fps: 30 # Recording frame rate
-    capture_audio: false # Record system audio
+    output_dir: ~/Pictures/ShotX   # Where screenshots are saved
+    filename_pattern: "ShotX_{date}_{time}"  # Filename template
+    image_format: png              # png, jpg, jpeg, webp
+    jpeg_quality: 95               # Quality for JPEG/WebP (1-100)
+    screenshot_delay: 0            # Seconds to wait before capture
+    show_cursor: false             # Include cursor in screenshots
+    auto_detect_regions: true      # Auto-detect windows/widgets
+    after_capture_action: edit     # "edit" (annotate first) or "save" (save immediately)
+    show_notification: true        # Show desktop notification after capture
+    play_sound: false              # Play a shutter sound on capture
+    last_annotation_color: "#ff0000"  # Last used annotation color (persisted)
+    video_fps: 30                  # Recording frame rate
+    capture_audio: false           # Record system audio
 ```
+
+> [!NOTE]
+> `after_capture_action: edit` opens the annotation overlay before saving. `save` saves the screenshot immediately without annotation.
 
 ## Filename Pattern Variables
 
@@ -35,17 +39,18 @@ capture:
 
 ```yaml
 workflow:
-    save_to_file: true # Save screenshot to disk
-    copy_to_clipboard: true # Copy image to clipboard
-    upload_image: false # Upload to configured destination
-    open_in_editor: false # Open in image editor after capture
+    save_to_file: true       # Save screenshot to disk
+    copy_to_clipboard: true  # Copy image to clipboard
+    upload_image: false      # Upload to configured destination
+    open_in_editor: false    # Open in image editor after capture
 ```
 
 ## Upload Settings
 
 ```yaml
 upload:
-    default_uploader: tmpfiles # imgur, imgbb, tmpfiles, s3, ftp, sftp, custom:name
+    enabled: false
+    default_uploader: tmpfiles  # imgur, imgbb, tmpfiles, s3, ftp, sftp, custom:name
     copy_url_to_clipboard: true # Copy upload URL after upload
 
     imgur:
@@ -56,7 +61,7 @@ upload:
         api_key: ""
 
     s3:
-        endpoint_url: "" # Leave empty for AWS
+        endpoint_url: ""  # Leave empty for AWS
         access_key: ""
         secret_key: ""
         bucket_name: ""
@@ -67,7 +72,7 @@ upload:
         port: 21
         username: ""
         password: ""
-        remote_path: /
+        remote_dir: /              # Upload directory on server
         public_url_format: ""
 
     sftp:
@@ -75,19 +80,20 @@ upload:
         port: 22
         username: ""
         password: ""
-        remote_path: /
+        key_file: ""               # Path to SSH private key (optional)
+        remote_dir: /              # Upload directory on server
         public_url_format: ""
 
     shortener:
         enabled: false
-        provider: tinyurl # Shortener service provider
+        provider: tinyurl  # tinyurl, isgd, vgd
 ```
 
 ## Hotkey Settings
 
 ```yaml
 hotkeys:
-    capture_fullscreen: "" # e.g. "Print"
+    capture_fullscreen: ""         # e.g. "Print"
     capture_region: "Alt+Shift+X"
     capture_window: ""
     capture_ocr: ""

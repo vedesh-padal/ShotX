@@ -66,6 +66,7 @@ class CaptureController(QObject):
 
         # Wire EventBus
         event_bus.capture_requested.connect(self._on_capture_requested)
+        event_bus.pin_image_requested.connect(self.pin_image_from_file)
         event_bus.start_recording_requested.connect(self.start_recording)
         event_bus.stop_recording_requested.connect(self.stop_recording)
 
@@ -598,9 +599,29 @@ class CaptureController(QObject):
         )
         return True
 
-    # ------------------------------------------------------------------
-    # Recording
-    # ------------------------------------------------------------------
+    @Slot(str)
+    def pin_image_from_file(self, filepath: str) -> bool:
+        """Load an image from disk and pin it directly without a capture overlay."""
+        logger.info("Pinning image from file: %s", filepath)
+        from PySide6.QtGui import QPixmap
+        pixmap = QPixmap(filepath)
+        if pixmap.isNull():
+            logger.error("Cannot load image for pinning: %s", filepath)
+            event_bus.notify_error_requested.emit(f"Cannot load image: {filepath}")
+            return False
+        from shotx.ui.pinned import PinnedWidget
+        pinned = PinnedWidget(pixmap)
+        pinned.show()
+        self._pinned_widgets.append(pinned)
+        pinned.destroyed.connect(
+            lambda: (
+                self._pinned_widgets.remove(pinned)
+                if pinned in self._pinned_widgets
+                else None
+            )
+        )
+        return True
+
 
     @Slot(str)
     def start_recording(self, recording_format: str = "mp4") -> bool:

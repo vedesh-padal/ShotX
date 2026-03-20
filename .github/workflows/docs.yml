@@ -10,6 +10,11 @@ on:
       - 'pyproject.toml'
   workflow_dispatch:
 
+# Prevent concurrent deploys stomping each other
+concurrency:
+  group: docs-deploy
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -42,6 +47,12 @@ jobs:
       - name: Install documentation dependencies
         run: uv sync --group docs
 
-      - name: Deploy to GitHub Pages
+      - name: Configure git identity for deploy
         run: |
-          uv run mkdocs gh-deploy --force
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Deploy to GitHub Pages
+        env:
+          PYTHONPATH: src
+        run: uv run mkdocs gh-deploy --force --strict
