@@ -31,6 +31,8 @@ theme:
     - search.highlight
   icon:
     repo: fontawesome/brands/github
+  logo: assets/logo.png
+  favicon: assets/logo.png
 
 plugins:
   - search
