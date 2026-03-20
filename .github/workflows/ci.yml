@@ -28,9 +28,7 @@ jobs:
             gobject-introspection \
             libglib2.0-dev \
             libgirepository-2.0-dev \
-            # for 
-            xvfb \
-            libegl1 \
+            xvfb \egl1 \
             libgl1 \
             libopengl0 \
             libxcb-cursor0
