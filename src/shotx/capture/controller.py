@@ -765,6 +765,6 @@ class CaptureController(QObject):
             event_bus.upload_requested.emit(str(saved_path))
         else:
             if self.settings.capture.show_notification:
-                notify_capture_success(None, str(saved_path) if saved_path else None)
+                notify_capture_success(None, saved_path)
 
         return True

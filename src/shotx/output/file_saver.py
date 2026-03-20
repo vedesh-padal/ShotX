@@ -125,7 +125,7 @@ def save_image(
     quality = jpeg_quality if fmt in ("jpg", "jpeg", "webp") else -1  # -1 = default for PNG
 
     try:
-        success = image.save(str(file_path), qt_format, quality)
+        success = image.save(str(file_path), qt_format, quality)  # type: ignore[call-overload]
         if not success:
             logger.error("QImage.save() returned False for '%s'", file_path)
             return None
