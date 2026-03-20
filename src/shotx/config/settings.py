@@ -10,7 +10,7 @@ serialization. Missing keys are filled with defaults on load.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -140,7 +140,7 @@ class UploadSettings:
     enabled: bool = False
     default_uploader: str = "tmpfiles"
     copy_url_to_clipboard: bool = True
-    
+
     imgur: ImgurConfig = field(default_factory=ImgurConfig)
     imgbb: ImgBBConfig = field(default_factory=ImgBBConfig)
     s3: S3Config = field(default_factory=S3Config)
@@ -189,7 +189,7 @@ class AppSettings:
             workflow_data["save_to_file"] = capture_data.get("save_to_file", True)
             workflow_data["copy_to_clipboard"] = capture_data.get("copy_to_clipboard", True)
             workflow_data["upload_image"] = upload_data.get("enabled", False)
-            
+
         # Backward compatibility for old list-based workflow settings (v2)
         if "after_capture" in workflow_data and isinstance(workflow_data["after_capture"], list):
             old_list = workflow_data.pop("after_capture")
@@ -202,9 +202,9 @@ class AppSettings:
         capture_fields = {f.name for f in CaptureSettings.__dataclass_fields__.values()}
         hotkey_fields = {f.name for f in HotkeySettings.__dataclass_fields__.values()}
         workflow_fields = {f.name for f in WorkflowSettings.__dataclass_fields__.values()}
-        
+
         # Upload fields need special dictionary handling for sub-configs
-        upload_fields = {f.name for f in UploadSettings.__dataclass_fields__.values()}
+        # upload_fields = {f.name for f in UploadSettings.__dataclass_fields__.values()}
         imgur_fields = {f.name for f in ImgurConfig.__dataclass_fields__.values()}
         imgbb_fields = {f.name for f in ImgBBConfig.__dataclass_fields__.values()}
         s3_fields = {f.name for f in S3Config.__dataclass_fields__.values()}
@@ -221,22 +221,21 @@ class AppSettings:
         workflow = WorkflowSettings(
             **{k: v for k, v in workflow_data.items() if k in workflow_fields}
         )
-        
+
         imgur_data = upload_data.get("imgur", {})
         imgbb_data = upload_data.get("imgbb", {})
         s3_data = upload_data.get("s3", {})
         ftp_data = upload_data.get("ftp", {})
         sftp_data = upload_data.get("sftp", {})
         shortener_data = upload_data.get("shortener", {})
-        
+
         imgur_config = ImgurConfig(**{k: v for k, v in imgur_data.items() if k in imgur_fields})
         imgbb_config = ImgBBConfig(**{k: v for k, v in imgbb_data.items() if k in imgbb_fields})
         s3_config = S3Config(**{k: v for k, v in s3_data.items() if k in s3_fields})
         ftp_config = FtpConfig(**{k: v for k, v in ftp_data.items() if k in ftp_fields})
         sftp_config = SftpConfig(**{k: v for k, v in sftp_data.items() if k in sftp_fields})
         shortener_config = UrlShortenerConfig(**{k: v for k, v in shortener_data.items() if k in shortener_fields})
-        
-        upload_kwargs = {k: v for k, v in upload_data.items() if k in upload_fields and isinstance(v, (str, bool, int))}
+
         upload = UploadSettings(
             imgur=imgur_config,
             imgbb=imgbb_config,
