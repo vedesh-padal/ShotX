@@ -46,6 +46,9 @@ typecheck:
 test:
     xvfb-run -a uv run pytest tests/
 
+test-dev:
+    uv run pytest tests/
+
 # Run the application locally
 run:
     uv run -m shotx.main
