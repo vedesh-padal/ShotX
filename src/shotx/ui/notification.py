@@ -30,7 +30,7 @@ def _get_icon_path() -> str:
 
 # Raw DBus connection (safe to mix with Qt, unlike Gio.Application)
 _dbus_conn = None
-_notification_paths: dict[int, str] = {}
+_notification_paths: dict[int, dict[str, str]] = {}
 
 def init_notifications():
     """Initialize DBus connection and signal listener on the main thread."""
@@ -160,10 +160,7 @@ def _send_dbus_notification(
     notif_id = res.unpack()[0]
 
     if path_mapping:
-        # notification_paths stores notif_id -> target_path
-        # We use the 'default' key if it exists, otherwise just the first path
-        target = path_mapping.get("default") or next(iter(path_mapping.values()))
-        _notification_paths[notif_id] = target
+        _notification_paths[notif_id] = path_mapping
 
 
 def notify_capture_success(
