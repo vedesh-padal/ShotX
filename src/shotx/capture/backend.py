@@ -10,6 +10,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from PySide6.QtGui import QImage
+
 
 @dataclass(frozen=True)
 class MonitorInfo:
@@ -56,7 +58,7 @@ class CaptureBackend(ABC):
         ...
 
     @abstractmethod
-    def capture_fullscreen(self, monitor_index: int | None = None, show_cursor: bool = False) -> "QImage | None":
+    def capture_fullscreen(self, monitor_index: int | None = None, show_cursor: bool = False) -> QImage | None:
         """Capture the entire screen.
 
         Args:
@@ -70,7 +72,7 @@ class CaptureBackend(ABC):
         ...
 
     @abstractmethod
-    def capture_active_window(self) -> "QImage | None":
+    def capture_active_window(self) -> QImage | None:
         """Capture the currently focused window.
 
         Returns:

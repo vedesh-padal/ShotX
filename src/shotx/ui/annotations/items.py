@@ -15,12 +15,26 @@ from __future__ import annotations
 
 import logging
 import math
+
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (
-    QColor, QFont, QImage, QPainter, QPainterPath, QPen, QPolygonF, QBrush,
-    QPainterPathStroker, QCursor
+    QBrush,
+    QColor,
+    QCursor,
+    QFont,
+    QImage,
+    QPainter,
+    QPainterPath,
+    QPainterPathStroker,
+    QPen,
+    QPolygonF,
 )
-from PySide6.QtWidgets import QGraphicsItem, QGraphicsTextItem
+from PySide6.QtWidgets import (
+    QGraphicsItem,
+    QGraphicsTextItem,
+    QStyleOptionGraphicsItem,
+    QWidget,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +61,7 @@ class BaseAnnotationItem(QGraphicsItem):
             new_pos = value
             rect = self.scene().sceneRect()
             bbox = self.boundingRect()
-            
+
             x = max(rect.left() - bbox.left(), min(new_pos.x(), rect.right() - bbox.right()))
             y = max(rect.top() - bbox.top(), min(new_pos.y(), rect.bottom() - bbox.bottom()))
             return QPointF(x, y)
@@ -80,7 +94,8 @@ class RectangleItem(BaseAnnotationItem):
 
     def boundingRect(self) -> QRectF:
         p = self.thickness / 2.0
-        return self._rect.adjusted(-p, -p, p, p)
+        # +2px margin for the dashed selection highlight
+        return self._rect.adjusted(-p - 2, -p - 2, p + 2, p + 2)
 
     def shape(self) -> QPainterPath:
         path = QPainterPath()
@@ -89,7 +104,7 @@ class RectangleItem(BaseAnnotationItem):
         stroker.setWidth(self.thickness + 4)  # +4 for easier clicking
         return stroker.createStroke(path)
 
-    def paint(self, painter: QPainter, option, widget) -> None:
+    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget | None = None) -> None:
         painter.setPen(self._pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRect(self._rect)
@@ -114,7 +129,8 @@ class EllipseItem(BaseAnnotationItem):
 
     def boundingRect(self) -> QRectF:
         p = self.thickness / 2.0
-        return self._rect.adjusted(-p, -p, p, p)
+        # +2px margin for the dashed selection highlight
+        return self._rect.adjusted(-p - 2, -p - 2, p + 2, p + 2)
 
     def shape(self) -> QPainterPath:
         path = QPainterPath()
@@ -123,7 +139,7 @@ class EllipseItem(BaseAnnotationItem):
         stroker.setWidth(self.thickness + 4)
         return stroker.createStroke(path)
 
-    def paint(self, painter: QPainter, option, widget) -> None:
+    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget | None = None) -> None:
         painter.setPen(self._pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawEllipse(self._rect)
@@ -155,7 +171,8 @@ class ArrowItem(BaseAnnotationItem):
     def boundingRect(self) -> QRectF:
         head_len = self._head_length()
         p = head_len + self.thickness
-        return QRectF(self._start, self._end).normalized().adjusted(-p, -p, p, p)
+        # +2px margin for the dashed selection highlight
+        return QRectF(self._start, self._end).normalized().adjusted(-p - 2, -p - 2, p + 2, p + 2)
 
     def _head_length(self) -> float:
         """Arrow head length scales with pen thickness."""
@@ -165,12 +182,12 @@ class ArrowItem(BaseAnnotationItem):
         path = QPainterPath()
         path.moveTo(self._start)
         path.lineTo(self._end)
-        
+
         # Stroke the line segment
         stroker = QPainterPathStroker()
         stroker.setWidth(self.thickness + 4)
         stroke_path = stroker.createStroke(path)
-        
+
         # Compute and add the arrowhead polygon directly to the shape
         dx = self._end.x() - self._start.x()
         dy = self._end.y() - self._start.y()
@@ -179,20 +196,20 @@ class ArrowItem(BaseAnnotationItem):
             ux, uy = dx / length, dy / length
             head_len = self._head_length()
             head_width = head_len * 0.5
-            
+
             base_x = self._end.x() - ux * head_len
             base_y = self._end.y() - uy * head_len
             perp_x, perp_y = -uy, ux
             left = QPointF(base_x + perp_x * head_width, base_y + perp_y * head_width)
             right = QPointF(base_x - perp_x * head_width, base_y - perp_y * head_width)
-            
+
             head_path = QPainterPath()
             head_path.addPolygon(QPolygonF([self._end, left, right]))
             stroke_path.addPath(head_path)
-            
+
         return stroke_path
 
-    def paint(self, painter: QPainter, option, widget) -> None:
+    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget | None = None) -> None:
         painter.setPen(self._pen)
 
         # Draw the line
@@ -249,14 +266,15 @@ class FreehandItem(BaseAnnotationItem):
 
     def boundingRect(self) -> QRectF:
         p = self.thickness / 2.0
-        return self._path.boundingRect().adjusted(-p, -p, p, p)
+        # +2px margin for the dashed selection highlight
+        return self._path.boundingRect().adjusted(-p - 2, -p - 2, p + 2, p + 2)
 
     def shape(self) -> QPainterPath:
         stroker = QPainterPathStroker()
         stroker.setWidth(self.thickness + 4)
         return stroker.createStroke(self._path)
 
-    def paint(self, painter: QPainter, option, widget) -> None:
+    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget | None = None) -> None:
         painter.setPen(self._pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawPath(self._path)
@@ -304,7 +322,7 @@ class EditableTextItem(QGraphicsTextItem):
             new_pos = value
             rect = self.scene().sceneRect()
             bbox = self.boundingRect()
-            
+
             x = max(rect.left() - bbox.left(), min(new_pos.x(), rect.right() - bbox.right()))
             y = max(rect.top() - bbox.top(), min(new_pos.y(), rect.bottom() - bbox.bottom()))
             return QPointF(x, y)
@@ -316,9 +334,8 @@ class EditableTextItem(QGraphicsTextItem):
         """When focus is lost, freeze the text and switch to non-editable."""
         self.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         # If user typed nothing, remove ourselves
-        if not self.toPlainText().strip():
-            if self.scene():
-                self.scene().removeItem(self)
+        if not self.toPlainText().strip() and self.scene():
+            self.scene().removeItem(self)
         super().focusOutEvent(event)
 
     def mouseDoubleClickEvent(self, event) -> None:
@@ -372,9 +389,10 @@ class HighlightItem(BaseAnnotationItem):
         self._rect = QRectF(self._start, pos).normalized()
 
     def boundingRect(self) -> QRectF:
-        return self._rect
+        # +2px margin for the dashed selection highlight (item has NoPen for fills)
+        return self._rect.adjusted(-2, -2, 2, 2)
 
-    def paint(self, painter: QPainter, option, widget) -> None:
+    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget | None = None) -> None:
         fill = QColor(self.color)
         fill.setAlpha(self.ALPHA)
         painter.setPen(Qt.PenStyle.NoPen)
@@ -414,7 +432,7 @@ class StepNumberItem(BaseAnnotationItem):
             r * 2, r * 2,
         )
 
-    def paint(self, painter: QPainter, option, widget) -> None:
+    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget | None = None) -> None:
         r = self.RADIUS
         # Filled circle
         painter.setPen(QPen(self.color, self.thickness))
@@ -459,10 +477,10 @@ class BlurItem(BaseAnnotationItem):
         self._rect = QRectF(self._start, pos).normalized()
 
     def boundingRect(self) -> QRectF:
-        p = self.thickness / 2.0
-        return self._rect.adjusted(-p, -p, p, p)
+        # Expand the rect by 2px to account for the dashed border and selection highlight
+        return self._rect.adjusted(-2, -2, 2, 2)
 
-    def paint(self, painter: QPainter, option, widget) -> None:
+    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget | None = None) -> None:
         rect = self._rect.toRect()
         if rect.isEmpty() or self._backdrop is None:
             return
@@ -500,13 +518,13 @@ class CropItem(QGraphicsItem):
         self._start = QPointF(start_pos)
         self._rect = QRectF(start_pos, start_pos)
         self.setZValue(9999)  # Draw above everything else
-        
+
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges, True)
         self.setAcceptHoverEvents(True)
-        
-        self._drag_edge = None
+
+        self._drag_edge: str | None = None
         self._drag_start_rect = QRectF()
         self.setCursor(QCursor(Qt.CursorShape.SizeAllCursor))
 
@@ -524,14 +542,22 @@ class CropItem(QGraphicsItem):
     def _get_edge(self, pos: QPointF) -> str:
         r = self._rect
         m = 15 # larger margin for handles for easier grabbing
-        if pos.x() <= r.left() + m and pos.y() <= r.top() + m: return "top-left"
-        if pos.x() >= r.right() - m and pos.y() >= r.bottom() - m: return "bottom-right"
-        if pos.x() >= r.right() - m and pos.y() <= r.top() + m: return "top-right"
-        if pos.x() <= r.left() + m and pos.y() >= r.bottom() - m: return "bottom-left"
-        if pos.y() <= r.top() + m: return "top"
-        if pos.y() >= r.bottom() - m: return "bottom"
-        if pos.x() <= r.left() + m: return "left"
-        if pos.x() >= r.right() - m: return "right"
+        if pos.x() <= r.left() + m and pos.y() <= r.top() + m:
+            return "top-left"
+        if pos.x() >= r.right() - m and pos.y() >= r.bottom() - m:
+            return "bottom-right"
+        if pos.x() >= r.right() - m and pos.y() <= r.top() + m:
+            return "top-right"
+        if pos.x() <= r.left() + m and pos.y() >= r.bottom() - m:
+            return "bottom-left"
+        if pos.y() <= r.top() + m:
+            return "top"
+        if pos.y() >= r.bottom() - m:
+            return "bottom"
+        if pos.x() <= r.left() + m:
+            return "left"
+        if pos.x() >= r.right() - m:
+            return "right"
         return "center"
 
     def hoverMoveEvent(self, event) -> None:
@@ -560,20 +586,24 @@ class CropItem(QGraphicsItem):
         if self._drag_edge and self._drag_edge != "center":
             s_pos = event.scenePos()
             scene_rect = self.scene().sceneRect()
-            
+
             # Clamp the grabbed edge position to the scene boundary
             x = max(scene_rect.left(), min(s_pos.x(), scene_rect.right()))
             y = max(scene_rect.top(), min(s_pos.y(), scene_rect.bottom()))
             pos = self.mapFromScene(QPointF(x, y))
-            
+
             r = QRectF(self._drag_start_rect)
-            MIN_SIZE = 20
-            
-            if "left" in self._drag_edge: r.setLeft(min(pos.x(), r.right() - MIN_SIZE))
-            if "right" in self._drag_edge: r.setRight(max(pos.x(), r.left() + MIN_SIZE))
-            if "top" in self._drag_edge: r.setTop(min(pos.y(), r.bottom() - MIN_SIZE))
-            if "bottom" in self._drag_edge: r.setBottom(max(pos.y(), r.top() + MIN_SIZE))
-            
+            min_size = 20
+
+            if "left" in self._drag_edge:
+                r.setLeft(min(pos.x(), r.right() - min_size))
+            if "right" in self._drag_edge:
+                r.setRight(max(pos.x(), r.left() + min_size))
+            if "top" in self._drag_edge:
+                r.setTop(min(pos.y(), r.bottom() - min_size))
+            if "bottom" in self._drag_edge:
+                r.setBottom(max(pos.y(), r.top() + min_size))
+
             self.prepareGeometryChange()
             self._rect = r
         else:
@@ -584,15 +614,19 @@ class CropItem(QGraphicsItem):
             new_pos = value
             r = self._rect
             scene_rect = self.scene().sceneRect()
-            
+
             # Avoid dragging crop box off the canvas
             x = new_pos.x()
             y = new_pos.y()
-            if x + r.left() < scene_rect.left(): x = scene_rect.left() - r.left()
-            if x + r.right() > scene_rect.right(): x = scene_rect.right() - r.right()
-            if y + r.top() < scene_rect.top(): y = scene_rect.top() - r.top()
-            if y + r.bottom() > scene_rect.bottom(): y = scene_rect.bottom() - r.bottom()
-            
+            if x + r.left() < scene_rect.left():
+                x = scene_rect.left() - r.left()
+            if x + r.right() > scene_rect.right():
+                x = scene_rect.right() - r.right()
+            if y + r.top() < scene_rect.top():
+                y = scene_rect.top() - r.top()
+            if y + r.bottom() > scene_rect.bottom():
+                y = scene_rect.bottom() - r.bottom()
+
             return QPointF(x, y)
         return super().itemChange(change, value)
 
@@ -600,25 +634,25 @@ class CropItem(QGraphicsItem):
         self._drag_edge = None
         super().mouseReleaseEvent(event)
 
-    def paint(self, painter: QPainter, option, widget) -> None:
+    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget | None = None) -> None:
         if self._rect.width() < 1 or self._rect.height() < 1:
             return
-            
+
         pen = QPen(Qt.GlobalColor.white, 2, Qt.PenStyle.DashLine)
-        
+
         # Outer black solid line for contrast
         painter.setPen(QPen(Qt.GlobalColor.black, 2, Qt.PenStyle.SolidLine))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRect(self._rect)
-        
+
         # Inner white dashed line
         painter.setPen(pen)
         painter.drawRect(self._rect)
-        
+
         # Draw handles
         painter.setPen(QPen(Qt.GlobalColor.black, 1))
         painter.setBrush(QBrush(Qt.GlobalColor.white))
-        
+
         r = self._rect
         s = 8  # handle size
         points = [
@@ -626,6 +660,6 @@ class CropItem(QGraphicsItem):
             QPointF(r.left(), r.center().y()),                            QPointF(r.right(), r.center().y()),
             QPointF(r.left(), r.bottom()), QPointF(r.center().x(), r.bottom()), QPointF(r.right(), r.bottom()),
         ]
-        
+
         for p in points:
             painter.drawRect(QRectF(p.x() - s/2, p.y() - s/2, s, s))

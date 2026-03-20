@@ -30,22 +30,20 @@ import logging
 from dataclasses import dataclass
 from enum import Enum, auto
 
-from PySide6.QtCore import QPoint, QRect, QRectF, QSize, Qt, Signal, QTimer
+from PySide6.QtCore import QPoint, QRect, QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import (
-    QBrush,
     QColor,
     QCursor,
     QFont,
     QImage,
     QPainter,
-    QPainterPath,
     QPen,
     QPixmap,
     QRegion,
 )
-from PySide6.QtWidgets import QWidget, QGraphicsView
+from PySide6.QtWidgets import QGraphicsView, QWidget
 
-from .annotations.scene import AnnotationScene, AnnotationTool
+from .annotations.scene import AnnotationScene
 from .annotations.toolbar import AnnotationToolbar
 
 logger = logging.getLogger(__name__)
@@ -302,24 +300,22 @@ class RegionOverlay(QWidget):
             if self._state != OverlayState.ANNOTATING:
                 # Ctrl+A: select entire screen
                 self._selection_rect = QRect(0, 0, self.width(), self.height())
-                
+
                 # Check for shift modifier here too
                 action = self._after_capture_action
                 if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
                     action = "edit"
-                
+
                 if action == "edit":
                     self._state = OverlayState.ANNOTATING
                     self._start_annotation()
                 else:
                     self._state = OverlayState.DONE
                     self._confirm_selection()
-        elif key == Qt.Key.Key_Z and event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-            if self._state == OverlayState.ANNOTATING and self._scene:
-                self._scene.undo_stack.undo()
-        elif key == Qt.Key.Key_Y and event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-            if self._state == OverlayState.ANNOTATING and self._scene:
-                self._scene.undo_stack.redo()
+        elif key == Qt.Key.Key_Z and event.modifiers() & Qt.KeyboardModifier.ControlModifier and self._state == OverlayState.ANNOTATING and self._scene:
+            self._scene.undo_stack.undo()
+        elif key == Qt.Key.Key_Y and event.modifiers() & Qt.KeyboardModifier.ControlModifier and self._state == OverlayState.ANNOTATING and self._scene:
+            self._scene.undo_stack.redo()
 
     # --- Private painting methods ---
 
@@ -418,21 +414,21 @@ class RegionOverlay(QWidget):
     def _start_annotation(self) -> None:
         """Lock the selection rectangle and prepare the QGraphicsScene for drawing."""
         logger.info("Starting annotation mode at %s", self._selection_rect)
-        
+
         # Load persisted color
         initial_color = QColor(self._last_annotation_color)
-        
+
         # Reset step number counter for this annotation session
         from shotx.ui.annotations.items import StepNumberItem
         StepNumberItem.reset_counter()
-        
+
         # 1. Create transparent QGraphicsView placed exactly over the selection
         self._scene = AnnotationScene(self)
         self._scene.setSceneRect(0, 0, self._selection_rect.width(), self._selection_rect.height())
         self._scene.current_color = initial_color
         # Pass backdrop crop so blur tool can read pixels underneath
         self._scene.backdrop_crop = self._backdrop.copy(self._selection_rect)
-        
+
         self._view = QGraphicsView(self._scene, self)
         self._view.setGeometry(self._selection_rect)
         self._view.setStyleSheet("background: transparent; border: none;")
@@ -442,7 +438,7 @@ class RegionOverlay(QWidget):
 
         # 2. Create and position the toolbar
         self._toolbar = AnnotationToolbar(initial_color=initial_color, parent=self)
-        
+
         # Connect signals
         self._toolbar.tool_selected.connect(lambda t: setattr(self._scene, 'current_tool', t))
         self._toolbar.accept_requested.connect(self._finish_annotation)
@@ -451,12 +447,12 @@ class RegionOverlay(QWidget):
         self._toolbar.redo_requested.connect(self._scene.undo_stack.redo)
         self._toolbar.color_changed.connect(self._on_color_changed)
         self._toolbar.thickness_changed.connect(lambda t: setattr(self._scene, 'current_thickness', t))
-        
+
         # Position toolbar at top-center of the screen (like ShareX)
         tb_width = self._toolbar.sizeHint().width()
         x = (self.width() - tb_width) // 2
         y = 8  # 8px down from top edge
-            
+
         self._toolbar.move(x, y)
         self._toolbar.show()
 
@@ -467,12 +463,12 @@ class RegionOverlay(QWidget):
         """Crop the selection, render annotations onto it, and emit the result."""
         if not self._scene or not self._view:
             return
-            
+
         self._state = OverlayState.DONE
-        
+
         # 1. Crop the selection region from the clean backdrop
         cropped = self._backdrop.copy(self._selection_rect)
-        
+
         # 2. Render the annotation scene onto the cropped image
         #    Scene coords (0,0) map to cropped image (0,0)
         painter = QPainter(cropped)
@@ -483,16 +479,14 @@ class RegionOverlay(QWidget):
             source=self._scene.sceneRect(),
         )
         painter.end()
-        
+
         # 3. Emit annotated image and close
         self.update()
-        QTimer.singleShot(
-            300,
-            lambda: (
-                self.annotated_image_ready.emit(cropped),
-                self.close(),
-            ),
-        )
+        def _on_ready() -> None:
+            self.annotated_image_ready.emit(cropped)
+            self.close()
+
+        QTimer.singleShot(300, _on_ready)
 
     def _on_color_changed(self, color: QColor) -> None:
         """Update the scene color and notify callers for persistence."""
@@ -512,7 +506,7 @@ class RegionOverlay(QWidget):
         if self._scene:
             self._scene.deleteLater()
             self._scene = None
-            
+
         self._state = OverlayState.IDLE
         self._selection_rect = QRect()
         self.update()
@@ -543,13 +537,11 @@ class RegionOverlay(QWidget):
             self.update()
 
             # Emit signal and close after a short delay for UX
-            QTimer.singleShot(
-                300,
-                lambda: (
-                    self.region_selected.emit(self._selection_rect),
-                    self.close()
-                )
-            )
+            def _on_selected() -> None:
+                self.region_selected.emit(self._selection_rect)
+                self.close()
+
+            QTimer.singleShot(300, _on_selected)
         else:
             self.close()
 

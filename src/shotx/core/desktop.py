@@ -6,13 +6,13 @@ across all freedesktop.org compliant desktop environments (GNOME, KDE,
 XFCE, Cinnamon, Sway, Hyprland, etc.).
 """
 
+import importlib.resources as pkg_resources
 import logging
 import os
 import shutil
 import stat
 import sys
 from pathlib import Path
-import importlib.resources as pkg_resources
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ def get_executable_command(tray: bool = True) -> str:
         cmd = f"{sys.executable} -m shotx.main"
     else:
         cmd = f"{sys.executable} -m shotx.main"
-        
+
     if tray:
         return f"{cmd} --tray"
     return cmd
@@ -54,7 +54,7 @@ def _install_icon() -> None:
     target = ICON_DIR / "shotx.png"
     try:
         source = pkg_resources.files("shotx.assets").joinpath("shotx.png")
-        if source.exists():
+        if source.is_file():
             ICON_DIR.mkdir(parents=True, exist_ok=True)
             shutil.copy2(str(source), str(target))
             logger.info("Installed system icon to %s", target)

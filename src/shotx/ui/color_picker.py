@@ -7,8 +7,19 @@ RGB and HEX color values beneath it.
 from __future__ import annotations
 
 import logging
-from PySide6.QtCore import Qt, QPoint, Signal, QRect
-from PySide6.QtGui import QPainter, QImage, QColor, QPen, QFont, QPaintEvent, QMouseEvent, QKeyEvent, QPixmap, QCursor
+
+from PySide6.QtCore import QPoint, QRect, Qt, Signal
+from PySide6.QtGui import (
+    QColor,
+    QFont,
+    QImage,
+    QKeyEvent,
+    QMouseEvent,
+    QPainter,
+    QPaintEvent,
+    QPen,
+    QPixmap,
+)
 from PySide6.QtWidgets import QWidget
 
 logger = logging.getLogger(__name__)
@@ -30,7 +41,7 @@ class ColorPickerOverlay(QWidget):
             self._backdrop = backdrop
 
         self._mouse_pos = QPoint(-1, -1)
-        
+
         # Configuration for the magnifier
         self._zoom_factor = 12
         self._pixels_radius = 5  # Show an 11x11 grid total (5 left, 5 right, 1 center)
@@ -72,17 +83,17 @@ class ColorPickerOverlay(QWidget):
         # we need to draw it up/left.
         mag_x = cx + 20
         mag_y = cy + 20
-        
+
         # Calculate dynamic grid base size
         grid_size = (self._pixels_radius * 2 + 1) * self._zoom_factor
-        
+
         # Ensure the box is wide enough to hold the text "RGB(255, 255, 255)"
         box_width = max(grid_size, 140)
         box_height = grid_size + 40  # Extra space for the text label at bottom
-        
+
         # Center the grid horizontally inside the black box if box is wider than grid
         grid_offset_x = (box_width - grid_size) // 2
-        
+
         # Keep inside screen bounds
         if mag_x + box_width > self.width():
             mag_x = cx - box_width - 20
@@ -102,20 +113,20 @@ class ColorPickerOverlay(QWidget):
             self._pixels_radius * 2 + 1,
             self._pixels_radius * 2 + 1,
         )
-        
+
         # We need to manually construct the magnified grid to handle screen boundaries safely
         painter.setPen(QColor(0, 0, 0, 50)) # Light grid lines
         for r_y in range(src_rect.height()):
             for r_x in range(src_rect.width()):
                 px = src_rect.x() + r_x
                 py = src_rect.y() + r_y
-                
+
                 # Fetch color, fallback to black if out of bounds
                 if self._backdrop.rect().contains(px, py):
                     c = self._backdrop.pixelColor(px, py)
                 else:
                     c = QColor(0, 0, 0)
-                    
+
                 painter.setBrush(c)
                 tile_rect = QRect(
                     mag_x + grid_offset_x + (r_x * self._zoom_factor),
@@ -124,7 +135,7 @@ class ColorPickerOverlay(QWidget):
                     self._zoom_factor
                 )
                 painter.drawRect(tile_rect)
-        
+
         # Highlight the exact center pixel inside the grid
         painter.setPen(QPen(QColor(255, 0, 0, 200), 2))
         painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -139,7 +150,7 @@ class ColorPickerOverlay(QWidget):
         # Draw the extracted color values
         painter.setPen(QColor(255, 255, 255))
         painter.setFont(QFont("Cousine", 9, QFont.Weight.Bold))
-        
+
         hex_str = center_color.name().upper()
         rgb_str = f"RGB({center_color.red()}, {center_color.green()}, {center_color.blue()})"
 
@@ -171,10 +182,10 @@ class ColorPickerOverlay(QWidget):
         """Handle mouse wheel to change zoom level, clamping between 4x and 32x."""
         num_degrees = event.angleDelta().y() / 8
         num_steps = num_degrees / 15
-        
+
         if num_steps > 0:
             self._zoom_factor = min(self._zoom_factor + 2, 32)
         elif num_steps < 0:
             self._zoom_factor = max(self._zoom_factor - 2, 4)
-            
+
         self.update()

@@ -19,12 +19,13 @@ from PySide6.QtCore import QObject, Slot
 from shotx.config.settings import SettingsManager
 from shotx.core.events import event_bus
 from shotx.core.tasks import task_manager
+from shotx.db.history import HistoryManager
 from shotx.output.clipboard import copy_text_to_clipboard
 from shotx.upload.base import UploaderBackend, UploadError
-from shotx.upload.image_hosts import ImgurUploader, ImgBBUploader, TmpfilesUploader
-from shotx.upload.s3 import S3Uploader
-from shotx.upload.ftp import FtpUploader, SftpUploader
 from shotx.upload.custom import CustomUploader, SxcuParser
+from shotx.upload.ftp import FtpUploader, SftpUploader
+from shotx.upload.image_hosts import ImgBBUploader, ImgurUploader, TmpfilesUploader
+from shotx.upload.s3 import S3Uploader
 from shotx.upload.shortener import ShortenerWorker
 from shotx.upload.worker import UploadWorker
 
@@ -41,7 +42,7 @@ class UploadController(QObject):
     def __init__(
         self,
         settings_manager: SettingsManager,
-        history_manager: object,
+        history_manager: HistoryManager,
         *,
         verbose: bool = False,
         parent: QObject | None = None,
@@ -177,11 +178,11 @@ class UploadController(QObject):
             sxcu_path = sxcu_dir / f"{sxcu_name}.sxcu"
             try:
                 sxcu_data = SxcuParser.load(sxcu_path)
-            except FileNotFoundError:
+            except FileNotFoundError as e:
                 raise UploadError(
                     f"Custom uploader '{sxcu_name}' not found. "
                     f"Make sure '{sxcu_name}.sxcu' exists in {sxcu_dir}"
-                )
+                ) from e
             return CustomUploader(sxcu_data)
         elif target == "imgur":
             return ImgurUploader(
@@ -217,7 +218,7 @@ class UploadController(QObject):
 
     def _finalize_upload(self, file_path: str, final_url: str) -> None:
         """Final step: update history, copy URL, notify."""
-        from shotx.ui.notification import notify_info, notify_error
+        from shotx.ui.notification import notify_info
 
         self._history.update_url_by_path(file_path, final_url)
         event_bus.capture_completed.emit(file_path, 0, "upload")

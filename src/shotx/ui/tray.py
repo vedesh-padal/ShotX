@@ -59,10 +59,10 @@ class TrayIcon:
         Tries the bundled asset first, falls back to a system theme icon.
         """
         import importlib.resources as pkg_resources
-        
+
         try:
             icon_path = pkg_resources.files("shotx.assets").joinpath("shotx.png")
-            if icon_path.exists():
+            if icon_path.is_file():
                 self._tray.setIcon(QIcon(str(icon_path)))
                 logger.debug("Using bundled tray icon: %s", icon_path)
                 return
@@ -137,7 +137,7 @@ class TrayIcon:
         editor_tool = QAction("Image Editor", self._menu)
         editor_tool.triggered.connect(self._on_image_editor)
         tools_menu.addAction(editor_tool)
-        
+
         tools_menu.addSeparator()
 
         pin_region = QAction("Pin to Screen", self._menu)
@@ -298,7 +298,7 @@ class TrayIcon:
 
     def _on_record_gif(self) -> None:
         self._app.start_recording("gif")
-        
+
     def _on_stop_record(self) -> None:
         self._app.stop_recording()
 
@@ -307,7 +307,7 @@ class TrayIcon:
         self._record_mp4_action.setVisible(not is_recording)
         self._record_gif_action.setVisible(not is_recording)
         self._stop_record_action.setVisible(is_recording)
-        
+
         if is_recording:
             # Try to grab a standard recording icon
             icon = QIcon.fromTheme("media-record")

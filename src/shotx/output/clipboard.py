@@ -17,13 +17,13 @@ wl-copy solve this by forking a daemon that serves the data.
 
 from __future__ import annotations
 
-import io
 import logging
 import os
 import shutil
 import subprocess
+from typing import cast
 
-from PySide6.QtCore import QBuffer, QIODevice
+from PySide6.QtCore import QBuffer, QByteArray, QIODevice
 from PySide6.QtGui import QGuiApplication, QImage
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ def copy_image_to_clipboard(image: QImage) -> bool:
         return False
 
     success = False
-    
+
     # Try Qt clipboard (ground truth for the app, helpful in tray mode)
     if _copy_image_via_qt(image):
         success = True
@@ -102,7 +102,7 @@ def get_text_from_clipboard() -> str | None:
 
 def _copy_text_via_qt(text: str) -> bool:
     """Copy text via Qt's QClipboard."""
-    app = QGuiApplication.instance()
+    app = cast(QGuiApplication, QGuiApplication.instance())
     if app is None:
         logger.error("No QGuiApplication instance — cannot access clipboard")
         return False
@@ -145,10 +145,11 @@ def _image_to_png_bytes(image: QImage) -> bytes | None:
     """Convert a QImage to PNG bytes in memory."""
     buffer = QBuffer()
     buffer.open(QIODevice.OpenModeFlag.WriteOnly)
-    if not image.save(buffer, "PNG"):
+    if not image.save(buffer, "PNG"):  # type: ignore[call-overload]
         logger.error("Failed to encode image as PNG for clipboard")
         return None
-    return bytes(buffer.data())
+    ba: QByteArray = buffer.data()
+    return bytes(ba.data())
 
 
 def _copy_image_via_subprocess(image: QImage) -> bool:
@@ -167,9 +168,8 @@ def _copy_image_via_subprocess(image: QImage) -> bool:
     session_type = os.environ.get("XDG_SESSION_TYPE", "").lower().strip()
 
     # On Wayland, try wl-copy first
-    if session_type == "wayland" or os.environ.get("WAYLAND_DISPLAY"):
-        if _try_clipboard_cmd(["wl-copy", "--type", "image/png"], png_data):
-            return True
+    if (session_type == "wayland" or os.environ.get("WAYLAND_DISPLAY")) and _try_clipboard_cmd(["wl-copy", "--type", "image/png"], png_data):
+        return True
 
     # On X11 (or as fallback), try xclip then xsel
     if _try_clipboard_cmd(
@@ -202,9 +202,8 @@ def _copy_text_via_subprocess(text: str) -> bool:
     session_type = os.environ.get("XDG_SESSION_TYPE", "").lower().strip()
 
     # On Wayland, try wl-copy first
-    if session_type == "wayland" or os.environ.get("WAYLAND_DISPLAY"):
-        if _try_clipboard_cmd(["wl-copy", "--type", "text/plain"], text_data):
-            return True
+    if (session_type == "wayland" or os.environ.get("WAYLAND_DISPLAY")) and _try_clipboard_cmd(["wl-copy", "--type", "text/plain"], text_data):
+        return True
 
     # On X11 (or as fallback), try xclip then xsel
     # Try multiple targets for xclip to improve compatibility
@@ -215,13 +214,10 @@ def _copy_text_via_subprocess(text: str) -> bool:
         ):
             return True
 
-    if _try_clipboard_cmd(
+    return _try_clipboard_cmd(
         ["xsel", "--clipboard", "--input"],
         text_data,
-    ):
-        return True
-
-    return False
+    )
 
 
 def _get_text_via_subprocess() -> str | None:
@@ -272,7 +268,7 @@ def _get_text_via_subprocess() -> str | None:
 
 def _get_text_via_qt() -> str | None:
     """Read text via Qt's QClipboard."""
-    app = QGuiApplication.instance()
+    app = cast(QGuiApplication, QGuiApplication.instance())
     if app is None:
         return None
 
@@ -310,6 +306,7 @@ def _try_clipboard_cmd(cmd: list[str], data: bytes) -> bool:
         )
         # Write PNG data and close stdin — the tool reads it all,
         # then serves the clipboard data in the background
+        assert proc.stdin is not None
         proc.stdin.write(data)
         proc.stdin.close()
 
@@ -370,7 +367,7 @@ def _get_image_via_subprocess() -> bytes | None:
 
 def _get_image_via_qt() -> QImage | None:
     """Read image via Qt's QClipboard."""
-    app = QGuiApplication.instance()
+    app = cast(QGuiApplication, QGuiApplication.instance())
     if app is None:
         return None
 
@@ -388,12 +385,12 @@ def _get_image_via_qt() -> QImage | None:
 
 
 def _copy_image_via_qt(image: QImage) -> bool:
-    """Copy image via Qt's QClipboard.
-
+    """
+    Copy image via Qt's QClipboard.
     Works reliably when the app stays alive (tray mode). In one-shot
     mode on Wayland, the clipboard data may be lost when the process exits.
     """
-    app = QGuiApplication.instance()
+    app = cast(QGuiApplication, QGuiApplication.instance())
     if app is None:
         logger.error("No QGuiApplication instance — cannot access clipboard")
         return False

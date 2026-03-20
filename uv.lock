@@ -1558,7 +1558,11 @@ sftp = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
     { name = "pytest-qt" },
+    { name = "ruff" },
 ]
 docs = [
     { name = "mkdocs-material" },
@@ -1579,7 +1583,7 @@ requires-dist = [
     { name = "pytesseract", specifier = ">=0.3.13" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4" },
-    { name = "pytest-qt", marker = "extra == 'dev'", specifier = ">=4.4.0" },
+    { name = "pytest-qt", marker = "extra == 'dev'", specifier = ">=4.5.0" },
     { name = "pyyaml", specifier = ">=6" },
     { name = "pyzbar", specifier = ">=0.1.9" },
     { name = "qrcode", specifier = ">=8.2" },
@@ -1589,7 +1593,13 @@ requires-dist = [
 provides-extras = ["dev", "s3", "sftp", "all"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest-qt", specifier = ">=4.5.0" }]
+dev = [
+    { name = "mypy", specifier = ">=1.0" },
+    { name = "pytest", specifier = ">=7" },
+    { name = "pytest-cov", specifier = ">=4" },
+    { name = "pytest-qt", specifier = ">=4.5.0" },
+    { name = "ruff", specifier = ">=0.4" },
+]
 docs = [
     { name = "mkdocs-material", specifier = ">=9.7.4" },
     { name = "mkdocs-minify-plugin", specifier = ">=0.8.0" },

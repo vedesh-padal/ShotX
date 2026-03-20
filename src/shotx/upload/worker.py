@@ -27,7 +27,7 @@ class UploadSignals(QObject):
 
 class UploadWorker(QRunnable):
     """Background worker to execute UploaderBackend.
-    
+
     Must be executed via QThreadPool.globalInstance().start(worker)
     """
 

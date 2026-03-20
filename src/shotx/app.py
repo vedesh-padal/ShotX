@@ -16,16 +16,20 @@ import signal
 import sys
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 from PySide6.QtCore import QObject, QThreadPool, Slot
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMainWindow, QSystemTrayIcon
 
-from shotx.config import SettingsManager, AppSettings
+from shotx.config import AppSettings, SettingsManager
 from shotx.config.settings import _default_config_dir
 from shotx.core.events import event_bus
+
+if TYPE_CHECKING:
+    from shotx.ui.tray import TrayIcon
 from shotx.core.tasks import task_manager
 from shotx.db.history import HistoryManager
-from shotx.ui.notification import notify_error, notify_info, init_notifications
+from shotx.ui.notification import init_notifications, notify_error, notify_info
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +40,12 @@ class ShotXApp(QObject):
     Instantiates the EventBus, controllers, and UI shell, then wires
     them together.  No capture/upload/tool logic lives here any more.
     """
+
+    # --- Internal State ---
+    _tray: TrayIcon | None = None
+    tray_icon: QSystemTrayIcon | None = None
+    last_saved_path: Path | None = None
+    _main_window: QMainWindow | None = None
 
     def __init__(self, config_dir: str | None = None, verbose: bool = False) -> None:
         super().__init__()
@@ -50,8 +60,8 @@ class ShotXApp(QObject):
         # --- Controllers (imported here to avoid top-level circular deps
         #     until remaining UI files are fully decoupled) ---
         from shotx.capture.controller import CaptureController
-        from shotx.upload.controller import UploadController
         from shotx.tools.controller import ToolController
+        from shotx.upload.controller import UploadController
 
         self._capture = CaptureController(
             self._settings_manager,
@@ -114,7 +124,10 @@ class ShotXApp(QObject):
             logger.error("No QApplication — cannot run tray app")
             return 1
 
-        app.setQuitOnLastWindowClosed(False)
+        if isinstance(app, QApplication):
+            app.setQuitOnLastWindowClosed(False)
+
+
 
         from shotx.ui.tray import TrayIcon
         self._tray = TrayIcon(self)
@@ -155,17 +168,17 @@ class ShotXApp(QObject):
 
         # Upload domain
         elif capture_type == "shorten_url":
-            url = kwargs.get("url")
+            url = cast("str | None", kwargs.get("url"))
             success = self._upload.shorten_clipboard_url(headless=True, url=url)
 
         # Tool domain
         elif capture_type == "hash":
             success = self._tools.open_hash_checker(exec_dialog=True)
         elif capture_type == "index_dir":
-            start_path = kwargs.get("start_path", "")
+            start_path = cast(str, kwargs.get("start_path", ""))
             success = self._tools.open_directory_indexer(start_path, exec_dialog=True)
         elif capture_type == "edit":
-            image_path = kwargs.get("image_path", "")
+            image_path = cast(str, kwargs.get("image_path", ""))
             success = self._tools.open_image_editor(image_path, exec_loop=True)
         elif capture_type == "history":
             success = self._tools.open_history_viewer(exec_dialog=True)
@@ -175,7 +188,6 @@ class ShotXApp(QObject):
             return 1
 
         # Drain thread pool so background workers (uploads) can finish
-        from shotx.core.tasks import task_manager
         pool = QThreadPool.globalInstance()
         if success and (pool.activeThreadCount() > 0 or task_manager.active_count > 0):
             if self._verbose:
@@ -210,7 +222,7 @@ class ShotXApp(QObject):
         logger.info("Opening Main Window")
         from shotx.ui.main_window import ShotXMainWindow
 
-        if not hasattr(self, '_main_window') or self._main_window is None:
+        if self._main_window is None:
             self._main_window = ShotXMainWindow(self)
 
         self._main_window.show()
@@ -220,8 +232,9 @@ class ShotXApp(QObject):
     def open_settings_dialog(self) -> None:
         """Open the Settings dialog directly."""
         logger.info("Opening Settings dialog")
-        if hasattr(self, '_main_window') and self._main_window and self._main_window.isVisible():
-            self._main_window._on_app_settings()
+        if self._main_window and self._main_window.isVisible():
+            from shotx.ui.main_window import ShotXMainWindow
+            cast(ShotXMainWindow, self._main_window)._on_app_settings()
         else:
             from shotx.ui.settings_dialog import ApplicationSettingsDialog
             dialog = ApplicationSettingsDialog(self._settings_manager, parent=None)
@@ -250,7 +263,9 @@ class ShotXApp(QObject):
 
         for keys, handler, desc in bindings:
             if keys.strip():
-                self._hotkeys.register(keys.strip(), lambda h=handler: h(), desc)
+                from collections.abc import Callable
+                from typing import Any, cast
+                self._hotkeys.register(keys.strip(), cast(Callable[[], Any], handler), desc)
 
     # ------------------------------------------------------------------
     # Delegated methods (backward compat for UI modules still using self._app)
@@ -278,16 +293,16 @@ class ShotXApp(QObject):
         return self._capture.generate_qr_from_clipboard()
 
     def scan_qr_from_clipboard(self) -> bool:
-        return self._capture.scan_qr_from_clipboard()
+        return bool(self._capture.scan_qr_from_clipboard())
 
     def pin_region(self) -> bool:
-        return self._capture.pin_region()
+        return bool(self._capture.pin_region())
 
     def start_recording(self, fmt: str = "mp4") -> bool:
-        return self._capture.start_recording(fmt)
+        return bool(self._capture.start_recording(fmt))
 
     def stop_recording(self) -> bool:
-        return self._capture.stop_recording()
+        return bool(self._capture.stop_recording())
 
     def open_hash_checker(self, **kw) -> bool:
         return self._tools.open_hash_checker(**kw)
@@ -321,7 +336,7 @@ class ShotXApp(QObject):
     @Slot(str)
     def _on_notify_error(self, message: str) -> None:
         """Route EventBus error notifications to the notification subsystem."""
-        tray_icon = self._tray.tray_icon if self._tray else None
+        tray_icon = getattr(self._tray, "tray_icon", None) if self._tray else None
         notify_error(tray_icon, message)
         if self._verbose:
             print(f"Error: {message}", file=sys.stderr)
@@ -329,7 +344,7 @@ class ShotXApp(QObject):
     @Slot(str, str)
     def _on_notify_info(self, title: str, message: str) -> None:
         """Route EventBus info notifications to the notification subsystem."""
-        tray_icon = self._tray.tray_icon if self._tray else None
+        tray_icon = getattr(self._tray, "tray_icon", None) if self._tray else None
         notify_info(tray_icon, title, message)
 
     # Backward compat aliases used by older UI code

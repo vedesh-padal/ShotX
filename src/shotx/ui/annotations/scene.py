@@ -9,23 +9,22 @@ from __future__ import annotations
 
 import logging
 from enum import Enum, auto
-from typing import Optional
 
-from PySide6.QtCore import Qt, QPointF, Signal, QRectF
-from PySide6.QtGui import QColor, QImage, QUndoStack, QUndoCommand, QTransform
-from PySide6.QtWidgets import QGraphicsScene, QGraphicsSceneMouseEvent
+from PySide6.QtCore import QPointF, QRectF, Qt, Signal
+from PySide6.QtGui import QColor, QImage, QTransform, QUndoCommand, QUndoStack
+from PySide6.QtWidgets import QGraphicsItem, QGraphicsScene, QGraphicsSceneMouseEvent
 
 from .items import (
-    BaseAnnotationItem,
-    RectangleItem,
-    EllipseItem,
     ArrowItem,
-    FreehandItem,
-    EditableTextItem,
-    HighlightItem,
-    StepNumberItem,
+    BaseAnnotationItem,
     BlurItem,
     CropItem,
+    EditableTextItem,
+    EllipseItem,
+    FreehandItem,
+    HighlightItem,
+    RectangleItem,
+    StepNumberItem,
 )
 
 logger = logging.getLogger(__name__)
@@ -104,7 +103,7 @@ class AnnotationScene(QGraphicsScene):
         # Backdrop crop for blur tool (set by overlay)
         self.backdrop_crop: QImage | None = None
 
-        self._active_item: Optional[BaseAnnotationItem] = None
+        self._active_item: QGraphicsItem | None = None
         self._crop_interacting = False
 
     @property
@@ -142,7 +141,7 @@ class AnnotationScene(QGraphicsScene):
                     self.removeItem(item)
                     event.accept()
                     return
-                    
+
         if event.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
             selected_items = self.selectedItems()
             if selected_items:
@@ -159,7 +158,7 @@ class AnnotationScene(QGraphicsScene):
             # Prevent drawing before an image is loaded
             super().mousePressEvent(event)
             return
-            
+
         if event.button() != Qt.MouseButton.LeftButton:
             super().mousePressEvent(event)
             return
@@ -212,7 +211,7 @@ class AnnotationScene(QGraphicsScene):
             return
         elif tool == AnnotationTool.ERASER:
             item = self.itemAt(pos, QTransform())
-            if item and (isinstance(item, BaseAnnotationItem) or isinstance(item, EditableTextItem)):
+            if item and isinstance(item, (BaseAnnotationItem, EditableTextItem)):
                 self.undo_stack.push(RemoveItemCommand(self, item))
             event.accept()
             return
@@ -221,7 +220,8 @@ class AnnotationScene(QGraphicsScene):
             return
 
         # Add to scene immediately (visual feedback while dragging)
-        self.addItem(self._active_item)
+        if self._active_item:
+            self.addItem(self._active_item)
         event.accept()
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent) -> None:

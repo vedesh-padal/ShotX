@@ -21,28 +21,29 @@ class TesseractNotFoundError(Exception):
 
 def extract_text(image: QImage) -> str:
     """Extract text from a QImage using Tesseract OCR.
-    
+
     Raises:
         TesseractNotFoundError: If pytesseract fails to find the engine.
         Exception: If OCR processing strictly fails.
     """
     import pytesseract  # type: ignore[import-untyped]
     from pytesseract import TesseractNotFoundError as PyTessError  # type: ignore[import-untyped]
-    
+
     # We must save QImage to a temporary PNG file because PyTesseract
     # expects either a file path, raw bytes, or a PIL Image.
     # Saving to a tempfile is the most robust bridge.
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
         temp_path = Path(tmp.name)
-        
+
     try:
         # Save QImage to disk natively
-        if not image.save(str(temp_path), "PNG"):
+        if not image.save(str(temp_path), "PNG"): # type: ignore[call-overload]
             raise RuntimeError("Failed to save temporary image for OCR processing.")
-            
+
         text = pytesseract.image_to_string(str(temp_path))
-        return text.strip()
-        
+        from typing import cast
+        return cast(str, text.strip())
+
     except PyTessError as e:
         logger.error("Tesseract engine not found: %s", e)
         raise TesseractNotFoundError("Tesseract OS dependency is missing.") from e

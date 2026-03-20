@@ -12,21 +12,19 @@ even for large histories.
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
+from typing import Any
 
-from PySide6.QtCore import Qt, QSize, QRunnable, QObject, Signal, Slot, QThreadPool
-from PySide6.QtGui import QIcon, QAction, QPixmap, QImageReader, QImage
+from PySide6.QtCore import QObject, QRunnable, QSize, Qt, QThreadPool, Signal, Slot
+from PySide6.QtGui import QIcon, QImage, QImageReader, QPixmap
 from PySide6.QtWidgets import (
-    QVBoxLayout,
-    QHBoxLayout,
-    QWidget,
+    QAbstractItemView,
     QListWidget,
     QListWidgetItem,
     QMenu,
-    QPushButton,
     QMessageBox,
-    QAbstractItemView,
+    QVBoxLayout,
+    QWidget,
 )
 
 from shotx.output.clipboard import copy_text_to_clipboard
@@ -81,7 +79,7 @@ class ImageHistoryWidget(QWidget):
       uploaded URL is unavailable, matching ShareX behaviour.
     """
 
-    def __init__(self, app_controller, parent=None):
+    def __init__(self, app_controller: Any, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._app = app_controller
         self._history_manager = self._app._history_manager
@@ -177,10 +175,7 @@ class ImageHistoryWidget(QWidget):
             # Show a compact label: strip the "ShotX_" prefix and extension
             # so the date/time is visible without truncation
             stem = Path(rec.filepath).stem
-            if stem.startswith("ShotX_"):
-                display_name = stem[6:]  # e.g. "2026-03-19_20-53-03"
-            else:
-                display_name = stem
+            display_name = stem[6:] if stem.startswith("ShotX_") else stem
 
             item = QListWidgetItem()
             item.setText(display_name)
@@ -295,7 +290,7 @@ class ImageHistoryWidget(QWidget):
         # Shorten URL
         a_shorten = menu.addAction("🔗 Shorten URL")
         a_shorten.setEnabled(has_url)
-        a_shorten.triggered.connect(lambda: self._shorten_url(url))
+        a_shorten.triggered.connect(lambda: self._shorten_url(url) if url else None)
 
         menu.addSeparator()
 
@@ -378,8 +373,15 @@ class ImageHistoryWidget(QWidget):
     def _ocr_image(self, filepath: str) -> None:
         """Run OCR on the selected image and copy result to clipboard."""
         try:
-            from shotx.tools.ocr import extract_text_from_image
-            text = extract_text_from_image(filepath)
+            from shotx.tools.ocr import extract_text
+            img = QImage(filepath)
+            if img.isNull():
+                from shotx.core.events import event_bus
+                event_bus.notify_error_requested.emit(
+                    f"Could not load image for OCR:\n{filepath}"
+                )
+                return
+            text = extract_text(img)
             if text and text.strip():
                 copy_text_to_clipboard(text.strip())
                 from shotx.core.events import event_bus

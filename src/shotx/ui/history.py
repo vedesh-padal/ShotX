@@ -11,27 +11,26 @@ HistoryDialog is a thin QDialog wrapper for standalone / CLI / tray usage.
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QSize, QRunnable, QObject, Signal, Slot, QThreadPool
-from PySide6.QtGui import QIcon, QAction, QPixmap, QImageReader, QImage
+from PySide6.QtCore import QObject, QRunnable, QSize, Qt, QThreadPool, Signal, Slot
+from PySide6.QtGui import QIcon, QImage, QImageReader, QPixmap
 from PySide6.QtWidgets import (
-    QDialog,
-    QVBoxLayout,
-    QHBoxLayout,
-    QWidget,
-    QTableWidget,
-    QTableWidgetItem,
-    QHeaderView,
     QAbstractItemView,
-    QMenu,
-    QPushButton,
-    QMessageBox,
-    QSplitter,
+    QDialog,
+    QHBoxLayout,
+    QHeaderView,
     QLabel,
     QLineEdit,
+    QMenu,
+    QMessageBox,
+    QPushButton,
     QSizePolicy,
+    QSplitter,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
 )
 
 from shotx.output.clipboard import copy_text_to_clipboard
@@ -186,10 +185,11 @@ class HistoryWidget(QWidget):
             return "0 B"
         sizes = ["B", "KB", "MB", "GB", "TB"]
         i = 0
-        while size_bytes >= 1024 and i < len(sizes) - 1:
-            size_bytes /= 1024.0
+        f_size = float(size_bytes)
+        while f_size >= 1024 and i < len(sizes) - 1:
+            f_size /= 1024.0
             i += 1
-        return f"{size_bytes:.1f} {sizes[i]}"
+        return f"{f_size:.1f} {sizes[i]}"
 
     # -- Preview panel -------------------------------------------------------
 
@@ -331,6 +331,8 @@ class HistoryWidget(QWidget):
             return None
         row = selected[0].row()
         preview_item = self.table.item(row, 0)
+        if preview_item is None:
+            return None
         return (
             preview_item.data(Qt.ItemDataRole.UserRole),
             preview_item.data(Qt.ItemDataRole.UserRole + 1),
@@ -347,11 +349,12 @@ class HistoryWidget(QWidget):
                 continue
             seen_rows.add(r)
             preview_item = self.table.item(r, 0)
-            records.append((
-                preview_item.data(Qt.ItemDataRole.UserRole),
-                preview_item.data(Qt.ItemDataRole.UserRole + 1),
-                preview_item.data(Qt.ItemDataRole.UserRole + 2),
-            ))
+            if preview_item:
+                records.append((
+                    preview_item.data(Qt.ItemDataRole.UserRole),
+                    preview_item.data(Qt.ItemDataRole.UserRole + 1),
+                    preview_item.data(Qt.ItemDataRole.UserRole + 2),
+                ))
         return records
 
     # -- Context menu --------------------------------------------------------
@@ -382,7 +385,7 @@ class HistoryWidget(QWidget):
 
         if has_url:
             a_open_url = open_menu.addAction("URL in Browser")
-            a_open_url.triggered.connect(lambda: self._open_url(url))
+            a_open_url.triggered.connect(lambda: self._open_url(url) if url else None)
 
         # ---- Copy submenu ----
         copy_menu = menu.addMenu("📋 Copy")
@@ -396,7 +399,7 @@ class HistoryWidget(QWidget):
         a_copy_file.setShortcut("Shift+C")
         a_copy_file.setEnabled(file_exists)
         a_copy_file.triggered.connect(
-            lambda: copy_text_to_clipboard(filepath)
+            lambda: copy_text_to_clipboard(filepath) if filepath else None
         )
 
         copy_menu.addSeparator()
@@ -404,7 +407,7 @@ class HistoryWidget(QWidget):
         a_copy_url = copy_menu.addAction("URL")
         a_copy_url.setShortcut("Ctrl+C")
         a_copy_url.setEnabled(has_url)
-        a_copy_url.triggered.connect(lambda: copy_text_to_clipboard(url))
+        a_copy_url.triggered.connect(lambda: copy_text_to_clipboard(url) if url else None)
 
         copy_menu.addSeparator()
 

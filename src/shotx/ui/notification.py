@@ -7,19 +7,17 @@ or its containing folder.
 from __future__ import annotations
 
 import logging
-import logging
-import subprocess
-import threading
 from pathlib import Path
-
-from PySide6.QtWidgets import QSystemTrayIcon
-from PySide6.QtCore import QTimer
 
 # Import PyGObject for native DBus notifications
 import gi
+from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QSystemTrayIcon
+
 gi.require_version('Gio', '2.0')
-from gi.repository import Gio, GLib
-import importlib.resources as pkg_resources
+import importlib.resources as pkg_resources  # noqa: E402
+
+from gi.repository import Gio, GLib  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -32,19 +30,19 @@ def _get_icon_path() -> str:
 
 # Raw DBus connection (safe to mix with Qt, unlike Gio.Application)
 _dbus_conn = None
-_notification_paths: dict[int, str] = {}
+_notification_paths: dict[int, dict[str, str]] = {}
 
 def init_notifications():
     """Initialize DBus connection and signal listener on the main thread."""
     global _dbus_conn
-    
+
     if _dbus_conn is not None:
         return
-        
+
     try:
         # Get the session bus
         _dbus_conn = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-        
+
         # Subscribe to notification clicks
         _dbus_conn.signal_subscribe(
             "org.freedesktop.Notifications",
@@ -64,66 +62,75 @@ def _on_action_invoked(conn, sender, obj_path, iface, signal, params, user_data)
     """Callback when ANY notification action is clicked on the system."""
     try:
         notif_id, action_name = params.unpack()
-        
+
         if notif_id in _notification_paths:
             actions_dict = _notification_paths[notif_id]
-            
+
             # If they clicked the banner body itself
             if action_name == "default":
                 target_path = actions_dict.get("default")
             else:
                 target_path = actions_dict.get(action_name)
-                
+
             if target_path:
                 logger.debug(f"Action '{action_name}' clicked for notification ID {notif_id}, opening {target_path}")
                 import subprocess
                 subprocess.run(["xdg-open", target_path], check=True)
-            
+
             # Optionally clean up the dictionary
             del _notification_paths[notif_id]
     except Exception as e:
         logger.error(f"Error handling DBus action click: {e}")
 
-def _send_dbus_notification(title: str, body: str, icon: str, urgency: int = 1, file_path: str = None, actions_dict: dict[str, str] = None, default_action: str = None, show_open_button: bool = True) -> None:
+def _send_dbus_notification(
+    title: str,
+    body: str,
+    icon: str,
+    urgency: int = 1,
+    file_path: str | None = None,
+    actions_dict: dict[str, str] | None = None,
+    default_action: str | None = None,
+    show_open_button: bool = True,
+) -> None:
     """Helper to send a raw DBus message.
-    
+
     Args:
-        actions_dict: A dict mapping "Action Key" -> "Target Path/URL". 
+        actions_dict: A dict mapping "Action Key" -> "Target Path/URL".
                       The key is internal (e.g. "open_web"), the value is the path.
                       To set display labels, we generate the DBus array implicitly below.
     """
     global _dbus_conn
     if _dbus_conn is None:
         init_notifications()
-        
+
     if _dbus_conn is None:
         raise Exception("DBus connection not available.")
 
     # The DBus 'actions' parameter is an array of strings:
     # [ "action1_key", "Action 1 Label", "action2_key", "Action 2 Label" ]
     dbus_actions = []
-    
+
     # Store the actual paths we want to open
     path_mapping = {}
-    
+
     if default_action:
         # Natively, "default" is the magic key for clicking the notification body
         path_mapping["default"] = default_action
-        
+
     if actions_dict:
         for action_label, target_path in actions_dict.items():
             # Create a safe, spaces-removed internal key
             action_key = action_label.lower().replace(" ", "_")
             dbus_actions.extend([action_key, action_label])
             path_mapping[action_key] = target_path
-            
+
     # Legacy fallback: if file_path is passed, act like a simple single-button notification
     elif file_path:
         if show_open_button:
             dbus_actions.extend(["open", "Open"])
             path_mapping["open"] = file_path
         path_mapping["default"] = file_path
-    
+
     # Send the raw Notification DBus call
     res = _dbus_conn.call_sync(
         "org.freedesktop.Notifications",         # bus_name
@@ -138,7 +145,7 @@ def _send_dbus_notification(title: str, body: str, icon: str, urgency: int = 1, 
             body,                                # body
             dbus_actions,                        # actions
             {
-                "urgency": GLib.Variant("y", urgency), 
+                "urgency": GLib.Variant("y", urgency),
                 "transient": GLib.Variant("b", False),
                 "desktop-entry": GLib.Variant("s", "ShotX")
             },                                   # hints (0=low, 1=normal, 2=critical)
@@ -149,9 +156,9 @@ def _send_dbus_notification(title: str, body: str, icon: str, urgency: int = 1, 
         -1,
         None
     )
-    
+
     notif_id = res.unpack()[0]
-    
+
     if path_mapping:
         _notification_paths[notif_id] = path_mapping
 
@@ -169,10 +176,7 @@ def notify_capture_success(
         message: Custom message override.
     """
     if message is None:
-        if file_path:
-            message = f"Saved to:\n{file_path}"
-        else:
-            message = "Copied to clipboard"
+        message = f"Saved to:\n{file_path}" if file_path else "Copied to clipboard"
 
     try:
         _send_dbus_notification(
@@ -278,4 +282,4 @@ def notify_info(
 
 # Re-export from core.xdg for backward compatibility.
 # Modules that already import from notification will keep working.
-from shotx.core.xdg import open_file, open_folder  # noqa: F401
+from shotx.core.xdg import open_file, open_folder  # noqa: F401, E402

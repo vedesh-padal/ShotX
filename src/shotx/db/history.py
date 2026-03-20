@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import sqlite3
 import logging
+import sqlite3
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Optional, List
 from datetime import datetime
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +15,7 @@ class HistoryRecord:
     id: int
     filepath: str
     timestamp: datetime
-    url: Optional[str]
+    url: str | None
     size_bytes: int
     capture_type: str
 
@@ -48,7 +47,7 @@ class HistoryManager:
         except sqlite3.Error as e:
             logger.error(f"Failed to initialize history database: {e}")
 
-    def add_record(self, filepath: str | Path, size_bytes: int = 0, capture_type: str = "image") -> Optional[int]:
+    def add_record(self, filepath: str | Path, size_bytes: int = 0, capture_type: str = "image") -> int | None:
         """Insert a new capture record and return its ID."""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -97,7 +96,7 @@ class HistoryManager:
             logger.error(f"Failed to update URL by path in history: {e}")
             return False
 
-    def get_all(self, limit: int = 200, offset: int = 0, search: str = "") -> List[HistoryRecord]:
+    def get_all(self, limit: int = 200, offset: int = 0, search: str = "") -> list[HistoryRecord]:
         """Retrieve recent history records, optionally filtered by search query.
 
         The search query matches against filepath and url columns using
@@ -120,7 +119,7 @@ class HistoryManager:
                         "SELECT * FROM history ORDER BY timestamp DESC LIMIT ? OFFSET ?",
                         (limit, offset),
                     )
-                
+
                 for row in cursor.fetchall():
                     # Parse timestamp (SQLite defaults to 'YYYY-MM-DD HH:MM:SS')
                     ts = row['timestamp']
@@ -141,7 +140,7 @@ class HistoryManager:
                     )
         except sqlite3.Error as e:
             logger.error(f"Failed to retrieve history: {e}")
-            
+
         return records
 
     def delete_record(self, id: int) -> bool:
@@ -154,7 +153,7 @@ class HistoryManager:
         except sqlite3.Error as e:
             logger.error(f"Failed to delete history record: {e}")
             return False
-            
+
     def clear_all(self) -> bool:
         """Delete all records from the database."""
         try:

@@ -6,7 +6,6 @@ the appropriate capture backend. Falls back gracefully if one is unavailable.
 
 from __future__ import annotations
 
-import os
 import logging
 
 from shotx.capture.backend import CaptureBackend
@@ -46,7 +45,7 @@ def create_capture_backend(force_backend: str | None = None) -> CaptureBackend:
         try:
             from shotx.capture.wayland import WaylandCaptureBackend
 
-            backend = WaylandCaptureBackend()
+            backend: CaptureBackend = WaylandCaptureBackend()
             if backend.is_available():
                 logger.info("Using Wayland capture backend")
                 return backend

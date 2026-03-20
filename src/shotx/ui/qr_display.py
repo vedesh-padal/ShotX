@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, QRect
-from PySide6.QtGui import QImage, QPainter, QKeyEvent, QMouseEvent, QPaintEvent, QColor
+from PySide6.QtCore import QRect, Qt
+from PySide6.QtGui import QColor, QImage, QKeyEvent, QMouseEvent, QPainter, QPaintEvent
 from PySide6.QtWidgets import QWidget
+
 
 class QRDisplayOverlay(QWidget):
     """A floating window that displays a QR code."""
@@ -28,7 +29,7 @@ class QRDisplayOverlay(QWidget):
             self._qr_image.width() + padding,
             self._qr_image.height() + padding + 20 # Extra for text label if we want one
         )
-        
+
         # Center on screen
         from PySide6.QtWidgets import QApplication
         screen = QApplication.primaryScreen().geometry()
@@ -50,7 +51,7 @@ class QRDisplayOverlay(QWidget):
         x = (self.width() - self._qr_image.width()) // 2
         y = 20 # Top padding
         painter.drawImage(x, y, self._qr_image)
-        
+
         # Draw a little instruction
         painter.setPen(QColor(200, 200, 200))
         text_rect = QRect(0, self.height() - 30, self.width(), 30)

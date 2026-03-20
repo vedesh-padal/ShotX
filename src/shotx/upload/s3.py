@@ -29,19 +29,23 @@ class S3Uploader(UploaderBackend):
             access_key: The IAM Access Key.
             secret_key: The IAM Secret Key.
             bucket_name: The destination bucket.
-            public_url_format: How to format the final public URL. 
+            public_url_format: How to format the final public URL.
                                E.g., "https://my-cdn.com/{bucket}/{key}"
         """
         if not all([access_key, secret_key, bucket_name]):
-            raise UploadError("S3 uploader requires access_key, secret_key, and bucket_name in settings.")
+            raise UploadError(
+                "S3 uploader requires access_key, secret_key, and bucket_name in settings."
+            )
 
         self.bucket_name = bucket_name
         self.public_url_format = public_url_format or "https://{bucket}.s3.amazonaws.com/{key}"
-        
+
         try:
             import boto3
-        except ImportError:
-            raise UploadError("S3 uploading requires the `boto3` package. Install with: pip install shotx[s3]")
+        except ImportError as e:
+            raise UploadError(
+                "S3 uploading requires the `boto3` package. Install with: pip install shotx[s3]"
+            ) from e
 
         try:
             # We explicitly pass the endpoint_url so it works with any S3-compatible service
@@ -52,35 +56,35 @@ class S3Uploader(UploaderBackend):
                 aws_secret_access_key=secret_key,
             )
         except Exception as e:
-            raise UploadError(f"Failed to initialize S3 client: {e}")
+            raise UploadError(f"Failed to initialize S3 client: {e}") from e
 
     def upload(self, file_path: Path) -> str:
         if not file_path.exists():
             raise UploadError(f"File not found: {file_path}")
 
-        # ShareX default behavior is usually Year/Month/filename, but 
+        # ShareX default behavior is usually Year/Month/filename, but
         # for MVP we can just drop it in the root or an 'images/' prefix.
         object_name = f"images/{file_path.name}"
-        
+
         # Determine content type dynamically
         mime_type, _ = mimetypes.guess_type(file_path.name)
         content_type = mime_type or "application/octet-stream"
 
         extra_args = {
             "ContentType": content_type,
-            # Normally S3 requires ACL 'public-read' but many modern buckets 
-            # enforce Block Public Access and rely on bucket policies. 
+            # Normally S3 requires ACL 'public-read' but many modern buckets
+            # enforce Block Public Access and rely on bucket policies.
             # However, ShareX historically tries to set public-read.
             # We omit ACL here assuming the user's bucket/CDN policy handles it cleanly,
-            # or we could make it configurable. 
+            # or we could make it configurable.
         }
 
         logger.info("Uploading %s to s3://%s/%s ...", file_path.name, self.bucket_name, object_name)
 
         try:
             self.s3_client.upload_file(
-                str(file_path), 
-                self.bucket_name, 
+                str(file_path),
+                self.bucket_name,
                 object_name,
                 ExtraArgs=extra_args
             )
@@ -89,7 +93,7 @@ class S3Uploader(UploaderBackend):
             from botocore.exceptions import BotoCoreError, ClientError
             if isinstance(e, (BotoCoreError, ClientError)):
                 logger.error("S3 upload failed: %s", e)
-                raise UploadError(f"Failed to upload to S3: {e}")
+                raise UploadError(f"Failed to upload to S3: {e}") from e
             raise
 
         # Construct the final public URL
@@ -97,6 +101,6 @@ class S3Uploader(UploaderBackend):
             bucket=self.bucket_name,
             key=object_name,
         )
-        
+
         logger.info("S3 upload successful: %s", link)
         return link

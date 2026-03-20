@@ -1,8 +1,8 @@
-import os
 import datetime
 from pathlib import Path
-from typing import List, Dict, Any
-from jinja2 import Environment, BaseLoader, select_autoescape
+from typing import Any
+
+from jinja2 import BaseLoader, Environment, select_autoescape
 
 # Embedded HTML Template for the gallery
 INDEX_TEMPLATE = """<!DOCTYPE html>
@@ -165,25 +165,26 @@ INDEX_TEMPLATE = """<!DOCTYPE html>
 
 def format_bytes(size: int) -> str:
     """Format bytes to human readable string."""
+    f_size = float(size)
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if size < 1024.0:
-            return f"{size:.1f} {unit}" if unit != 'B' else f"{int(size)} {unit}"
-        size /= 1024.0
-    return f"{size:.1f} PB"
+        if f_size < 1024.0:
+            return f"{f_size:.1f} {unit}" if unit != 'B' else f"{int(f_size)} {unit}"
+        f_size /= 1024.0
+    return f"{f_size:.1f} PB"
 
 def _get_icon_for_file(filepath: Path) -> str:
     """Return a simple emoji icon based on file extension."""
     if filepath.is_dir():
         return "📁"
-        
+
     ext = filepath.suffix.lower()
-    
+
     image_exts = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'}
     code_exts = {'.py', '.js', '.ts', '.html', '.css', '.json', '.yaml', '.yml', '.md', '.sh'}
     video_exts = {'.mp4', '.mkv', '.webm', '.avi', '.mov'}
     audio_exts = {'.mp3', '.wav', '.ogg', '.flac'}
     archive_exts = {'.zip', '.tar', '.gz', '.7z', '.rar'}
-    document_exts = {'.pdf', '.doc', '.docx', '.txt', '.pdf'}
+    document_exts = {'.pdf', '.doc', '.docx', '.txt'}
 
     if ext in image_exts:
         return "🖼️"
@@ -197,7 +198,7 @@ def _get_icon_for_file(filepath: Path) -> str:
         return "📦"
     elif ext in document_exts:
         return "📝"
-    
+
     return "📄"
 
 def generate_directory_index(target_path: str | Path) -> Path:
@@ -206,32 +207,32 @@ def generate_directory_index(target_path: str | Path) -> Path:
     Returns the path to the generated index.html file.
     """
     target = Path(target_path).resolve()
-    
+
     if not target.is_dir():
         raise NotADirectoryError(f"Target path does not exist or is not a directory: {target}")
 
     # Gather file metadata
-    file_list: List[Dict[str, Any]] = []
+    file_list: list[dict[str, Any]] = []
     total_bytes = 0
     total_files = 0
-    
+
     # Pre-sort: directories first, then files alphabetically
     items = sorted(target.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower()))
-    
+
     for item in items:
         # Skip the index.html we might be overwriting, and hidden files/folders
         if item.name == "index.html" or item.name.startswith('.'):
             continue
-            
+
         stat = item.stat()
         size = stat.st_size if item.is_file() else 0
-        
+
         if item.is_file():
             total_bytes += size
             total_files += 1
 
         mod_time = datetime.datetime.fromtimestamp(stat.st_mtime)
-        
+
         file_list.append({
             "name": item.name + ("/" if item.is_dir() else ""),
             "path": item.name,
@@ -243,9 +244,9 @@ def generate_directory_index(target_path: str | Path) -> Path:
         })
 
     # Prepare Jinja Template
-    env = Environment(loader=BaseLoader, autoescape=select_autoescape(['html', 'xml']))
+    env = Environment(loader=BaseLoader(), autoescape=select_autoescape(['html', 'xml']))
     template = env.from_string(INDEX_TEMPLATE)
-    
+
     # Render
     html_content = template.render(
         folder_name=target.name,
@@ -255,10 +256,10 @@ def generate_directory_index(target_path: str | Path) -> Path:
         parent_dir=True, # We'll just always assume a parent dir link is useful for navigation
         files=file_list
     )
-    
+
     # Write to target directory
     output_path = target / "index.html"
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(html_content)
-        
+
     return output_path

@@ -13,7 +13,6 @@ The regions are fed to the RegionOverlay for hover highlighting.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 
 from PySide6.QtCore import QRect
 
@@ -229,7 +228,7 @@ def _collect_accessible_regions(
                             # often have the exact same size and position)
                             new_rect = QRect(x, y, w, h)
                             is_duplicate = False
-                            
+
                             # Check against existing regions.
                             # If we find a region that is very close in size and position, it's a wrapper.
                             for r in regions:
@@ -242,7 +241,7 @@ def _collect_accessible_regions(
                                         r.label = f"{app_name}: {node.get_name() or node.get_role_name() or ''}"
                                         r.depth = depth
                                     break
-                            
+
                             if not is_duplicate:
                                 name = node.get_name() or ""
                                 role_name = node.get_role_name() or ""

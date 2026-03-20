@@ -1,9 +1,11 @@
-"""Tests for ShotX file saving."""
+"""Tests for filename processing and image saving."""
 
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
+
+import pytest
+from PySide6.QtGui import QColor, QImage
 
 from shotx.output.file_saver import expand_filename_pattern, save_image
 
@@ -58,17 +60,12 @@ class TestSaveImage:
     """
 
     @pytest.fixture(autouse=True)
-    def _ensure_qapp(self) -> None:
-        """Ensure QGuiApplication exists for QImage operations."""
-        from PySide6.QtWidgets import QApplication
+    def _ensure_qapp(self, qapp) -> None:
+        """Ensure QApplication is initialized via pytest-qt fixture."""
+        pass
 
-        if QApplication.instance() is None:
-            self._app = QApplication([])
-
-    def _make_test_image(self, width: int = 100, height: int = 80) -> "QImage":
+    def _make_test_image(self, width: int = 100, height: int = 80) -> QImage:
         """Create a simple test image."""
-        from PySide6.QtGui import QImage, QColor
-
         image = QImage(width, height, QImage.Format.Format_RGB32)
         image.fill(QColor(100, 150, 200))
         return image
@@ -115,12 +112,8 @@ class TestSaveImage:
         """Should append counter if file already exists."""
         image = self._make_test_image()
 
-        path1 = save_image(
-            image, str(tmp_path), filename_pattern="test", image_format="png"
-        )
-        path2 = save_image(
-            image, str(tmp_path), filename_pattern="test", image_format="png"
-        )
+        path1 = save_image(image, str(tmp_path), filename_pattern="test", image_format="png")
+        path2 = save_image(image, str(tmp_path), filename_pattern="test", image_format="png")
 
         assert path1 is not None
         assert path2 is not None

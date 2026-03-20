@@ -24,6 +24,9 @@ uv run shotx           # System tray mode
 uv run shotx --help    # See all CLI options
 ```
 
+> [!TIP]
+> You can also use the inclusive `Justfile` or `Makefile` in the root for automated setup and development tasks (e.g., `just setup-deps-debian`, `just sync`).
+
 ### With pip
 
 ```bash

@@ -11,17 +11,17 @@ import logging
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QIcon
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
-    QMainWindow,
-    QWidget,
-    QHBoxLayout,
-    QVBoxLayout,
-    QPushButton,
-    QMenu,
-    QSizePolicy,
     QFrame,
+    QHBoxLayout,
     QLabel,
+    QMainWindow,
+    QMenu,
+    QPushButton,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
 )
 
 from shotx.ui.image_history import ImageHistoryWidget
@@ -391,21 +391,21 @@ class ShotXMainWindow(QMainWindow):
     def _on_app_settings(self) -> None:
         """Open Application Settings dialog."""
         from shotx.ui.settings_dialog import ApplicationSettingsDialog
-        
+
         dialog = ApplicationSettingsDialog(self._app._settings_manager, start_page=0, parent=self)
         if dialog.exec():
             # Refresh anything in the UI that depends on settings
             self._app.apply_hotkeys()
             self._after_capture_menu.clear()
             self._populate_after_capture_menu(self._after_capture_menu)
-            
+
             self._dest_menu.clear()
             self._populate_destinations_menu(self._dest_menu)
 
     def _on_hotkey_settings(self) -> None:
         """Open the Application Settings dialog directly to the Hotkeys page."""
         from shotx.ui.settings_dialog import ApplicationSettingsDialog
-        
+
         # 3 is the index of the Hotkeys tab
         dialog = ApplicationSettingsDialog(self._app._settings_manager, start_page=3, parent=self)
         if dialog.exec():
@@ -442,8 +442,9 @@ class ShotXMainWindow(QMainWindow):
 
     def _on_upload_file(self) -> None:
         """Open a file dialog and upload the selected image."""
-        from PySide6.QtWidgets import QFileDialog
         from pathlib import Path
+
+        from PySide6.QtWidgets import QFileDialog
 
         path, _ = QFileDialog.getOpenFileName(
             self,
@@ -457,10 +458,10 @@ class ShotXMainWindow(QMainWindow):
 
     def _on_upload_clipboard(self) -> None:
         """Upload the current clipboard image."""
-        from PySide6.QtWidgets import QApplication, QMessageBox
-        from PySide6.QtGui import QImage
-        from pathlib import Path
         import tempfile
+        from pathlib import Path
+
+        from PySide6.QtWidgets import QApplication, QMessageBox
 
         clipboard = QApplication.clipboard()
         img = clipboard.image()
@@ -483,7 +484,7 @@ class ShotXMainWindow(QMainWindow):
 
     def _on_about(self) -> None:
         """Show a simple About dialog."""
-        from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton
+        from PySide6.QtWidgets import QDialog, QPushButton, QVBoxLayout
 
         dlg = QDialog(self)
         dlg.setWindowTitle("About ShotX")

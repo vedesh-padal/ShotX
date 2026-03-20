@@ -1,12 +1,10 @@
-import logging
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-import pytest
-from PySide6.QtCore import QObject, QTimer
+from PySide6.QtCore import QObject
 
 from shotx.core.events import EventBus
+from shotx.core.platform import is_wayland, is_x11, session_type
 from shotx.core.tasks import TaskManager
-from shotx.core.platform import session_type, is_wayland, is_x11
 
 
 class TestEventBus:
@@ -21,7 +19,7 @@ class TestEventBus:
     def test_signals_exist(self, qapp):
         """EventBus should define the core application signals."""
         bus = EventBus()
-        
+
         assert hasattr(bus, "capture_requested")
         assert hasattr(bus, "tool_requested")
         assert hasattr(bus, "upload_requested")
@@ -42,7 +40,7 @@ class TestTaskManager:
     def test_active_runnables_tracking(self, qapp):
         """TaskManager should track active runnables to prevent premature GC."""
         tm = TaskManager()
-        
+
         # Mock worker
         worker = MagicMock()
         worker.autoDelete = MagicMock(return_value=True)
@@ -50,13 +48,13 @@ class TestTaskManager:
         # Submit worker
         with patch.object(tm._pool, "start") as mock_start:
             tm.submit(worker, tag="test_worker")
-            
+
             # Ensure it was passed to QThreadPool
             mock_start.assert_called_once_with(worker)
-            
+
             # Ensure it is tracked
             assert "test_worker" in tm._active
-            
+
             # Simulate worker completing
             tm.release("test_worker")
             assert len(tm._active) == 0
@@ -68,10 +66,10 @@ class TestPlatform:
     def test_session_type_wayland(self, mock_env):
         """Should detect Wayland via XDG_SESSION_TYPE or WAYLAND_DISPLAY."""
         mock_env.side_effect = lambda k, d="": "wayland" if k == "XDG_SESSION_TYPE" else d
-        
+
         # Clear lru_cache for testing
         session_type.cache_clear()
-        
+
         assert session_type() == "wayland"
         assert is_wayland() is True
         assert is_x11() is False
@@ -80,10 +78,10 @@ class TestPlatform:
     def test_session_type_x11(self, mock_env):
         """Should detect X11 via XDG_SESSION_TYPE or DISPLAY."""
         mock_env.side_effect = lambda k, d="": "x11" if k == "XDG_SESSION_TYPE" else d
-        
+
         # Clear lru_cache for testing
         session_type.cache_clear()
-        
+
         assert session_type() == "x11"
         assert is_wayland() is False
         assert is_x11() is True
@@ -92,10 +90,10 @@ class TestPlatform:
     def test_session_type_unknown(self, mock_env):
         """Should fallback to unknown if no standard env vars are present."""
         mock_env.return_value = ""
-        
+
         # Clear lru_cache for testing
         session_type.cache_clear()
-        
+
         assert session_type() == "unknown"
         assert is_wayland() is False
         assert is_x11() is False

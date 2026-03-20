@@ -20,14 +20,15 @@ where available (GNOME Shell Introspect, KDE's foreign-toplevel protocol).
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
 import subprocess
 import tempfile
 from pathlib import Path
-from urllib.parse import urlparse, unquote
+from urllib.parse import unquote, urlparse
 
-from PySide6.QtGui import QGuiApplication, QImage, QScreen
+from PySide6.QtGui import QGuiApplication, QImage
 
 from shotx.capture.backend import CaptureBackend, MonitorInfo, WindowInfo
 
@@ -83,14 +84,10 @@ class WaylandCaptureBackend(CaptureBackend):
 
     def get_monitors(self) -> list[MonitorInfo]:
         """Get monitor info from Qt6's screen list."""
-        app = QGuiApplication.instance()
-        if app is None:
-            return []
-
         monitors = []
-        primary = app.primaryScreen()
+        primary = QGuiApplication.primaryScreen()
 
-        for i, screen in enumerate(app.screens()):
+        for i, screen in enumerate(QGuiApplication.screens()):
             geo = screen.geometry()
             monitors.append(
                 MonitorInfo(
@@ -141,8 +138,8 @@ class WaylandCaptureBackend(CaptureBackend):
         capture the screen directly, bypassing the portal dialog.
         """
         try:
-            from dbus_next.aio import MessageBus
             from dbus_next import Message, MessageType, Variant
+            from dbus_next.aio import MessageBus
 
             async def _take_screenshot() -> str | None:
                 bus = await MessageBus().connect()
@@ -152,7 +149,7 @@ class WaylandCaptureBackend(CaptureBackend):
                 # object path the Response signal will arrive on.
                 # The portal creates: /org/freedesktop/portal/desktop/request/{sender}/{token}
                 token = "shotx_screenshot"
-                sender_part = unique_name.lstrip(":").replace(".", "_")
+                sender_part = unique_name.lstrip(":").replace(".", "_") if unique_name else "sender"
                 expected_request_path = (
                     f"/org/freedesktop/portal/desktop/request/{sender_part}/{token}"
                 )
@@ -205,7 +202,7 @@ class WaylandCaptureBackend(CaptureBackend):
                     "handle_token": Variant("s", token),
                 }
 
-                reply = await bus.call(
+                msg = await bus.call(
                     Message(
                         destination="org.freedesktop.portal.Desktop",
                         path="/org/freedesktop/portal/desktop",
@@ -216,8 +213,13 @@ class WaylandCaptureBackend(CaptureBackend):
                     )
                 )
 
-                if reply.message_type == MessageType.ERROR:
-                    logger.warning("Portal Screenshot call failed: %s", reply.body)
+                if msg and msg.message_type == MessageType.METHOD_RETURN:
+                    body = msg.body
+                    if body and len(body) > 0 and isinstance(body[0], dict):
+                        pass  # response = body[0] - unused but noted for future context if needed
+                        # body[1] is result code (1=success)
+                elif msg and msg.message_type == MessageType.ERROR:
+                    logger.warning("Portal Screenshot call failed: %s", msg.body)
                     bus.disconnect()
                     return None
 
@@ -264,10 +266,8 @@ class WaylandCaptureBackend(CaptureBackend):
             )
 
             # Clean up the temp file created by the portal
-            try:
+            with contextlib.suppress(OSError):
                 file_path.unlink()
-            except OSError:
-                pass
 
             return image
 
@@ -298,7 +298,7 @@ class WaylandCaptureBackend(CaptureBackend):
             if monitor_index is not None:
                 app = QGuiApplication.instance()
                 if app:
-                    screens = app.screens()
+                    screens = QGuiApplication.screens()
                     if 0 <= monitor_index < len(screens):
                         screen_name = screens[monitor_index].name()
 
@@ -344,14 +344,14 @@ class WaylandCaptureBackend(CaptureBackend):
         if app is None:
             return None
 
-        screens = app.screens()
+        screens = QGuiApplication.screens()
         if not screens:
             return None
 
         if monitor_index is not None and 0 <= monitor_index < len(screens):
             screen = screens[monitor_index]
         else:
-            screen = app.primaryScreen()
+            screen = QGuiApplication.primaryScreen()
 
         if screen is None:
             return None
@@ -383,8 +383,9 @@ class WaylandCaptureBackend(CaptureBackend):
         """
         try:
             import asyncio
-            from dbus_next.aio import MessageBus
+
             from dbus_next import Variant
+            from dbus_next.aio import MessageBus
 
             async def _fetch() -> list[WindowInfo]:
                 bus = await MessageBus().connect()
@@ -398,7 +399,8 @@ class WaylandCaptureBackend(CaptureBackend):
                     introspection,
                 )
                 iface = proxy.get_interface("org.gnome.Shell.Introspect")
-                windows_data = await iface.call_get_windows()
+                # call_get_windows is added dynamically by dbus-next
+                windows_data = await getattr(iface, "call_get_windows")()  # noqa: B009
                 bus.disconnect()
 
                 windows = []

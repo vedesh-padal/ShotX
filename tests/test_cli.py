@@ -1,8 +1,5 @@
 import subprocess
 import sys
-from pathlib import Path
-
-import pytest
 
 # Get the path to the shotx executable via `sys.executable -m shotx.main`
 # This avoids needing to install the wheel just to run tests locally.
@@ -44,11 +41,11 @@ class TestCLI:
 
     def test_shorten_url_headless(self):
         """--shorten-url with an explicit URL should print the result and exit 0."""
-        # Using a mock API or known service might be flaky in CI, but tmpfiles or 
+        # Using a mock API or known service might be flaky in CI, but tmpfiles or
         # tinyurl usually works. Let's just test that the CLI parses it correctly
         # and attempts the action without crashing the Qt event loop.
         # We'll test with a deliberate bad URL to test the graceful error exit (1).
-        
+
         result = subprocess.run(
             [*SHOTX_CMD, "--shorten-url", "not-a-real-url"],
             capture_output=True,
@@ -58,4 +55,4 @@ class TestCLI:
         # ShotX should catch it and exit with 1.
         # The key is that it doesn't hang forever waiting for Qt to quit.
         assert result.returncode in (0, 1)
-        
+
