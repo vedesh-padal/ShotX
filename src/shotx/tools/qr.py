@@ -36,7 +36,7 @@ def scan_qr(qimage: QImage) -> str | None:
     qimage.save(qbuffer, "PNG")  # type: ignore[call-overload]
 
     ba = qbuffer.data()
-    pil_img = Image.open(BytesIO(bytes(ba)))
+    pil_img = Image.open(BytesIO(ba.data()))
 
     decoded_objects = decode(pil_img)
     if not decoded_objects:
