@@ -1583,7 +1583,7 @@ requires-dist = [
     { name = "pytesseract", specifier = ">=0.3.13" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4" },
-    { name = "pytest-qt", marker = "extra == 'dev'", specifier = ">=4.4.0" },
+    { name = "pytest-qt", marker = "extra == 'dev'", specifier = ">=4.5.0" },
     { name = "pyyaml", specifier = ">=6" },
     { name = "pyzbar", specifier = ">=0.1.9" },
     { name = "qrcode", specifier = ">=8.2" },

@@ -49,7 +49,6 @@ class PinnedWidget(QWidget):
         self.aspect_ratio = pixmap.width() / pixmap.height()
 
         # Get screen constraints
-        # Get screen constraints
         screen_geo = QApplication.primaryScreen().geometry() if QApplication.primaryScreen() else QRect(0, 0, 1920, 1080)
         self.max_w = int(screen_geo.width() * self.MAX_SCREEN_RATIO)
         self.max_h = int(screen_geo.height() * self.MAX_SCREEN_RATIO)

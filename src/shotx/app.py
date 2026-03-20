@@ -131,8 +131,7 @@ class ShotXApp(QObject):
 
         from shotx.ui.tray import TrayIcon
         self._tray = TrayIcon(self)
-        self.tray_icon = self._tray.tray_icon
-        self.tray_icon.show()
+        self._tray.show()
 
         logger.info("ShotX tray app started")
         self.apply_hotkeys()

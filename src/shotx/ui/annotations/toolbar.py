@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 
 from PySide6.QtCore import QEvent, Qt, Signal
-from PySide6.QtGui import QColor, QCursor
+from PySide6.QtGui import QColor, QCursor, QEnterEvent
 from PySide6.QtWidgets import (
     QButtonGroup,
     QColorDialog,
@@ -33,7 +33,6 @@ class _HoverButton(QPushButton):
         self._hover_text = hover_text
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
 
-    from PySide6.QtGui import QEnterEvent
     def enterEvent(self, event: QEnterEvent) -> None:
         self.hovered.emit(self._hover_text)
         super().enterEvent(event)
