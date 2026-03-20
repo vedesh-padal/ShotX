@@ -1,6 +1,38 @@
 # Installation
 
-## From Source (Recommended)
+## One-liner (Recommended)
+
+```bash
+curl -sSL https://raw.githubusercontent.com/vedesh-padal/ShotX/main/scripts/install.sh | sh
+```
+
+This automatically:
+1. Detects your package manager (apt / dnf / pacman / zypper / apk)
+2. Installs all system dependencies
+3. Installs [uv](https://docs.astral.sh/uv/) if not present
+4. Clones ShotX to `~/.local/share/shotx/`
+5. Creates a `shotx` launcher at `~/.local/bin/shotx`
+6. Adds an XDG autostart entry so ShotX launches on login
+
+> [!NOTE]
+> `~/.local/bin` must be in your `PATH`. If it isn't, add this to your shell config and restart:
+> ```bash
+> export PATH="$HOME/.local/bin:$PATH"
+> ```
+
+**Env-var overrides for CI / Docker builds:**
+
+```bash
+# Skip system dep installation (if you manage deps yourself)
+SKIP_SYSTEM_DEPS=1 sh install.sh
+
+# Skip XDG autostart entry creation
+SKIP_AUTOSTART=1 sh install.sh
+```
+
+---
+
+## From Source (Manual)
 
 ### Prerequisites
 
