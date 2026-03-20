@@ -149,7 +149,7 @@ class WaylandCaptureBackend(CaptureBackend):
                 # object path the Response signal will arrive on.
                 # The portal creates: /org/freedesktop/portal/desktop/request/{sender}/{token}
                 token = "shotx_screenshot"
-                sender_part = unique_name.lstrip(":").replace(".", "_")
+                sender_part = unique_name.lstrip(":").replace(".", "_") if unique_name else "sender"
                 expected_request_path = (
                     f"/org/freedesktop/portal/desktop/request/{sender_part}/{token}"
                 )
@@ -399,7 +399,8 @@ class WaylandCaptureBackend(CaptureBackend):
                     introspection,
                 )
                 iface = proxy.get_interface("org.gnome.Shell.Introspect")
-                windows_data = await iface.call_get_windows()
+                # call_get_windows is added dynamically by dbus-next
+                windows_data = await getattr(iface, "call_get_windows")()  # noqa: B009
                 bus.disconnect()
 
                 windows = []
