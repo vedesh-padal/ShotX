@@ -18,30 +18,23 @@ jobs:
       - name: Set up latest uv
         uses: astral-sh/setup-uv@v5
 
-      # Required for AT-SPI2 region detection and pygobject/pycairo build
+      - name: Install just
+        run: sudo apt-get update && sudo apt-get install -y just
+
       - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libcairo2-dev \
-            pkg-config \
-            gobject-introspection \
-            libglib2.0-dev \
-            libgirepository-2.0-dev \
-            xvfb \
-            libegl1 \
-            libgl1 \
-            libopengl0 \
-            libxcb-cursor0
+        run: just setup-deps-debian
 
       - name: Install dependencies
-        run: uv sync --all-groups
+        run: just sync
 
       - name: Lint with ruff
-        run: uv run ruff check src/
+        run: just lint
 
       - name: Type check with mypy
-        run: uv run mypy src/
+        run: just typecheck
 
       - name: Run tests with pytest
-        run: xvfb-run -a uv run pytest
+        env:
+          QT_QPA_PLATFORM: xcb
+          QT_DEBUG_PLUGINS: 1
+        run: just test

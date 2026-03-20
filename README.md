@@ -236,6 +236,9 @@ uv run ruff check src/
 uv run mypy src/
 ```
 
+> [!TIP]
+> You can also use the inclusive `Justfile` or `Makefile` in the root for automated setup and development tasks.
+
 ## License
 
 GPL-3.0 — see [LICENSE](LICENSE) for details. Same license as ShareX.
