@@ -33,7 +33,6 @@ class FtpUploader(UploaderBackend):
             raise UploadError(f"File not found: {file_path}")
 
         file_name = file_path.name
-        # remote_path = f"{self.remote_dir}/{file_name}" if self.remote_dir else file_name
 
         logger.info("Uploading %s to ftp://%s ...", file_name, self.host)
 
@@ -62,7 +61,8 @@ class FtpUploader(UploaderBackend):
         except ftplib.all_errors as e:
             raise UploadError(f"FTP upload failed: {e}") from e
 
-        link = str(self.public_url_format.format(key=file_name, filename=file_name))
+        remote_path = f"{self.remote_dir}/{file_name}" if self.remote_dir else file_name
+        link = str(self.public_url_format.format(key=remote_path, filename=file_name))
         logger.info("FTP upload successful: %s", link)
         return link
 
@@ -139,6 +139,6 @@ class SftpUploader(UploaderBackend):
         except (OSError, paramiko.SSHException, Exception) as e:
             raise UploadError(f"SFTP upload failed: {e}") from e
 
-        link = str(self.public_url_format.format(key=file_name, filename=file_name))
+        link = str(self.public_url_format.format(key=remote_path, filename=file_name))
         logger.info("SFTP upload successful: %s", link)
         return link

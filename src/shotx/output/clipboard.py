@@ -385,8 +385,10 @@ def _get_image_via_qt() -> QImage | None:
 
 
 def _copy_image_via_qt(image: QImage) -> bool:
-    """Copy image via Qt's QClipboard.
-...
+    """
+    Copy image via Qt's QClipboard.
+    Works reliably when the app stays alive (tray mode). In one-shot
+    mode on Wayland, the clipboard data may be lost when the process exits.
     """
     app = cast(QGuiApplication, QGuiApplication.instance())
     if app is None:

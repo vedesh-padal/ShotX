@@ -467,6 +467,13 @@ class BlurItem(BaseAnnotationItem):
         self._rect = QRectF(start_pos, start_pos)
         self._backdrop = backdrop
 
+    def set_end_pos(self, pos: QPointF) -> None:
+        self.prepareGeometryChange()
+        self._rect = QRectF(self._start, pos).normalized()
+
+    def boundingRect(self) -> QRectF:
+        return self._rect
+
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget | None = None) -> None:
         rect = self._rect.toRect()
         if rect.isEmpty() or self._backdrop is None:

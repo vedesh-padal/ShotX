@@ -376,6 +376,10 @@ class ImageHistoryWidget(QWidget):
             from shotx.tools.ocr import extract_text
             img = QImage(filepath)
             if img.isNull():
+                from shotx.core.events import event_bus
+                event_bus.notify_error_requested.emit(
+                    f"Could not load image for OCR:\n{filepath}"
+                )
                 return
             text = extract_text(img)
             if text and text.strip():
