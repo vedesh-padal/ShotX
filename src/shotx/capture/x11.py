@@ -38,12 +38,7 @@ class X11CaptureBackend(CaptureBackend):
         On X11, grabWindow(0) captures the root window which contains
         all visible content across all monitors.
         """
-        app = QGuiApplication.instance()
-        if app is None:
-            logger.error("No QGuiApplication instance")
-            return None
-
-        screens = app.screens()
+        screens = QGuiApplication.screens()
         if not screens:
             logger.error("No screens found")
             return None
@@ -60,7 +55,7 @@ class X11CaptureBackend(CaptureBackend):
                 )
                 return None
         else:
-            screen = app.primaryScreen()
+            screen = QGuiApplication.primaryScreen()
 
         if screen is None:
             logger.error("No primary screen available")
@@ -101,11 +96,7 @@ class X11CaptureBackend(CaptureBackend):
             logger.info("Could not get active window, falling back to fullscreen")
             return self.capture_fullscreen()
 
-        app = QGuiApplication.instance()
-        if app is None:
-            return None
-
-        screen = app.primaryScreen()
+        screen = QGuiApplication.primaryScreen()
         if screen is None:
             return None
 
@@ -133,14 +124,10 @@ class X11CaptureBackend(CaptureBackend):
 
     def get_monitors(self) -> list[MonitorInfo]:
         """Get monitor info from Qt6's screen list."""
-        app = QGuiApplication.instance()
-        if app is None:
-            return []
-
         monitors = []
-        primary = app.primaryScreen()
+        primary = QGuiApplication.primaryScreen()
 
-        for i, screen in enumerate(app.screens()):
+        for i, screen in enumerate(QGuiApplication.screens()):
             geo = screen.geometry()
             monitors.append(
                 MonitorInfo(

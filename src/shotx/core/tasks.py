@@ -17,9 +17,8 @@ Usage::
 from __future__ import annotations
 
 import logging
-from typing import Any
 
-from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, QTimer
+from PySide6.QtCore import QObject, QRunnable, QThreadPool, QTimer, Signal
 
 logger = logging.getLogger(__name__)
 
@@ -97,8 +96,8 @@ class TaskManager(QObject):
         def cleanup() -> None:
             self.release(tag)
             self.signals.worker_finished.emit(tag)
-            
-        # Defer the cleanup to the next event loop tick so we don't garbage 
+
+        # Defer the cleanup to the next event loop tick so we don't garbage
         # collect the QRunnable while its signals are still actively emitting.
         QTimer.singleShot(0, cleanup)
 

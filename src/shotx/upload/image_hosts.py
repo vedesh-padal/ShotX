@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import logging
+import mimetypes
 from pathlib import Path
 
 import httpx
-import mimetypes
 
 from .base import UploaderBackend, UploadError
 
@@ -44,11 +44,11 @@ class ImgurUploader(UploaderBackend):
         try:
             mime_type, _ = mimetypes.guess_type(file_path.name)
             content_type = mime_type or "application/octet-stream"
-            
+
             with open(file_path, "rb") as f:
                 # Imgur expects the 'image' field in multipart/form-data
                 files = {"image": (file_path.name, f, content_type)}
-                
+
                 with httpx.Client(timeout=30.0) as client:
                     response = client.post(
                         "https://api.imgur.com/3/image",
@@ -56,16 +56,18 @@ class ImgurUploader(UploaderBackend):
                         files=files,
                     )
         except httpx.RequestError as e:
-            raise UploadError(f"Network error while uploading to Imgur: {e}")
+            raise UploadError(f"Network error while uploading to Imgur: {e}") from e
 
         # Handle rate limiting explicitly
         if response.status_code == 429:
-            raise UploadError("Imgur rate limit exceeded. Please configure a personal API key in settings.")
+            raise UploadError(
+                "Imgur rate limit exceeded. Please configure a personal API key in settings."
+            )
 
         try:
             data = response.json()
-        except ValueError:
-            raise UploadError(f"Invalid JSON response from Imgur: {response.text[:100]}")
+        except ValueError as e:
+            raise UploadError(f"Invalid JSON response from Imgur: {response.text[:100]}") from e
 
         if not response.is_success:
             err_msg = data.get("data", {}).get("error", "Unknown Imgur error")
@@ -76,12 +78,12 @@ class ImgurUploader(UploaderBackend):
             raise UploadError("Imgur API succeeded but returned no image link.")
 
         logger.info("Imgur upload successful: %s", link)
-        return link
+        return str(link)
 
 
 class ImgBBUploader(UploaderBackend):
     """Uploads images to ImgBB via their REST API.
-    
+
     ImgBB does not support anonymous client IDs for apps; users MUST provide
     their own API key from https://api.imgbb.com/
     """
@@ -100,12 +102,12 @@ class ImgBBUploader(UploaderBackend):
         try:
             mime_type, _ = mimetypes.guess_type(file_path.name)
             content_type = mime_type or "application/octet-stream"
-            
+
             with open(file_path, "rb") as f:
                 # ImgBB expects the 'image' field and key as query/form param
                 files = {"image": (file_path.name, f, content_type)}
                 data = {"key": self.api_key}
-                
+
                 with httpx.Client(timeout=30.0) as client:
                     response = client.post(
                         "https://api.imgbb.com/1/upload",
@@ -113,13 +115,13 @@ class ImgBBUploader(UploaderBackend):
                         files=files,
                     )
         except httpx.RequestError as e:
-            raise UploadError(f"Network error while uploading to ImgBB: {e}")
+            raise UploadError(f"Network error while uploading to ImgBB: {e}") from e
 
         try:
             # ImgBB returns HTTP 200 even for some errors, must check JSON payload
             payload = response.json()
-        except ValueError:
-            raise UploadError(f"Invalid JSON response from ImgBB: {response.text[:100]}")
+        except ValueError as e:
+            raise UploadError(f"Invalid JSON response from ImgBB: {response.text[:100]}") from e
 
         if not payload.get("success", False):
             err_msg = payload.get("error", {}).get("message", "Unknown ImgBB error")
@@ -131,13 +133,13 @@ class ImgBBUploader(UploaderBackend):
             raise UploadError("ImgBB API succeeded but returned no image URL.")
 
         logger.info("ImgBB upload successful: %s", link)
-        return link
+        return str(link)
 
 
 class TmpfilesUploader(UploaderBackend):
     """Uploads images to tmpfiles.org via their public REST API.
-    
-    This service is entirely anonymous, requires zero authentication, 
+
+    This service is entirely anonymous, requires zero authentication,
     and automatically deletes the image after a set period.
     """
 
@@ -150,23 +152,25 @@ class TmpfilesUploader(UploaderBackend):
         try:
             mime_type, _ = mimetypes.guess_type(file_path.name)
             content_type = mime_type or "application/octet-stream"
-            
+
             with open(file_path, "rb") as f:
                 # tmpfiles expects the 'file' parameter
                 files = {"file": (file_path.name, f, content_type)}
-                
+
                 with httpx.Client(timeout=30.0) as client:
                     response = client.post(
                         "https://tmpfiles.org/api/v1/upload",
                         files=files,
                     )
         except httpx.RequestError as e:
-            raise UploadError(f"Network error while uploading to tmpfiles.org: {e}")
+            raise UploadError(f"Network error while uploading to tmpfiles.org: {e}") from e
 
         try:
             payload = response.json()
-        except ValueError:
-            raise UploadError(f"Invalid JSON response from tmpfiles.org: {response.text[:100]}")
+        except ValueError as e:
+            raise UploadError(
+                f"Invalid JSON response from tmpfiles.org: {response.text[:100]}"
+            ) from e
 
         if not response.is_success or payload.get("status") != "success":
             err_msg = payload.get("message", "Unknown tmpfiles.org error")
@@ -183,4 +187,4 @@ class TmpfilesUploader(UploaderBackend):
             link = link.replace("tmpfiles.org/", "tmpfiles.org/dl/")
 
         logger.info("tmpfiles.org upload successful: %s", link)
-        return link
+        return str(link)

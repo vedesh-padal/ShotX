@@ -22,7 +22,7 @@ class FtpUploader(UploaderBackend):
         self.password = config.password
         self.remote_dir = config.remote_dir.rstrip("/")
         self.public_url_format = config.public_url_format
-        
+
         if not self.host:
             raise UploadError("FTP uploader requires a host in settings.")
         if not self.public_url_format:
@@ -33,7 +33,7 @@ class FtpUploader(UploaderBackend):
             raise UploadError(f"File not found: {file_path}")
 
         file_name = file_path.name
-        remote_path = f"{self.remote_dir}/{file_name}" if self.remote_dir else file_name
+        # remote_path = f"{self.remote_dir}/{file_name}" if self.remote_dir else file_name
 
         logger.info("Uploading %s to ftp://%s ...", file_name, self.host)
 
@@ -58,11 +58,11 @@ class FtpUploader(UploaderBackend):
 
                 with open(file_path, "rb") as f:
                     ftp.storbinary(f"STOR {file_name}", f)
-                    
-        except ftplib.all_errors as e:
-            raise UploadError(f"FTP upload failed: {e}")
 
-        link = self.public_url_format.format(key=file_name, filename=file_name)
+        except ftplib.all_errors as e:
+            raise UploadError(f"FTP upload failed: {e}") from e
+
+        link = str(self.public_url_format.format(key=file_name, filename=file_name))
         logger.info("FTP upload successful: %s", link)
         return link
 
@@ -79,7 +79,7 @@ class SftpUploader(UploaderBackend):
         self.key_file = config.key_file
         self.remote_dir = config.remote_dir.rstrip("/")
         self.public_url_format = config.public_url_format
-        
+
         if not self.host or not self.username:
             raise UploadError("SFTP uploader requires a host and username in settings.")
         if not self.public_url_format:
@@ -88,14 +88,14 @@ class SftpUploader(UploaderBackend):
     def upload(self, file_path: Path) -> str:
         try:
             import paramiko
-        except ImportError:
-            raise UploadError("SFTP uploading requires the `paramiko` package. Install with: pip install shotx[sftp]")
+        except ImportError as e:
+            raise UploadError("SFTP uploading requires the `paramiko` package. Install with: pip install shotx[sftp]") from e
 
         if not file_path.exists():
             raise UploadError(f"File not found: {file_path}")
 
         file_name = file_path.name
-        
+
         # Ensure remote_dir is absolute or relative as specified, default to empty
         remote_path = f"{self.remote_dir}/{file_name}" if self.remote_dir else file_name
 
@@ -103,7 +103,7 @@ class SftpUploader(UploaderBackend):
 
         try:
             transport = paramiko.Transport((self.host, self.port))
-            
+
             # Auth
             if self.key_file:
                 # Basic RSA or Ed25519 key loading
@@ -113,32 +113,32 @@ class SftpUploader(UploaderBackend):
                     try:
                         pkey = paramiko.RSAKey.from_private_key_file(self.key_file, password=self.password)
                     except paramiko.SSHException as e:
-                         raise UploadError(f"Failed to load SSH key: {e}")
+                        raise UploadError(f"Failed to load SSH key: {e}") from e
                 transport.connect(username=self.username, pkey=pkey)
             else:
                 transport.connect(username=self.username, password=self.password)
 
             sftp = paramiko.SFTPClient.from_transport(transport)
-            
+
             try:
                 # If a remote_dir is specified, make sure it exists (rudimentary check/create)
                 if self.remote_dir:
                     try:
                         sftp.stat(self.remote_dir)
-                    except IOError:
+                    except OSError:
                         try:
                             sftp.mkdir(self.remote_dir)
-                        except IOError as e:
+                        except OSError as e:
                             logger.warning("Failed to create remote directory %s: %s", self.remote_dir, e)
 
                 sftp.put(str(file_path), remote_path)
             finally:
                 sftp.close()
                 transport.close()
-                
-        except (paramiko.SSHException, IOError, Exception) as e:
-            raise UploadError(f"SFTP upload failed: {e}")
 
-        link = self.public_url_format.format(key=file_name, filename=file_name)
+        except (OSError, paramiko.SSHException, Exception) as e:
+            raise UploadError(f"SFTP upload failed: {e}") from e
+
+        link = str(self.public_url_format.format(key=file_name, filename=file_name))
         logger.info("SFTP upload successful: %s", link)
         return link

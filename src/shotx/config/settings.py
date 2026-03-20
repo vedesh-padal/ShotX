@@ -243,7 +243,9 @@ class AppSettings:
             ftp=ftp_config,
             sftp=sftp_config,
             shortener=shortener_config,
-            **upload_kwargs
+            enabled=upload_data.get("enabled", False),
+            default_uploader=upload_data.get("default_uploader", "tmpfiles"),
+            copy_url_to_clipboard=upload_data.get("copy_url_to_clipboard", True),
         )
 
         return cls(

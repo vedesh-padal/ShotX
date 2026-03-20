@@ -73,8 +73,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Scan the current clipboard image for a QR code.",
     )
     parser.add_argument(
-        "--pin-region", 
-        action="store_true", 
+        "--pin-region",
+        action="store_true",
         help="Capture a region and pin it as a floating window"
     )
     parser.add_argument(
@@ -180,7 +180,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print("Failed to remove XDG autostart entry.", file=sys.stderr)
             return 1
-            
+
     if args.setup_desktop:
         from shotx.core.desktop import install_desktop_menu
         if install_desktop_menu():
@@ -213,7 +213,7 @@ def main(argv: list[str] | None = None) -> int:
         # Suppress benign Qt Wayland DBus app registration warnings that clutter stdout
         os.environ["QT_LOGGING_RULES"] = "qt.qpa.*=false"
 
-    # Ensure Ctrl+C from terminal instantly kills the process, even if 
+    # Ensure Ctrl+C from terminal instantly kills the process, even if
     # the PySide6 C++ event loop (exec_) is running and blocking Python.
     import signal
     signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -226,23 +226,28 @@ def main(argv: list[str] | None = None) -> int:
     qt_app = QApplication.instance()
     if qt_app is None:
         qt_app = QApplication(sys.argv)
-    
+
     qt_app.setApplicationName("ShotX")
-    qt_app.setDesktopFileName("shotx")
+    if isinstance(qt_app, QApplication):
+        qt_app.setDesktopFileName("shotx")
     qt_app.setApplicationVersion(_get_version())
-    
+
     # Load and set application icon
     try:
-        from PySide6.QtGui import QIcon
         import importlib.resources as pkg_resources
+
+        from PySide6.QtGui import QIcon
         icon_path = pkg_resources.files("shotx.assets").joinpath("shotx.png")
-        if icon_path.exists():
+        # pkg_resources.files returns a Traversable, which doesn't guarantee str conversion
+        # but for files it works. Mypy wants explicit.
+        if icon_path.is_file() and isinstance(qt_app, QApplication):
             qt_app.setWindowIcon(QIcon(str(icon_path)))
     except Exception as e:
         import logging
         logging.getLogger(__name__).warning("Failed to load application icon: %s", e)
-        
-    qt_app.setStyleSheet("QToolTip { color: white; background-color: #2b2b2b; border: 1px solid #555; }")
+
+    if isinstance(qt_app, QApplication):
+        qt_app.setStyleSheet("QToolTip { color: white; background-color: #2b2b2b; border: 1px solid #555; }")
 
     # Create the app controller
     from shotx.app import ShotXApp

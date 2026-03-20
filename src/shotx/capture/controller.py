@@ -9,26 +9,27 @@ Extracted from the former god-class ``ShotXApp`` in ``app.py``.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from pathlib import Path
 
 from PySide6.QtCore import QEventLoop, QObject, QRect, QTimer, Slot
 from PySide6.QtGui import QColor, QImage, QPixmap
 
-from shotx.capture import create_capture_backend, CaptureBackend
+from shotx.capture import CaptureBackend, create_capture_backend
 from shotx.capture.recorder import ScreenRecorder
 from shotx.capture.region_detect import build_detect_regions
 from shotx.config.settings import SettingsManager
 from shotx.core.events import event_bus
+from shotx.db.history import HistoryManager
 from shotx.output.clipboard import (
     copy_image_to_clipboard,
     copy_text_to_clipboard,
     get_image_from_clipboard,
     get_text_from_clipboard,
 )
-from shotx.output.file_saver import save_image, expand_filename_pattern
+from shotx.output.file_saver import expand_filename_pattern, save_image
 from shotx.ui.notification import notify_capture_success, notify_info
-from shotx.db.history import HistoryManager
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +89,8 @@ class CaptureController(QObject):
 
     @Slot(str)
     def _on_capture_requested(self, capture_type: str) -> None:
-        dispatch = {
+        from collections.abc import Callable
+        dispatch: dict[str, Callable] = {
             "fullscreen": self.capture_fullscreen,
             "region": self.capture_region,
             "window": self.capture_region,
@@ -290,7 +292,7 @@ class CaptureController(QObject):
         if cropped.isNull():
             return False
 
-        from shotx.tools.ocr import extract_text, TesseractNotFoundError
+        from shotx.tools.ocr import TesseractNotFoundError, extract_text
 
         try:
             text = extract_text(cropped)
@@ -438,7 +440,7 @@ class CaptureController(QObject):
 
         cropped = backdrop.copy(rect)
 
-        from shotx.tools.qr import scan_qr, ZBarError
+        from shotx.tools.qr import ZBarError, scan_qr
 
         try:
             text = scan_qr(cropped)
@@ -511,7 +513,7 @@ class CaptureController(QObject):
             )
             return False
 
-        from shotx.tools.qr import scan_qr, ZBarError
+        from shotx.tools.qr import ZBarError, scan_qr
 
         try:
             text = scan_qr(img)
@@ -684,10 +686,8 @@ class CaptureController(QObject):
             gif_path = video_path.parent / gif_filename
             result_path = self._recorder.create_gif_from_video(video_path, gif_path)
             if result_path and result_path.exists():
-                try:
+                with contextlib.suppress(OSError):
                     video_path.unlink()
-                except OSError:
-                    pass
                 final_path = result_path
             else:
                 event_bus.notify_error_requested.emit(
@@ -700,7 +700,7 @@ class CaptureController(QObject):
             print(f"Saved recording to {final_path}")
 
         if self.settings.capture.show_notification:
-            notify_capture_success(None, str(final_path))
+            notify_capture_success(None, Path(final_path))
 
         return True
 
@@ -741,14 +741,14 @@ class CaptureController(QObject):
                 logger.warning("Failed to save screenshot to file")
         else:
             # We must save to a secure temporary file because uploader and editor need a file
-            import tempfile
             import os
+            import tempfile
             tmp_dir = Path(tempfile.gettempdir()) / "shotx"
             tmp_dir.mkdir(parents=True, exist_ok=True)
             fd, tmp_path_str = tempfile.mkstemp(dir=tmp_dir, suffix=".png", prefix="cap_")
             os.close(fd)
             # Use fixed high quality PNG for temp transit
-            if image.save(tmp_path_str, "PNG"):
+            if image.save(tmp_path_str, "PNG"):  # type: ignore[call-overload]
                 saved_path = Path(tmp_path_str)
             else:
                 logger.error("Failed to save temporary image to %s", tmp_path_str)

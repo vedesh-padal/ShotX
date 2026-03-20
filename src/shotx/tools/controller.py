@@ -14,6 +14,7 @@ from PySide6.QtCore import QObject, Slot
 
 from shotx.config.settings import SettingsManager
 from shotx.core.events import event_bus
+from shotx.db.history import HistoryManager
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class ToolController(QObject):
     def __init__(
         self,
         settings_manager: SettingsManager,
-        history_manager: object,
+        history_manager: HistoryManager,
         *,
         verbose: bool = False,
         parent: QObject | None = None,
@@ -57,7 +58,8 @@ class ToolController(QObject):
 
     @Slot(str)
     def _on_tool_requested(self, tool_name: str) -> None:
-        dispatch = {
+        from collections.abc import Callable
+        dispatch: dict[str, Callable] = {
             "hash": self.open_hash_checker,
             "indexer": self.open_directory_indexer,
             "editor": self.open_image_editor,
@@ -114,8 +116,9 @@ class ToolController(QObject):
         self, initial_image_path: str = "", exec_loop: bool = False
     ) -> bool:
         """Open the full image editor."""
-        from shotx.ui.editor import ImageEditorWindow
         from PySide6.QtGui import QImage
+
+        from shotx.ui.editor import ImageEditorWindow
 
         initial_image = None
         if initial_image_path:
@@ -128,13 +131,13 @@ class ToolController(QObject):
             from PySide6.QtCore import QEventLoop
 
             loop = QEventLoop()
-            original_closeEvent = self._image_editor.closeEvent
+            original_close_event = self._image_editor.closeEvent
 
-            def new_closeEvent(event):
+            def new_close_event(event):
                 loop.quit()
-                original_closeEvent(event)
+                original_close_event(event)
 
-            self._image_editor.closeEvent = new_closeEvent
+            setattr(self._image_editor, "closeEvent", new_close_event)  # noqa: B010
             loop.exec()
 
         return True

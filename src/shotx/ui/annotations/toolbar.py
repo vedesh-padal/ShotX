@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import logging
-from PySide6.QtCore import Qt, Signal, QEvent
+
+from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QColor, QCursor
 from PySide6.QtWidgets import (
-    QWidget, QHBoxLayout, QVBoxLayout,
-    QPushButton, QButtonGroup, QLabel, QColorDialog,
+    QButtonGroup,
+    QColorDialog,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
 )
 
 from .scene import AnnotationTool
@@ -17,27 +23,28 @@ logger = logging.getLogger(__name__)
 
 class _HoverButton(QPushButton):
     """QPushButton that emits hover signals for inline label updates."""
-    
+
     hovered = Signal(str)   # emits the tooltip text on enter
     unhovered = Signal()    # emits on leave
-    rightClicked = Signal() # emits on right-click release
-    
+    right_clicked = Signal() # emits on right-click release
+
     def __init__(self, text: str, hover_text: str, parent=None) -> None:
         super().__init__(text, parent)
         self._hover_text = hover_text
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-    
-    def enterEvent(self, event: QEvent) -> None:
+
+    from PySide6.QtGui import QEnterEvent
+    def enterEvent(self, event: QEnterEvent) -> None:
         self.hovered.emit(self._hover_text)
         super().enterEvent(event)
-        
+
     def leaveEvent(self, event: QEvent) -> None:
         self.unhovered.emit()
         super().leaveEvent(event)
-        
+
     def mouseReleaseEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.RightButton:
-            self.rightClicked.emit()
+            self.right_clicked.emit()
             event.accept()
             return
         super().mouseReleaseEvent(event)
@@ -45,7 +52,7 @@ class _HoverButton(QPushButton):
 
 class AnnotationToolbar(QWidget):
     """A floating horizontal toolbar with annotation tools."""
-    
+
     tool_selected = Signal(AnnotationTool)
     color_changed = Signal(QColor)
     thickness_changed = Signal(int)
@@ -64,15 +71,15 @@ class AnnotationToolbar(QWidget):
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        
+
         # No window flags — this is now a plain child widget of the overlay
         # This avoids all the Wayland tooltip/focus issues
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        
+
         outer_layout = QVBoxLayout(self)
         outer_layout.setContentsMargins(0, 0, 0, 0)
         outer_layout.setSpacing(2)
-        
+
         # --- Main button row ---
         self.bg_widget = QWidget(self)
         self.bg_widget.setStyleSheet(
@@ -84,7 +91,7 @@ class AnnotationToolbar(QWidget):
         btn_layout.setContentsMargins(8, 4, 8, 4)
         btn_layout.setSpacing(8)
         outer_layout.addWidget(self.bg_widget)
-        
+
         # --- Inline hover label (replaces unreliable native QToolTip) ---
         self._hover_label = QLabel("", self)
         self._hover_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -97,10 +104,10 @@ class AnnotationToolbar(QWidget):
         )
         self._hover_label.setFixedHeight(18)
         outer_layout.addWidget(self._hover_label)
-        
+
         self.tool_group = QButtonGroup(self)
         self.tool_group.setExclusive(True)
-        
+
         # Tool buttons
         self._add_tool_btn("👆", "Select (Move/Resize)", AnnotationTool.SELECT, btn_layout)
         self._add_tool_btn("⬛", "Rectangle", AnnotationTool.RECTANGLE, btn_layout, checked=True)
@@ -111,26 +118,26 @@ class AnnotationToolbar(QWidget):
         self._add_tool_btn("✂", "Crop (Drag box, hit Enter)", AnnotationTool.CROP, btn_layout)
         self._add_tool_btn("▓", "Blur / Pixelate", AnnotationTool.BLUR, btn_layout)
         self._add_tool_btn("🖍", "Highlight", AnnotationTool.HIGHLIGHT, btn_layout)
-        
+
         from .items import StepNumberItem
         self._add_tool_btn(
-            "#", "Step Number (Right-Click to reset)", AnnotationTool.STEP_NUMBER, 
+            "#", "Step Number (Right-Click to reset)", AnnotationTool.STEP_NUMBER,
             btn_layout, right_click_callback=StepNumberItem.reset_counter
         )
         self._add_tool_btn("🗑", "Erase", AnnotationTool.ERASER, btn_layout)
-        
+
         self.tool_group.idClicked.connect(self._on_tool_clicked)
-        
+
         # Separator
         self._add_separator(btn_layout)
-        
+
         # Undo / Redo
         self._add_action_btn("↩", "Undo (Ctrl+Z)", "#aaaaaa", btn_layout, self.undo_requested.emit)
         self._add_action_btn("↪", "Redo (Ctrl+Y)", "#aaaaaa", btn_layout, self.redo_requested.emit)
-        
+
         # Separator
         self._add_separator(btn_layout)
-        
+
         # Color swatch button
         self._color_btn = _HoverButton("●", "Change Color", self.bg_widget)
         self._color_btn.setFixedSize(self.BTN_SIZE, self.BTN_SIZE)
@@ -141,10 +148,10 @@ class AnnotationToolbar(QWidget):
         self._color_btn.hovered.connect(self._show_hover)
         self._color_btn.unhovered.connect(self._clear_hover)
         btn_layout.addWidget(self._color_btn)
-        
+
         # Separator
         self._add_separator(btn_layout)
-        
+
         # Action buttons
         self._add_action_btn("✔", "Accept & Save (Enter)", "#28a745", btn_layout, self.accept_requested.emit)
         self._add_action_btn("✕", "Cancel (Escape)", "#dc3545", btn_layout, self.cancel_requested.emit)
@@ -178,13 +185,13 @@ class AnnotationToolbar(QWidget):
         btn.setStyleSheet(self._button_style())
         btn.hovered.connect(self._show_hover)
         btn.unhovered.connect(self._clear_hover)
-        
+
         if right_click_callback:
-            btn.rightClicked.connect(right_click_callback)
-        
+            btn.right_clicked.connect(right_click_callback)
+
         self.tool_group.addButton(btn, id=tool.value)
         layout.addWidget(btn)
-        
+
     def _add_action_btn(
         self, icon_text: str, hover_text: str, color: str,
         layout: QHBoxLayout, callback,
@@ -217,7 +224,7 @@ class AnnotationToolbar(QWidget):
 
     def _show_hover(self, text: str) -> None:
         self._hover_label.setText(text)
-        
+
     def _clear_hover(self) -> None:
         self._hover_label.setText("")
 
