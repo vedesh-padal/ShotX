@@ -168,6 +168,7 @@ class ShotXApp(QObject):
                 return 1
 
         # Upload domain
+        elif capture_type == "shorten_url":
             url = cast("str | None", kwargs.get("url"))
             success = self._upload.shorten_clipboard_url(headless=True, url=url)
 

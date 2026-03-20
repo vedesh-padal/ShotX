@@ -20,23 +20,20 @@ def shorten_url_sync(long_url: str, provider: str = "tinyurl") -> str:
 
     try:
         if provider == "tinyurl":
-            api_url = f"https://tinyurl.com/api-create.php?url={long_url}"
             with httpx.Client(timeout=10.0) as client:
-                res = client.get(api_url)
+                res = client.get("https://tinyurl.com/api-create.php", params={"url": long_url})
                 res.raise_for_status()
                 return res.text.strip()
 
         elif provider == "isgd":
-            api_url = f"https://is.gd/create.php?format=simple&url={long_url}"
             with httpx.Client(timeout=10.0) as client:
-                res = client.get(api_url)
+                res = client.get("https://is.gd/create.php", params={"format": "simple", "url": long_url})
                 res.raise_for_status()
                 return res.text.strip()
 
         elif provider == "vgd":
-            api_url = f"https://v.gd/create.php?format=simple&url={long_url}"
             with httpx.Client(timeout=10.0) as client:
-                res = client.get(api_url)
+                res = client.get("https://v.gd/create.php", params={"format": "simple", "url": long_url})
                 res.raise_for_status()
                 return res.text.strip()
 
