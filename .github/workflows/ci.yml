@@ -27,7 +27,13 @@ jobs:
             pkg-config \
             gobject-introspection \
             libglib2.0-dev \
-            libgirepository-2.0-dev
+            libgirepository-2.0-dev \
+            # for 
+            xvfb \
+            libegl1 \
+            libgl1 \
+            libopengl0 \
+            libxcb-cursor0
 
       - name: Install dependencies
         run: uv sync --all-groups
@@ -39,4 +45,4 @@ jobs:
         run: uv run mypy src/
 
       - name: Run tests with pytest
-        run: uv run pytest
+        run: xvfb-run -a uv run pytest
