@@ -24,6 +24,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QSystemTrayIcon
 from shotx.config import AppSettings, SettingsManager
 from shotx.config.settings import _default_config_dir
 from shotx.core.events import event_bus
+from shotx.core.logging import setup_logging
 
 if TYPE_CHECKING:
     from shotx.ui.tray import TrayIcon
@@ -322,16 +323,7 @@ class ShotXApp(QObject):
 
     def _setup_logging(self) -> None:
         """Configure logging based on verbosity."""
-        level = logging.DEBUG if self._verbose else logging.WARNING
-        logging.basicConfig(
-            level=level,
-            format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-            datefmt="%H:%M:%S",
-        )
-        if self._verbose:
-            logging.getLogger("httpcore").setLevel(logging.INFO)
-            logging.getLogger("httpx").setLevel(logging.INFO)
-            logging.getLogger("asyncio").setLevel(logging.INFO)
+        setup_logging(verbose=self._verbose)
 
     @Slot(str)
     def _on_notify_error(self, message: str) -> None:
