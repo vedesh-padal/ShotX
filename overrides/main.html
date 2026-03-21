@@ -1,18 +1,24 @@
 {% extends "base.html" %}
 
 {% block extrahead %}
+  <meta property="og:site_name" content="ShotX Documentation">
+
   {% if page.is_homepage %}
     <!-- Manual Social Meta for Homepage (Optimized 77KB JPG) -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="ShotX — Screen Capture & Screenshot Tool for Linux">
     <meta property="og:description" content="A free, open-source screenshot and screen capture tool for Linux — inspired by ShareX.">
     <meta property="og:image" content="https://shotx.vedeshpadal.me/assets/og.jpg">
+    <meta property="og:image:secure_url" content="https://shotx.vedeshpadal.me/assets/og.jpg">
     <meta property="og:image:type" content="image/jpeg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="ShotX — Advanced screenshot utility for Linux.">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="ShotX — Screen Capture & Screenshot Tool for Linux">
-    <meta name="twitter:description" content="A free, open-source screenshot and screen capture tool for Linux — inspired by ShareX.">
     <meta name="twitter:image" content="https://shotx.vedeshpadal.me/assets/og.jpg">
+  {% else %}
+    {% if config.plugins.social %}
+      <meta property="og:image:secure_url" content="https://shotx.vedeshpadal.me/assets/images/social/{{ page.file.src_path | replace('.md', '.png') }}">
+    {% endif %}
   {% endif %}
 {% endblock %}
