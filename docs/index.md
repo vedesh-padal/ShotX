@@ -1,7 +1,7 @@
 ---
 title: ShotX — Screen Capture & Screenshot Tool for Linux
 description: A free, open-source screenshot and screen capture tool for Linux — inspired by ShareX.
-image: assets/og.png
+image: assets/og.jpg
 social:
     cards: false
 ---

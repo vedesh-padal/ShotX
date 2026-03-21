@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block extrahead %}
+  {% if page.is_homepage %}
+    <!-- Manual Social Meta for Homepage (Optimized 77KB JPG) -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="ShotX — Screen Capture & Screenshot Tool for Linux">
+    <meta property="og:description" content="A free, open-source screenshot and screen capture tool for Linux — inspired by ShareX.">
+    <meta property="og:image" content="https://shotx.vedeshpadal.me/assets/og.jpg">
+    <meta property="og:image:type" content="image/jpeg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="ShotX — Screen Capture & Screenshot Tool for Linux">
+    <meta name="twitter:description" content="A free, open-source screenshot and screen capture tool for Linux — inspired by ShareX.">
+    <meta name="twitter:image" content="https://shotx.vedeshpadal.me/assets/og.jpg">
+  {% endif %}
+{% endblock %}
