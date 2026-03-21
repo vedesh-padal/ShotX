@@ -1,3 +1,8 @@
+---
+title: Screen Capture — Fullscreen, Region & Window
+description: Explore ShotX's screen capture modes, including auto-detecting regions and capturing active windows.
+---
+
 # Screen Capture
 
 ShotX supports multiple capture modes, all accessible from the tray menu, Main Window sidebar, hotkeys, or CLI.
@@ -9,6 +14,8 @@ Captures the entire screen (or a specific monitor in multi-monitor setups).
 ```bash
 shotx --capture-fullscreen
 ```
+!!! tip
+    You can specify a delay using the `--delay` flag (e.g., `shotx --capture-fullscreen --delay 3`).
 
 **How it works:**
 
@@ -65,7 +72,7 @@ When enabled, ShotX uses:
 - **AT-SPI2**: Accessibility tree for sub-window UI element detection
 
 !!! note
-AT-SPI2 requires PyGObject. See [Installation](../getting-started/installation.md#at-spi2-sub-region-auto-detection) for setup.
+    AT-SPI2 requires PyGObject. See [Installation](../getting-started/installation.md#at-spi2-sub-region-auto-detection) for setup.
 
 ## After-Capture Pipeline
 
@@ -78,7 +85,8 @@ The after-capture pipeline is a configurable sequence of actions:
 | Upload Image      | Trigger the background upload engine | ❌ Off  |
 | Open in Editor    | Launch internal drawing tool        | ❌ Off  |
 
-> [!NOTE] Disk Spooling Fallback
-> The **Upload** and **Editor** tools fundamentally require a physical file path to read or transmit image bytes. If you have "Save to file" **unchecked** but still request an Upload or Edit action, ShotX will automatically save a silent, high-quality temporary file to `/tmp/shotx/` so the background workers don't crash. Since Linux automatically clears the `/tmp` RAM-disk upon reboot or memory pressure, no manual cleanup is required!
+!!! note
+    #### **Disk Spooling Fallback**
+    The **Upload** and **Editor** tools fundamentally require a physical file path to read or transmit image bytes. If you have "Save to file" **unchecked** but still request an Upload or Edit action, ShotX will automatically save a silent, high-quality temporary file to `/tmp/shotx/` so the background workers don't crash. Since Linux automatically clears the `/tmp` RAM-disk upon reboot or memory pressure, no manual cleanup is required!
 
 Configure via Main Window sidebar → After Capture Tasks, or Settings → Workflow.

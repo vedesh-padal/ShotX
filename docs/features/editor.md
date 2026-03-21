@@ -1,3 +1,8 @@
+---
+title: Image Editor — Crop, Resize & Effects
+description: Edit your screenshots with a lightweight, built-in editor featuring cropping, resizing, and various visual effects.
+---
+
 # Image Editor
 
 ShotX includes a full-featured image editor with annotation tools, effects, beautification, and image combining.

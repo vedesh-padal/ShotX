@@ -1,3 +1,8 @@
+---
+title: Platform Caveats — Wayland & Desktop Environments
+description: Known platform-specific issues and configuration tips for different display servers and desktop portals.
+---
+
 # Platform Caveats & Known Limitations
 
 Known platform-specific behaviors, workarounds, and limitations discovered during development.

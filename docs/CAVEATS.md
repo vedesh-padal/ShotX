@@ -1,4 +1,9 @@
-# ShotX — Caveats & Platform Notes
+---
+title: Known Limitations — ShotX Development Notes
+description: A list of known limitations and missing features currently in the ShotX implementation.
+---
+
+# Feature Caveats & Platform Notes
 
 Collected during development. Use for README, GitHub Wiki, and troubleshooting docs.
 

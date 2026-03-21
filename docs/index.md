@@ -1,3 +1,11 @@
+---
+title: ShotX — Screen Capture & Screenshot Tool for Linux
+description: A free, open-source screenshot and screen capture tool for Linux — inspired by ShareX.
+image: assets/og.png
+social:
+    cards: false
+---
+
 <p align="center">
   <img src="assets/logo.png" width="160" alt="ShotX Logo">
 </p>
@@ -10,13 +18,13 @@ ShotX brings the power of ShareX to the Linux desktop: instant screen capture, r
 
 ## What Can ShotX Do?
 
-| Category     | Features                                                                          |
-| ------------ | --------------------------------------------------------------------------------- |
-| **Capture**  | Fullscreen, region (with auto-detect), configurable delay, cursor toggle          |
-| **Annotate** | Arrows, shapes, text, blur, highlight, step numbers — during capture or in editor |
-| **Record**   | Screen recording to MP4 or GIF with audio capture                                 |
-| **Upload**   | Imgur, ImgBB, tmpfiles.org, S3, FTP/SFTP, custom `.sxcu` uploaders                |
-| **Edit**     | Crop, resize, effects, beautifier, combiner                                       |
+| Category     | Features                                                                                                                                                  |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Capture**  | Fullscreen, region (with auto-detect), configurable delay, cursor toggle                                                                                  |
+| **Annotate** | Arrows, shapes, text, blur, highlight, step numbers — during capture or in editor                                                                         |
+| **Record**   | Screen recording to MP4 or GIF with audio capture                                                                                                         |
+| **Upload**   | Imgur, ImgBB, tmpfiles.org, S3, FTP/SFTP, custom `.sxcu` uploaders                                                                                        |
+| **Edit**     | Crop, resize, effects, beautifier, combiner                                                                                                               |
 | **Tools**    | OCR, color picker, ruler, hash checker, directory indexer. `--setup-desktop`: Install app menu entry. `--install-autostart`: Create start-on-login entry. |
 
 ## Quick Example
@@ -44,4 +52,4 @@ ShotX is **Wayland-first** with full X11 fallback:
 - **X11**: XCB/Xlib capture backend
 
 !!! note "Beta Status"
-ShotX is under active development. Core features are complete and stable, with documentation and packaging improvements ongoing.
+    ShotX is under active development. Core features are complete and stable, with documentation and packaging improvements ongoing.

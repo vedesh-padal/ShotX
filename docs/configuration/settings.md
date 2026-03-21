@@ -1,6 +1,14 @@
+---
+title: Settings Reference — Configure Your Experience
+description: Detailed reference for all ShotX settings, from capture behavior and file naming to automated workflows.
+---
+
 # Settings Reference
 
 ShotX stores configuration in `~/.config/shotx/settings.yaml`. Settings can be edited via the Settings dialog in the Main Window or directly in the YAML file.
+
+!!! note
+    Manual changes to `settings.yaml` require an app restart to take effect if changed while the app is running.
 
 ## Capture Settings
 
@@ -21,8 +29,8 @@ capture:
     capture_audio: false           # Record system audio
 ```
 
-> [!NOTE]
-> `after_capture_action: edit` opens the annotation overlay before saving. `save` saves the screenshot immediately without annotation.
+!!! note
+    `after_capture_action: edit` opens the annotation overlay before saving. `save` saves the screenshot immediately without annotation.
 
 ## Filename Pattern Variables
 

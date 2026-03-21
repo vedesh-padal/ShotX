@@ -1,3 +1,8 @@
+---
+title: Architecture — Inside the ShotX Core
+description: High-level overview of ShotX's modular architecture, including controllers, backends, and event bus.
+---
+
 # Architecture
 
 ShotX uses an **event-driven architecture** with domain-specific controllers, a central signal hub, and a thin orchestrator.

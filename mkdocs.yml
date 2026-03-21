@@ -38,6 +38,12 @@ plugins:
   - search
   - minify:
       minify_html: true
+  - social:
+      cards: true
+      cards_layout: default/only/image
+      cards_layout_options:
+        background_image: docs/assets/logo.png
+        background_color: transparent
 
 markdown_extensions:
   - admonition

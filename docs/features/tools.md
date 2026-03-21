@@ -1,3 +1,8 @@
+---
+title: Productivity Tools — OCR, Color Picker & Ruler
+description: ShotX includes extra tools like OCR text extraction, an accurate screen ruler, and a pixel-perfect color picker.
+---
+
 # Productivity Tools
 
 ShotX includes several standalone tools accessible from the tray menu, Main Window, or CLI.
@@ -13,7 +18,7 @@ shotx --ocr
 **Flow:** Select region → Tesseract processes → extracted text copied to clipboard → notification shown.
 
 !!! note "Requires `tesseract-ocr`"
-Install: `sudo apt install tesseract-ocr`
+    Install: `sudo apt install tesseract-ocr` (or whichever pkg manager you use)
 
 ## Color Picker
 
@@ -62,7 +67,7 @@ shotx --qr-generate
 ```
 
 !!! note "Requires `libzbar0`"
-QR scanning requires zbar. Install: `sudo apt install libzbar0`
+    QR scanning requires zbar. Install: `sudo apt install libzbar0`
 
 ## Pin to Screen
 

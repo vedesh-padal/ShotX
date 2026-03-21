@@ -1,3 +1,8 @@
+---
+title: Screen Recording — MP4 & GIF with Audio
+description: Record your screen to high-quality MP4 or GIF with system audio and microphone support.
+---
+
 # Screen Recording
 
 ShotX can record any screen region as **MP4** or **GIF**.
@@ -34,7 +39,7 @@ Records as MP4 first, then post-processes with FFmpeg using the `palettegen` + `
 | Wayland (GNOME)   | Not yet supported   | —             |
 
 !!! warning "GNOME Wayland"
-GNOME Wayland does not support `wf-recorder` (it relies on `wlr-screencopy` which GNOME refuses to implement). The only option is the XDG Desktop Portal + PipeWire, which forces a security popup on every recording. This is planned for a future release.
+    GNOME Wayland does not support `wf-recorder` (it relies on `wlr-screencopy` which GNOME refuses to implement). The only option is the XDG Desktop Portal + PipeWire, which forces a security popup on every recording. This is planned for a future release.
 
     For now, GNOME Wayland users can use GNOME's built-in recorder (++ctrl+shift+alt+r++) or switch to an X11 session.
 

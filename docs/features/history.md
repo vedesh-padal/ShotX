@@ -1,3 +1,8 @@
+---
+title: Capture History — Browse & Manage Past Shots
+description: Access your history of screenshots and recordings, search by date, and manage your past uploads easily.
+---
+
 # Capture History
 
 ShotX provides two ways to view and manage your past captures: an embedded **Image History** grid in the Main Window and a standalone **History** spreadsheet viewer.

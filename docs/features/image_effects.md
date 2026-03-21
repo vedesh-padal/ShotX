@@ -1,3 +1,8 @@
+---
+title: Image Effects — Shadows, Borders & More
+description: Apply various visual effects like drop shadows, borders, and rounded corners to your screenshots.
+---
+
 # Image Effects
 
 The Image Effects dialog provides users with basic image beautification parameters including frames, background padding, shadows, and text watermarking.

@@ -1,3 +1,8 @@
+---
+title: CLI Reference — Scripting & Automation
+description: Documentation for ShotX's command-line interface, including capture flags and headless operations.
+---
+
 # CLI Reference
 
 Complete reference for all ShotX command-line options.

@@ -1,3 +1,8 @@
+---
+title: Annotation Tools — Arrows, Text, Blur & Steps
+description: Use ShotX's built-in annotation tools to highlight, blur, add step numbers to your captures and many more.
+---
+
 # Annotation Tools
 
 ShotX provides a full suite of annotation tools, available both in the **capture overlay** (annotate during region capture) and the **standalone image editor**.

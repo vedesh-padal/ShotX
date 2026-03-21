@@ -1,3 +1,8 @@
+---
+title: Custom Uploaders — SXCU File Support
+description: Learn how to create and use custom `.sxcu` files to upload your screenshots to any API or web service.
+---
+
 # Custom Uploaders (.sxcu)
 
 ShotX supports ShareX's `.sxcu` custom uploader format, allowing you to upload to any HTTP-based file hosting service.
@@ -60,8 +65,8 @@ Use `{json:path.to.field}` syntax to extract values from JSON responses:
 
 Many services provide pre-made `.sxcu` files:
 
-- [ShareX Custom Uploaders](https://getsharex.com/custom-uploaders/) — official ShareX repository
+- [ShareX Custom Uploaders](https://getsharex.com/docs/custom-uploader) — official ShareX repository
 - GitHub — search for `.sxcu` files for your preferred hosting service
 
 !!! note
-ShotX aims for compatibility with the core ShareX `.sxcu` format. Some advanced ShareX-specific features (like conditional logic) may not be supported.
+    ShotX aims for compatibility with the core ShareX `.sxcu` format. Some advanced ShareX-specific features (like conditional logic) may not be supported.

@@ -1,3 +1,8 @@
+---
+title: Image Beautifier — Framed Screenshots with Gradients
+description: Create professional-looking screenshots with custom backgrounds, padding, and smooth gradients.
+---
+
 # Image Beautifier
 
 The Image Beautifier is a one-click macro tool designed to generate modern, aesthetic "macOS-style" screenshot presentations without requiring manual layer configuration.

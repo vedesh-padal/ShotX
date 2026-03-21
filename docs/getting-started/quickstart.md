@@ -1,3 +1,8 @@
+---
+title: Quick Start — Start Capturing in Seconds
+description: Get up and running with ShotX in under a minute with this quick guide to core features and hotkeys.
+---
+
 # Quick Start
 
 ## Tray Mode (Primary)

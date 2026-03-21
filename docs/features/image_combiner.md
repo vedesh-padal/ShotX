@@ -1,3 +1,8 @@
+---
+title: Image Combiner — Join Multiple Shots
+description: Quickly merge multiple screenshots into a single image, either vertically or horizontally.
+---
+
 # Image Combiner
 
 The Image Combiner tool allows users to mechanically append a secondary image file onto the boundaries of their current Image Editor canvas.

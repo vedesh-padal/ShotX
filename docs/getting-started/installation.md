@@ -1,12 +1,18 @@
-# Installation
+---
+title: Installation Guide — ShotX
+description: Learn how to install ShotX on various Linux distributions using source code, PyPI, or community packages.
+---
+
+# Installation Guide
 
 ## One-liner (Recommended)
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/vedesh-padal/ShotX/main/scripts/install.sh | sh
+curl -sSL https://raw.githubusercontent.com/vedesh-padal/ShotX/main/install.sh | sh
 ```
 
 This automatically:
+
 1. Detects your package manager (apt / dnf / pacman / zypper / apk)
 2. Installs all system dependencies
 3. Installs [uv](https://docs.astral.sh/uv/) if not present
@@ -14,11 +20,12 @@ This automatically:
 5. Creates a `shotx` launcher at `~/.local/bin/shotx`
 6. Adds an XDG autostart entry so ShotX launches on login
 
-> [!NOTE]
-> `~/.local/bin` must be in your `PATH`. If it isn't, add this to your shell config and restart:
-> ```bash
-> export PATH="$HOME/.local/bin:$PATH"
-> ```
+!!! note
+    `~/.local/bin` must be in your `PATH`. If it isn't, add this to your shell config and restart:
+
+    ```bash
+    export PATH="$HOME/.local/bin:$PATH"
+    ```
 
 **Env-var overrides for CI / Docker builds:**
 
@@ -56,8 +63,8 @@ uv run shotx           # System tray mode
 uv run shotx --help    # See all CLI options
 ```
 
-> [!TIP]
-> You can also use the inclusive `Justfile` or `Makefile` in the root for automated setup and development tasks (e.g., `just setup-deps-debian`, `just sync`).
+!!! tip
+    You can also use the inclusive `Justfile` or `Makefile` in the root for automated setup and development tasks (e.g., `just setup-deps-debian`, `just sync`).
 
 ### With pip
 
@@ -82,10 +89,10 @@ Some features require system packages. ShotX works without them but with reduced
 
 ### Recommended
 
-| Package      | Purpose                                      | Install (Ubuntu/Debian)       |
-| ------------ | -------------------------------------------- | ----------------------------- |
-| `xclip`      | Persistent clipboard in X11 CLI mode         | `sudo apt install xclip`      |
-| `wl-copy`    | Persistent clipboard in Wayland CLI mode     | `sudo apt install wl-clipboard` |
+| Package   | Purpose                                  | Install (Ubuntu/Debian)         |
+| --------- | ---------------------------------------- | ------------------------------- |
+| `xclip`   | Persistent clipboard in X11 CLI mode     | `sudo apt install xclip`        |
+| `wl-copy` | Persistent clipboard in Wayland CLI mode | `sudo apt install wl-clipboard` |
 
 ### Optional (Feature-Specific)
 
@@ -99,10 +106,12 @@ Some features require system packages. ShotX works without them but with reduced
 | `slurp`         | Region selection on Sway/Hyprland      | `sudo apt install slurp`         |
 
 <a name="at-spi2-sub-region-auto-detection"></a>
-> **Note:** PyGObject is automatically downloaded as a core Python dependency for native DBus notifications. However, if you are building from source, you may need to install the system headers. The exact package name depends on your Ubuntu/Debian version:
->
-> - **Ubuntu 22.04 / Debian 11**: `sudo apt install libcairo2-dev libgirepository1.0-dev pkg-config`
-> - **Ubuntu 24.04+ / Debian 12+**: `sudo apt install libcairo2-dev libgirepository-2.0-dev pkg-config`
+
+!!! note
+    PyGObject is automatically downloaded as a core Python dependency for native DBus notifications. However, if you are building from source, you may need to install the system headers. The exact package name depends on your Ubuntu/Debian version:
+
+    - **Ubuntu 22.04 / Debian 11**: `sudo apt install libcairo2-dev libgirepository1.0-dev pkg-config`
+    - **Ubuntu 24.04+ / Debian 12+**: `sudo apt install libcairo2-dev libgirepository-2.0-dev pkg-config`
 
 ## PyPI (Coming Soon)
 

@@ -1,3 +1,8 @@
+---
+title: Upload Engine — Imgur, S3, FTP & Custom
+description: Configure ShotX to automatically upload your captures to Imgur, S3, FTP, or your own custom uploader.
+---
+
 # Upload Engine
 
 ShotX supports uploading screenshots and files to multiple destinations. Uploads run in the background with progress notifications.

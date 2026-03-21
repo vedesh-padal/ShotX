@@ -1,3 +1,8 @@
+---
+title: Hotkeys — Global Shortcuts for Speed
+description: Configure global keyboard shortcuts for instant capturing, OCR, color picking, and more.
+---
+
 # Hotkeys
 
 ShotX supports configurable global keyboard shortcuts for common actions.
@@ -50,13 +55,13 @@ Use Qt-style key names separated by `+`:
 Examples: `Alt+Shift+X`, `Ctrl+Print`, `F5`
 
 !!! warning "Wayland Limitation"
-On Wayland, applications cannot globally intercept keyboard shortcuts due to security isolation. Hotkeys only work when the ShotX window/tray is focused.
-
-**Workaround:** Configure your desktop environment to run ShotX CLI commands as custom keyboard shortcuts:
-
-| Desktop    | Where to configure                                                             |
-| ---------- | ------------------------------------------------------------------------------ |
-| GNOME      | Settings → Keyboard → Custom Shortcuts                                         |
-| KDE Plasma | System Settings → Shortcuts → Custom Shortcuts                                 |
-| Sway       | `~/.config/sway/config`: `bindsym Print exec shotx --capture-fullscreen`       |
-| Hyprland   | `~/.config/hypr/hyprland.conf`: `bind = , Print, exec, shotx --capture-region` |
+    On Wayland, applications cannot globally intercept keyboard shortcuts due to security isolation. Hotkeys only work when the ShotX window/tray is focused.
+    
+    **Workaround:** Configure your desktop environment to run ShotX CLI commands as custom keyboard shortcuts:
+    
+    | Desktop    | Where to configure                                                             |
+    | ---------- | ------------------------------------------------------------------------------ |
+    | GNOME      | Settings → Keyboard → Custom Shortcuts                                         |
+    | KDE Plasma | System Settings → Shortcuts → Custom Shortcuts                                 |
+    | Sway       | `~/.config/sway/config`: `bindsym Print exec shotx --capture-fullscreen`       |
+    | Hyprland   | `~/.config/hypr/hyprland.conf`: `bind = , Print, exec, shotx --capture-region` |
