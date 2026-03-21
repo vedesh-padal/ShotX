@@ -2,12 +2,18 @@
   <img src="docs/assets/logo.png" width="100" alt="ShotX Logo">
   <br>
   <b>ShotX</b>
+  <br>
+  <i>Advanced Screenshot & Screen Capture Utility for Linux</i>
+  <br><br>
+  <a href="https://shotx.vedeshpadal.me/">
+    <img src="https://img.shields.io/badge/Documentation-ShotX-blueviolet?style=for-the-badge&logo=readthedocs&logoColor=white" alt="Documentation">
+  </a>
   <br><br>
   <a href="https://github.com/vedesh-padal/ShotX/actions/workflows/ci.yml">
     <img src="https://github.com/vedesh-padal/ShotX/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
   <a href="https://github.com/vedesh-padal/ShotX/actions/workflows/docs.yml">
-    <img src="https://github.com/vedesh-padal/ShotX/actions/workflows/docs.yml/badge.svg" alt="Documentation">
+    <img src="https://github.com/vedesh-padal/ShotX/actions/workflows/docs.yml/badge.svg" alt="Documentation Build">
   </a>
   <img src="https://img.shields.io/github/license/vedesh-padal/ShotX" alt="License">
   <img src="https://img.shields.io/badge/Status-Beta-purple" alt="Status">
@@ -105,7 +111,13 @@ ShotX is a Python application, but some features require system packages:
 
 ## Installation
 
-### From Source (Recommended)
+### One-liner (Recommended)
+
+```bash
+curl -sSL https://shotx.vedeshpadal.me/install.sh | sh
+```
+
+### From Source
 
 ```bash
 # Clone the repository
@@ -159,7 +171,7 @@ shotx --shorten-url [URL]         # Shorten URL (reads clipboard if no URL)
 
 # Options
 shotx --config-dir PATH           # Override config directory
-shotx --verbose                   # Enable debug logging
+shotx --verbose                   # Enable colored debug logging
 ```
 
 ## Configuration
