@@ -32,20 +32,20 @@ class ColoredFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         """Format the log record with colors if it's a TTY."""
         level_color = self.COLORS.get(record.levelno, "")
-        
+
         # We want to color parts of the message, not necessarily the whole line
         # to keep it readable.
-        
+
         # Original format: "%(asctime)s [%(name)s] %(levelname)s: %(message)s"
-        
+
         # Apply dim to timestamp and name
         timestamp = f"{self.DIM}{self.formatTime(record, self.datefmt)}{self.RESET}"
         # Pad logger name to 25 chars for consistent alignment
         name = f"{self.DIM}[{record.name:25}]{self.RESET}"
-        
+
         # Apply color and bold to level, left-aligned in 8 chars
         level = f"{self.BOLD}{level_color}{record.levelname:<8}{self.RESET}"
-        
+
         # Leave message as is, or maybe bold it for ERROR/CRITICAL
         message = record.getMessage()
         if record.levelno >= logging.ERROR:
@@ -75,6 +75,7 @@ def setup_logging(verbose: bool = False) -> None:
     handler.setLevel(level)
 
     # Use colored formatter if outputting to a terminal
+    formatter: logging.Formatter
     if sys.stdout.isatty():
         # Pass None for fmt/datefmt as ColoredFormatter.format handles it
         formatter = ColoredFormatter(datefmt="%H:%M:%S")
