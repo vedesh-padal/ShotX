@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from shotx.tools.hash_tool import calculate_file_hashes, calculate_hashes
+from shotx.ui.theme import Theme
 
 
 class HashDialog(QDialog):
@@ -30,8 +31,8 @@ class HashDialog(QDialog):
         # button is to make the dialog a fixed size.
         self.setFixedSize(650, 400)
 
-        # Unified Nord Theme (Consistent across Light/Dark systems)
-        self._apply_nord_theme()
+        # Unified Theme
+        self._apply_theme()
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
@@ -107,57 +108,53 @@ class HashDialog(QDialog):
 
         layout.addWidget(verify_frame)
 
-    def _apply_nord_theme(self) -> None:
-        """Apply a handcrafted Nord-inspired theme that works everywhere."""
-        # Nord Palette
-        # Polar Night: #2e3440 (bg), #3b4252 (cards), #434c5e (borders)
-        # Snow Storm: #eceff4 (text), #d8dee9 (subtext)
-        # Frost: #88c0d0 (accent), #81a1c1 (hover)
-
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #2e3440;
-            }
-            QFrame#GroupFrame {
-                background-color: #3b4252;
-                border: 1px solid #434c5e;
+    def _apply_theme(self) -> None:
+        """Apply the global ShotX theme."""
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {Theme.BASE_DARK};
+            }}
+            QFrame#GroupFrame {{
+                background-color: {Theme.BASE_LIGHTER};
+                border: 1px solid rgba(255, 255, 255, 0.1);
                 border-radius: 8px;
-            }
-            QLabel {
-                color: #eceff4;
+            }}
+            QLabel {{
+                color: {Theme.TEXT_PRIMARY};
                 font-weight: 500;
-            }
-            QLineEdit {
-                background-color: #242933;
-                color: #eceff4;
-                border: 1px solid #434c5e;
+            }}
+            QLineEdit {{
+                background-color: {Theme.BASE_DARK};
+                color: {Theme.TEXT_PRIMARY};
+                border: 1px solid rgba(255, 255, 255, 0.1);
                 border-radius: 4px;
                 padding: 6px;
                 font-family: 'Monospace', 'Cousine';
-            }
-            QPushButton {
-                background-color: #434c5e;
-                color: #eceff4;
-                border: 1px solid #4c566a;
+            }}
+            QPushButton {{
+                background-color: {Theme.BASE_LIGHTER};
+                color: {Theme.TEXT_PRIMARY};
+                border: 1px solid rgba(255, 255, 255, 0.1);
                 padding: 6px 12px;
                 border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #4c566a;
-            }
-            QPushButton#ActionBtn {
-                background-color: #5e81ac;
-                color: #eceff4;
+            }}
+            QPushButton:hover {{
+                background-color: rgba(255, 255, 255, 0.1);
+            }}
+            QPushButton#ActionBtn {{
+                background-color: {Theme.ACCENT_PURPLE};
+                color: #ffffff;
                 font-weight: bold;
                 padding: 10px;
                 border: none;
-            }
-            QPushButton#ActionBtn:hover {
-                background-color: #81a1c1;
-            }
+            }}
+            QPushButton#ActionBtn:hover {{
+                background-color: {Theme.ACCENT_PURPLE};
+                opacity: 0.9;
+            }}
         """)
-        self._success_color = "#a3be8c" # Nord Green
-        self._error_color = "#bf616a"   # Nord Red
+        self._success_color = "#a3be8c" # Keep soft green for success
+        self._error_color = "#bf616a"   # Keep soft red for error
 
     def _on_open_file(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(self, "Select File to Hash")

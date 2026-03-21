@@ -8,6 +8,8 @@ are silently ignored.
 import os
 import tempfile
 
+from shotx.ui.theme import Theme
+
 # ---------------------------------------------------------------------------
 # Arrow SVG generation
 # ---------------------------------------------------------------------------
@@ -69,17 +71,17 @@ def _build_settings_qss() -> str:
     p = _ensure_arrow_svgs()
     return f"""
 QDialog {{
-    background-color: #313338;
-    color: #dcddde;
+    background-color: {Theme.BASE_DARK};
+    color: {Theme.TEXT_PRIMARY};
 }}
 
 QListWidget {{
     border: none;
-    background-color: #2b2d31;
+    background-color: {Theme.BASE_DARK};
     border-radius: 6px;
     font-size: 14px;
     outline: none;
-    color: #949ba4;
+    color: {Theme.TEXT_SECONDARY};
 }}
 
 QListWidget::item {{
@@ -89,23 +91,23 @@ QListWidget::item {{
 }}
 
 QListWidget::item:hover {{
-    background-color: rgba(255, 255, 255, 0.08);
-    color: #dbdee1;
+    background-color: rgba(255, 255, 255, 0.05);
+    color: {Theme.TEXT_PRIMARY};
 }}
 
 QListWidget::item:selected {{
-    background-color: #4752c4;
+    background-color: {Theme.ACCENT_PURPLE};
     color: #ffffff;
     font-weight: bold;
 }}
 
 QGroupBox {{
     font-weight: bold;
-    border: 1px solid #1e1f22;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     margin-top: 20px;
-    background-color: #2b2d31;
-    color: #dcddde;
+    background-color: {Theme.BASE_LIGHTER};
+    color: {Theme.TEXT_PRIMARY};
     padding-top: 16px;
 }}
 
@@ -115,7 +117,7 @@ QGroupBox::title {{
     left: 12px;
     top: 4px;
     padding: 0 4px;
-    color: #f2f3f5;
+    color: {Theme.ACCENT_PURPLE};
     background-color: transparent;
 }}
 
@@ -129,8 +131,8 @@ QCheckBox {{
 }}
 
 QPushButton {{
-    background-color: #4e5058;
-    border: none;
+    background-color: {Theme.BASE_LIGHTER};
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 4px;
     padding: 8px 16px;
     color: #ffffff;
@@ -138,25 +140,25 @@ QPushButton {{
 }}
 
 QPushButton:hover {{
-    background-color: #6d6f78;
+    background-color: rgba(255, 255, 255, 0.1);
 }}
 
 QPushButton:pressed {{
-    background-color: #404249;
+    background-color: {Theme.ACCENT_PURPLE};
 }}
 
 QLineEdit, QSpinBox, QComboBox {{
-    border: 1px solid #1e1f22;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 6px;
     padding: 6px 8px;
-    background-color: #1e1f22;
-    color: #dbdee1;
-    selection-background-color: #4752c4;
+    background-color: {Theme.BASE_DARK};
+    color: {Theme.TEXT_PRIMARY};
+    selection-background-color: {Theme.ACCENT_PURPLE};
     selection-color: #ffffff;
 }}
 
 QLineEdit:focus, QSpinBox:focus, QComboBox:focus {{
-    border: 1px solid #5865f2;
+    border: 1px solid {Theme.ACCENT_PURPLE};
 }}
 
 /* ---- QComboBox arrow ---- */
@@ -173,10 +175,10 @@ QComboBox::down-arrow {{
 }}
 
 QComboBox QAbstractItemView {{
-    background-color: #2b2d31;
-    border: 1px solid #1e1f22;
-    selection-background-color: #4752c4;
-    color: #dcddde;
+    background-color: {Theme.BASE_LIGHTER};
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    selection-background-color: {Theme.ACCENT_PURPLE};
+    color: {Theme.TEXT_PRIMARY};
 }}
 
 /* ---- QSpinBox arrows ---- */

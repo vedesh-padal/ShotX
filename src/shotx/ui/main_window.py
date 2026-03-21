@@ -15,7 +15,6 @@ from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QMainWindow,
     QMenu,
     QPushButton,
@@ -24,8 +23,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from shotx.ui.about import ShotXAboutDialog
 from shotx.ui.image_history import ImageHistoryWidget
 from shotx.ui.notification import open_folder
+from shotx.ui.theme import Theme
 
 if TYPE_CHECKING:
     from shotx.app import ShotXApp
@@ -33,7 +34,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Sidebar button width
-_SIDEBAR_WIDTH = 180
+_SIDEBAR_WIDTH = 200
 
 
 class _SidebarButton(QPushButton):
@@ -43,62 +44,9 @@ class _SidebarButton(QPushButton):
         super().__init__(text, parent)
         self.setFlat(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setFixedHeight(32)
+        self.setFixedHeight(34)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.setStyleSheet(
-            """
-            QPushButton {
-                text-align: left;
-                padding: 4px 12px;
-                border: none;
-                border-radius: 4px;
-                font-size: 13px;
-            }
-            QPushButton:hover {
-                background-color: rgba(255, 255, 255, 0.08);
-            }
-            QPushButton:pressed {
-                background-color: rgba(255, 255, 255, 0.14);
-            }
-            QPushButton::menu-indicator {
-                subcontrol-position: right center;
-                subcontrol-origin: padding;
-                right: 8px;
-            }
-            QMenu {
-                background-color: #2b2d31;
-                border: 1px solid #404249;
-                border-radius: 6px;
-                padding: 4px 0;
-            }
-            QMenu::item {
-                padding: 6px 24px;
-                color: #dcddde;
-                border-radius: 3px;
-                margin: 1px 4px;
-            }
-            QMenu::item:selected {
-                background-color: #4752c4;
-                color: #ffffff;
-            }
-            QMenu::item:pressed {
-                background-color: #3c45a5;
-            }
-            QMenu::item:disabled {
-                color: #72767d;
-            }
-            QMenu::separator {
-                height: 1px;
-                background: #404249;
-                margin: 4px 8px;
-            }
-            QMenu::indicator {
-                width: 14px;
-                height: 14px;
-                margin-left: 6px;
-            }
-            """
-        )
+        self.setStyleSheet(Theme.get_sidebar_qss(font_size=14))
 
 
 class _SidebarSeparator(QFrame):
@@ -109,7 +57,7 @@ class _SidebarSeparator(QFrame):
         self.setFrameShape(QFrame.Shape.HLine)
         self.setFrameShadow(QFrame.Shadow.Sunken)
         self.setFixedHeight(1)
-        self.setStyleSheet("color: rgba(255, 255, 255, 0.12);")
+        self.setStyleSheet("background-color: rgba(255, 255, 255, 0.08); border: none;")
 
 
 class ShotXMainWindow(QMainWindow):
@@ -120,7 +68,7 @@ class ShotXMainWindow(QMainWindow):
         self._app = app
 
         self.setWindowTitle("ShotX")
-        self.resize(1100, 700)
+        self.resize(1130, 700)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False)
 
         self._build_ui()
@@ -133,6 +81,18 @@ class ShotXMainWindow(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
 
+        # Apply main window styles (global level for the hub)
+        self.setStyleSheet(f"""
+            QMainWindow {{
+                background-color: {Theme.BASE_DARK};
+            }}
+            QStatusBar {{
+                background-color: {Theme.BASE_DARK};
+                color: {Theme.TEXT_MUTED};
+                border-top: 1px solid rgba(255, 255, 255, 0.05);
+            }}
+        """)
+
         root_layout = QHBoxLayout(central)
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(0)
@@ -141,14 +101,15 @@ class ShotXMainWindow(QMainWindow):
         sidebar = QWidget()
         sidebar.setFixedWidth(_SIDEBAR_WIDTH)
         sidebar.setStyleSheet(
-            """
-            QWidget {
-                background-color: #2b2d31;
-            }
+            f"""
+            QWidget {{
+                background-color: {Theme.BASE_DARK};
+                border-right: 1px solid rgba(255, 255, 255, 0.05);
+            }}
             """
         )
         sidebar_layout = QVBoxLayout(sidebar)
-        sidebar_layout.setContentsMargins(6, 8, 6, 8)
+        sidebar_layout.setContentsMargins(8, 8, 6, 8)
         sidebar_layout.setSpacing(2)
 
         # -- Capture submenu --
@@ -483,35 +444,5 @@ class ShotXMainWindow(QMainWindow):
         self._app.shorten_clipboard_url()
 
     def _on_about(self) -> None:
-        """Show a simple About dialog."""
-        from PySide6.QtWidgets import QDialog, QPushButton, QVBoxLayout
-
-        dlg = QDialog(self)
-        dlg.setWindowTitle("About ShotX")
-        dlg.setFixedSize(400, 225)
-
-        layout = QVBoxLayout(dlg)
-        layout.setContentsMargins(24, 20, 24, 16)
-        layout.setSpacing(8)
-
-        title = QLabel("<b style='font-size:16px;'>ShotX</b>")
-        title.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        layout.addWidget(title)
-
-        desc = QLabel(
-            "A full-featured ShareX clone for Linux.<br><br>"
-            "Built with Python + PySide6 (Qt6).<br>"
-            "Wayland-first, X11 fallback.<br><br>"
-            "© 2026 Vedesh Padal"
-        )
-        desc.setWordWrap(True)
-        layout.addWidget(desc)
-
-        layout.addStretch()
-
-        btn = QPushButton("OK")
-        btn.setFixedWidth(80)
-        btn.clicked.connect(dlg.accept)
-        layout.addWidget(btn, alignment=Qt.AlignmentFlag.AlignCenter)
-
-        dlg.exec()
+        """Show the redesigned About dialog."""
+        ShotXAboutDialog.show_about(self)

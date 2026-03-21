@@ -247,7 +247,8 @@ def main(argv: list[str] | None = None) -> int:
         logging.getLogger(__name__).warning("Failed to load application icon: %s", e)
 
     if isinstance(qt_app, QApplication):
-        qt_app.setStyleSheet("QToolTip { color: white; background-color: #2b2b2b; border: 1px solid #555; }")
+        from shotx.ui.theme import Theme
+        qt_app.setStyleSheet(Theme.get_global_qss())
 
     # Create the app controller
     from shotx.app import ShotXApp

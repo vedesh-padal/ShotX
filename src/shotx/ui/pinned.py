@@ -10,6 +10,7 @@ from PySide6.QtGui import QAction, QColor, QCursor, QMouseEvent, QPainter, QPen,
 from PySide6.QtWidgets import QApplication, QFileDialog, QLabel, QMenu, QVBoxLayout, QWidget
 
 from shotx.ui.notification import notify_error, notify_info
+from shotx.ui.theme import Theme
 
 logger = logging.getLogger(__name__)
 
@@ -79,10 +80,10 @@ class PinnedWidget(QWidget):
         # Prevent the label from enforcing the original pixmap size as its minimum
         self.label.setMinimumSize(self.min_w, self.min_h)
 
-        # Subtle 1px border for "Premium" look
+        # Subtle border for "Premium" look
         self.label.setStyleSheet("""
             QLabel {
-                border: 1px solid rgba(128, 128, 128, 0.4);
+                border: 1px solid rgba(255, 255, 255, 0.1);
                 background-color: transparent;
             }
         """)
@@ -164,9 +165,17 @@ class PinnedWidget(QWidget):
 
     def _show_context_menu(self, pos: QPoint) -> None:
         menu = QMenu(self)
-        menu.setStyleSheet("""
-            QMenu { background-color: #2e3440; color: #eceff4; border: 1px solid #434c5e; padding: 5px; }
-            QMenu::item:selected { background-color: #4c566a; border-radius: 3px; }
+        menu.setStyleSheet(f"""
+            QMenu {{
+                background-color: {Theme.BASE_LIGHTER};
+                color: {Theme.TEXT_PRIMARY};
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                padding: 5px;
+            }}
+            QMenu::item:selected {{
+                background-color: {Theme.ACCENT_PURPLE};
+                border-radius: 3px;
+            }}
         """)
 
         copy_action = QAction("📋 Copy to Clipboard", self)

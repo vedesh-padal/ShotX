@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from shotx.config.settings import SettingsManager
+from shotx.ui.theme import Theme
 
 
 class ApplicationSettingsDialog(QDialog):
@@ -142,10 +143,10 @@ class ApplicationSettingsDialog(QDialog):
         help_text = QLabel(
             "<small>Available variables: {date}, {time}, {y}, {m}, {d}, {h}, {min}, {s}, {rnd}</small>"
         )
-        help_text.setStyleSheet("color: #666;")
+        help_text.setStyleSheet(f"color: {Theme.TEXT_SECONDARY};")
 
         self._label_preview = QLabel("Preview: ")
-        self._label_preview.setStyleSheet("font-style: italic; color: #444;")
+        self._label_preview.setStyleSheet(f"font-style: italic; color: {Theme.ACCENT_PURPLE};")
 
         self._edit_filename.textChanged.connect(self._update_filename_preview)
 
@@ -288,7 +289,7 @@ class ApplicationSettingsDialog(QDialog):
         try:
             preview = self._render_preview(text)
             self._label_preview.setText(f"Preview: {preview}.png")
-            self._label_preview.setStyleSheet("font-style: italic; color: #444;")
+            self._label_preview.setStyleSheet(f"font-style: italic; color: {Theme.ACCENT_PURPLE};")
         except KeyError as e:
             self._label_preview.setText(f"Invalid variable: {e}")
             self._label_preview.setStyleSheet("color: red;")

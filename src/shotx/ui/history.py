@@ -34,6 +34,7 @@ from PySide6.QtWidgets import (
 )
 
 from shotx.output.clipboard import copy_text_to_clipboard
+from shotx.ui.theme import Theme
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +129,25 @@ class HistoryWidget(QWidget):
         self.table.verticalHeader().setVisible(True)
         self.table.setAlternatingRowColors(True)
         self.table.setShowGrid(False)
+        self.table.setStyleSheet(f"""
+            QTableWidget {{
+                background-color: {Theme.BASE_DARK};
+                alternate-background-color: {Theme.BASE_LIGHTER};
+                color: {Theme.TEXT_PRIMARY};
+                gridline-color: transparent;
+                border: none;
+            }}
+            QTableWidget::item:selected {{
+                background-color: {Theme.ACCENT_PURPLE};
+                color: #ffffff;
+            }}
+            QHeaderView::section {{
+                background-color: {Theme.BASE_LIGHTER};
+                color: {Theme.TEXT_SECONDARY};
+                padding: 4px;
+                border: 1px solid rgba(255, 255, 255, 0.05);
+            }}
+        """)
 
         # Sizing
         header = self.table.horizontalHeader()
@@ -162,7 +182,7 @@ class HistoryWidget(QWidget):
         )
         self._preview_label.setMinimumWidth(250)
         self._preview_label.setStyleSheet(
-            "QLabel { background-color: #1e1f22; border: none; }"
+            f"QLabel {{ background-color: {Theme.BASE_DARK}; border: none; }}"
         )
         self._preview_label.setText("Select an item to preview")
 
