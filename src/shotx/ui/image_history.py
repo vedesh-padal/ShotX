@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 )
 
 from shotx.output.clipboard import copy_text_to_clipboard
+from shotx.ui.theme import Theme
 
 logger = logging.getLogger(__name__)
 
@@ -115,11 +116,23 @@ class ImageHistoryWidget(QWidget):
         self._grid.setWrapping(True)
         self._grid.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self._grid.setWordWrap(True)
-        self._grid.setSpacing(4)
+        self._grid.setSpacing(10)
+        self._grid.setContentsMargins(10, 10, 10, 10)
         self._grid.setTextElideMode(Qt.TextElideMode.ElideNone)
         self._grid.setFlow(QListWidget.Flow.LeftToRight)
-        # Eliminate internal viewport padding to keep grid edge-to-edge
-        self._grid.setStyleSheet("QListWidget { padding: 0px; }")
+        self._grid.setUniformItemSizes(True)
+        # Eliminate internal viewport padding and borders to keep grid edge-to-edge
+        self._grid.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {Theme.BASE_DARK};
+                border: none;
+                padding: 0px;
+            }}
+            QListWidget::item:selected {{
+                background-color: {Theme.ACCENT_PURPLE};
+                border-radius: 4px;
+            }}
+        """)
 
         # Context menu
         self._grid.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)

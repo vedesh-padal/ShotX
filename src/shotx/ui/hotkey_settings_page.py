@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from shotx.config.settings import SettingsManager
+from shotx.ui.theme import Theme
 
 
 class HotkeySettingsPage(QWidget):
@@ -70,14 +71,14 @@ class HotkeySettingsPage(QWidget):
         # --- Wayland / Global Shortcuts Warning Banner ---
         banner = QFrame()
         banner.setObjectName("warningBanner")
-        banner.setStyleSheet("""
-            QFrame#warningBanner {
-                background-color: #2b2b2b;
-                border: 1px solid #ffcc00;
+        banner.setStyleSheet(f"""
+            QFrame#warningBanner {{
+                background-color: {Theme.BASE_LIGHTER};
+                border: 1px solid {Theme.ACCENT_PURPLE};
                 border-radius: 6px;
                 padding: 10px;
                 margin-top: 10px;
-            }
+            }}
         """)
         banner_layout = QVBoxLayout(banner)
 
@@ -103,7 +104,7 @@ class HotkeySettingsPage(QWidget):
         for cmd_label, cmd in cli_commands:
             row_lyt = QHBoxLayout()
             lbl_cmd = QLabel(f"<code>{cmd}</code>")
-            lbl_cmd.setStyleSheet("background: #1e1e1e; padding: 4px; border-radius: 3px; font-family: monospace;")
+            lbl_cmd.setStyleSheet(f"background: {Theme.BASE_DARK}; padding: 4px; border-radius: 3px; font-family: monospace; color: {Theme.TEXT_PRIMARY};")
             btn_copy = QPushButton("Copy")
 
             # Helper for visual feedback

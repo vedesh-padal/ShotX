@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from shotx.tools.indexer import generate_directory_index
+from shotx.ui.theme import Theme
 
 
 class DirectoryIndexerDialog(QDialog):
@@ -34,8 +35,8 @@ class DirectoryIndexerDialog(QDialog):
 
         self.last_generated_path: Path | None = None
 
-        # Unified Nord Theme (Consistent across Light/Dark systems)
-        self._apply_nord_theme()
+        # Unified Theme
+        self._apply_theme()
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
@@ -91,73 +92,66 @@ class DirectoryIndexerDialog(QDialog):
         # Initially hide the actual elements, but they take up space via QSizePolicy now
         self._reset_status()
 
-    def _apply_nord_theme(self) -> None:
-        """Applies a standalone Nord-inspired stylesheet."""
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #2e3440;
-            }
-            #GroupFrame {
-                background-color: #3b4252;
-                border: 1px solid #434c5e;
+    def _apply_theme(self) -> None:
+        """Applies the ShotX global theme."""
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {Theme.BASE_DARK};
+            }}
+            #GroupFrame {{
+                background-color: {Theme.BASE_LIGHTER};
+                border: 1px solid rgba(255, 255, 255, 0.1);
                 border-radius: 8px;
-            }
-            QLabel {
-                color: #eceff4;
+            }}
+            QLabel {{
+                color: {Theme.TEXT_PRIMARY};
                 font-weight: 500;
-            }
-            QLineEdit {
-                background-color: #242933;
-                color: #eceff4;
-                border: 1px solid #434c5e;
+            }}
+            QLineEdit {{
+                background-color: {Theme.BASE_DARK};
+                color: {Theme.TEXT_PRIMARY};
+                border: 1px solid rgba(255, 255, 255, 0.1);
                 border-radius: 4px;
                 padding: 6px;
                 font-family: 'Monospace', 'Cousine';
-            }
-            QLineEdit:focus {
-                border: 1px solid #88c0d0;
-                background-color: #2e3440;
-            }
-            QPushButton {
-                background-color: #434c5e;
-                color: #eceff4;
-                border: 1px solid #4c566a;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {Theme.ACCENT_PURPLE};
+            }}
+            QPushButton {{
+                background-color: {Theme.BASE_LIGHTER};
+                color: {Theme.TEXT_PRIMARY};
+                border: 1px solid rgba(255, 255, 255, 0.1);
                 padding: 6px 12px;
                 border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #4c566a;
-            }
-            #ActionBtn {
-                background-color: #434c5e;
-                color: #eceff4;
+            }}
+            QPushButton:hover {{
+                background-color: rgba(255, 255, 255, 0.1);
+            }}
+            #ActionBtn {{
+                background-color: {Theme.BASE_LIGHTER};
+                color: {Theme.TEXT_PRIMARY};
                 font-weight: bold;
                 padding: 8px 16px;
-            }
-            #ActionBtn:hover {
-                background-color: #4c566a;
-            }
-            #PrimaryBtn {
-                background-color: #5e81ac;
-                color: #eceff4;
+            }}
+            #PrimaryBtn {{
+                background-color: {Theme.ACCENT_PURPLE};
+                color: #ffffff;
                 font-weight: bold;
                 border: none;
                 border-radius: 6px;
-            }
-            #PrimaryBtn:hover {
-                background-color: #81a1c1;
-            }
-            #PrimaryBtn:pressed {
-                background-color: #4c566a;
-            }
-            #SuccessLabel {
+            }}
+            #PrimaryBtn:hover {{
+                opacity: 0.9;
+            }}
+            #SuccessLabel {{
                 color: #a3be8c;
                 font-weight: bold;
-            }
-            #ErrorLabel {
+            }}
+            #ErrorLabel {{
                 color: #bf616a;
                 font-weight: bold;
-            }
+            }}
         """)
 
     def _on_browse(self) -> None:
