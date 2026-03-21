@@ -40,10 +40,9 @@ plugins:
       minify_html: true
   - social:
       cards: true
-      cards_layout: default/only/image
+      cards_layout: default
       cards_layout_options:
-        background_image: docs/assets/logo.png
-        background_color: transparent
+        background_color: "#673ab7"
 
 markdown_extensions:
   - admonition
