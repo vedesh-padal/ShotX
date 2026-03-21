@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ShotX Installer
-# Usage: curl -sSL https://raw.githubusercontent.com/vedesh-padal/ShotX/main/scripts/install.sh | sh
+# Usage: curl -sSL https://raw.githubusercontent.com/vedesh-padal/ShotX/main/install.sh | sh
 #
 # Supports: Ubuntu/Debian (apt), Fedora/RHEL/CentOS (dnf/yum), Arch/Manjaro (pacman),
 #           openSUSE (zypper), Alpine (apk)
