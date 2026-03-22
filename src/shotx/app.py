@@ -120,6 +120,26 @@ class ShotXApp(QObject):
 
         init_notifications()
 
+        # --- First-Run Welcome ---
+        if self.settings.first_run:
+            from shotx.ui.welcome_dialog import ShotXWelcomeDialog
+            # show_welcome now returns: 1=Integrate Now, 2=Maybe Later, 0=Dismissed (X)
+            result = ShotXWelcomeDialog.show_welcome()
+
+            if result == 1:  # Integrate Now
+                from shotx.core.desktop import install_autostart, install_desktop_menu
+                install_desktop_menu()
+                install_autostart()
+                logger.info("First-run integration completed by user")
+                self.settings.first_run = False
+                self._settings_manager.save()
+            elif result == 2:  # Maybe Later
+                logger.info("First-run integration skipped by user")
+                self.settings.first_run = False
+                self._settings_manager.save()
+            else:  # Dismissed (X or Esc)
+                logger.info("First-run dialog dismissed, will prompt again next time")
+
         app = QApplication.instance()
         if app is None:
             logger.error("No QApplication — cannot run tray app")
