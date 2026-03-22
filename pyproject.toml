@@ -54,12 +54,20 @@ all = ["shotx[s3,sftp]"]
 shotx = "shotx.main:main"
 
 [project.urls]
-Homepage = "https://github.com/vedesh-padal/ShotX"
+Homepage = "https://shotx.vedeshpadal.me"
+Documentation = "https://shotx.vedeshpadal.me"
 Repository = "https://github.com/vedesh-padal/ShotX"
 Issues = "https://github.com/vedesh-padal/ShotX/issues"
+Changelog = "https://github.com/vedesh-padal/ShotX/releases"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/shotx"]
+exclude = [
+    "tests",
+    ".github",
+    "docs",
+    "*.sh",
+]
 
 [tool.ruff]
 target-version = "py310"
