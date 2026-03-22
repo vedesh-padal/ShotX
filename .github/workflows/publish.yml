@@ -15,6 +15,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -27,12 +29,47 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: shotx-builds
+          name: shotx-python-dist
           path: dist/*
 
       - name: Publish to PyPI
         if: startsWith(github.ref, 'refs/tags/v')
         run: uv publish
+        # Note: This requires "Trusted Publishing" or PYPI_TOKEN.
+
+      # --- PyInstaller Standalone Build ---
+      - name: Build Standalone Binary (PyInstaller)
+        run: |
+          uv pip install pyinstaller
+          uv run pyinstaller packaging/shotx.spec --distpath dist --workpath build
+
+      # --- Native Packages Build (.deb & .rpm) ---
+      - name: Build .deb Package
+        uses: goreleaser/nfpm-action@v2
+        with:
+          nfpm_version: "v2.35.3"
+          args: package --config packaging/nfpm.yaml --target dist/ --packager deb
+        env:
+          VERSION: ${{ github.ref_name }}
+
+      - name: Build .rpm Package
+        uses: goreleaser/nfpm-action@v2
+        with:
+          nfpm_version: "v2.35.3"
+          args: package --config packaging/nfpm.yaml --target dist/ --packager rpm
+        env:
+          VERSION: ${{ github.ref_name }}
+
+      # --- AppImage Build ---
+      # Note: We use a simple method here; complex Python AppImages often use python-appimage tool
+      - name: Install python-appimage
+        run: pip install python-appimage
+
+      - name: Build AppImage
+        run: |
+          # Use the built wheel as the source for the AppImage
+          python-appimage build wheel dist/*.whl
+          mv *.AppImage dist/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -41,6 +78,9 @@ jobs:
           files: |
             dist/*.whl
             dist/*.tar.gz
+            dist/*.deb
+            dist/*.rpm
+            dist/*.AppImage
           generate_release_notes: true
           draft: true
           prerelease: ${{ contains(github.ref, '-beta') || contains(github.ref, '-rc') }}
