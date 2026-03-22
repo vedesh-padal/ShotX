@@ -44,19 +44,19 @@ jobs:
           uv run pyinstaller packaging/shotx.spec --distpath dist --workpath build
 
       # --- Native Packages Build (.deb & .rpm) ---
+      - name: Install nfpm
+        run: |
+          wget -q https://github.com/goreleaser/nfpm/releases/download/v2.45.2/nfpm_2.45.2_x86_64.tar.gz
+          tar -xzf nfpm_2.45.2_x86_64.tar.gz nfpm
+          sudo mv nfpm /usr/local/bin/
+
       - name: Build .deb Package
-        uses: goreleaser/nfpm-action@v2
-        with:
-          nfpm_version: "v2.35.3"
-          args: package --config packaging/nfpm.yaml --target dist/ --packager deb
+        run: nfpm package --config packaging/nfpm.yaml --target dist/ --packager deb
         env:
           VERSION: ${{ github.ref_name }}
 
       - name: Build .rpm Package
-        uses: goreleaser/nfpm-action@v2
-        with:
-          nfpm_version: "v2.35.3"
-          args: package --config packaging/nfpm.yaml --target dist/ --packager rpm
+        run: nfpm package --config packaging/nfpm.yaml --target dist/ --packager rpm
         env:
           VERSION: ${{ github.ref_name }}
 
