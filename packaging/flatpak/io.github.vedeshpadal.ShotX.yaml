@@ -1,0 +1,36 @@
+app-id: io.github.vedeshpadal.ShotX
+runtime: org.kde.Platform
+runtime-version: '6.6'
+sdk: org.kde.Sdk
+command: shotx
+finish-args:
+  # Display capabilities
+  - --socket=fallback-x11
+  - --socket=wayland
+  # D-Bus capabilities for desktop portals
+  - --socket=session-bus
+  # Portals for screen capture and shortcuts
+  - --talk-name=org.freedesktop.portal.Desktop
+  - --talk-name=org.kde.KWin.ScreenCast2
+  - --talk-name=org.gnome.Mutter.ScreenCast
+  - --talk-name=org.freedesktop.portal.GlobalShortcuts
+  - --talk-name=org.freedesktop.Notifications
+  # Filesystem access (save to Pictures by default)
+  - --filesystem=xdg-pictures
+  # Network access for uploads
+  - --share=network
+
+modules:
+  - python3-dependencies.json
+  
+  - name: shotx
+    buildsystem: simple
+    build-commands:
+      # Install ShotX using the local tree
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}" --prefix=${FLATPAK_DEST} --no-build-isolation .
+      # Install desktop integration files
+      - install -Dm644 packaging/shotx.desktop /app/share/applications/io.github.vedeshpadal.ShotX.desktop
+      - install -Dm644 src/shotx/assets/shotx.svg /app/share/icons/hicolor/scalable/apps/io.github.vedeshpadal.ShotX.svg
+    sources:
+      - type: dir
+        path: ../../
