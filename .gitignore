@@ -46,7 +46,6 @@ htmlcov/
 
 
 # misc
-scripts/test_screencast.py
 CHEATSHEET.md
 
 # MkDocs build output

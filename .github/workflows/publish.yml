@@ -61,15 +61,22 @@ jobs:
           VERSION: ${{ github.ref_name }}
 
       # --- AppImage Build ---
-      # Note: We use a simple method here; complex Python AppImages often use python-appimage tool
-      - name: Install python-appimage
-        run: pip install python-appimage
-
-      - name: Build AppImage
+      - name: Build AppImage (Native Wrap)
         run: |
-          # Use the current directory source to build the AppImage
-          python-appimage build app .
-          mv *.AppImage dist/ShotX-${{ github.ref_name }}-x86_64.AppImage
+          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/scalable/apps
+          cp dist/shotx AppDir/usr/bin/shotx
+          cp packaging/shotx.desktop AppDir/usr/share/applications/io.github.vedeshpadal.ShotX.desktop
+          cp packaging/shotx.desktop AppDir/shotx.desktop
+          cp src/shotx/assets/shotx.svg AppDir/usr/share/icons/hicolor/scalable/apps/io.github.vedeshpadal.ShotX.svg
+          cp src/shotx/assets/shotx.svg AppDir/shotx.svg
+          ln -s usr/bin/shotx AppDir/AppRun
+          
+          # Download official C appimagetool
+          wget -qO appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          
+          # Build AppImage natively
+          ./appimagetool --appimage-extract-and-run AppDir dist/ShotX-${{ github.ref_name }}-x86_64.AppImage
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
