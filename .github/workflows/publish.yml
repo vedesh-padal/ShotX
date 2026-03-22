@@ -67,9 +67,9 @@ jobs:
 
       - name: Build AppImage
         run: |
-          # Use the built wheel as the source for the AppImage
-          python-appimage build wheel dist/*.whl
-          mv *.AppImage dist/
+          # Use the current directory source to build the AppImage
+          python-appimage build app .
+          mv *.AppImage dist/ShotX-${{ github.ref_name }}-x86_64.AppImage
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
