@@ -23,6 +23,17 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y just
+          just setup-deps-debian
+
+      - name: Sync dependencies (all extras)
+        run: |
+          uv sync --all-extras
+          uv pip install pyinstaller
+
       - name: Build distributions
         run: uv build
 
@@ -35,13 +46,10 @@ jobs:
       - name: Publish to PyPI
         if: startsWith(github.ref, 'refs/tags/v')
         run: uv publish
-        # Note: This requires "Trusted Publishing" or PYPI_TOKEN.
 
       # --- PyInstaller Standalone Build ---
       - name: Build Standalone Binary (PyInstaller)
-        run: |
-          uv pip install pyinstaller
-          uv run pyinstaller packaging/shotx.spec --distpath dist --workpath build
+        run: uv run pyinstaller packaging/shotx.spec --distpath dist --workpath build
 
       # --- Native Packages Build (.deb & .rpm) ---
       - name: Install nfpm

@@ -28,7 +28,9 @@ setup-deps-debian:
         libxcb-xinerama0 \
         libxcb-xkb1 \
         libxkbcommon-x11-0 \
-        libdbus-1-3
+        libdbus-1-3 \
+        libasound2-dev \
+        libx11-dev
 
 # Synchronize the Python environment using uv
 sync:
