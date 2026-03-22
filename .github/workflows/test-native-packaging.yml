@@ -1,0 +1,86 @@
+name: Test Native Packaging
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'ci-test'
+
+jobs:
+  test-build:
+    name: Test Native Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y just
+          just setup-deps-debian
+
+      - name: Sync dependencies (all extras)
+        run: |
+          uv sync --all-extras
+          uv pip install pyinstaller
+
+      - name: Build distributions
+        run: uv build
+
+      # --- PyInstaller Standalone Build ---
+      - name: Build Standalone Binary (PyInstaller)
+        run: uv run pyinstaller packaging/shotx.spec --distpath dist --workpath build
+
+      - name: Debug - List Dist Directory
+        run: ls -R dist/
+
+      # --- Native Packages Build (.deb & .rpm) ---
+      - name: Install nfpm
+        run: |
+          wget -q https://github.com/goreleaser/nfpm/releases/download/v2.45.2/nfpm_2.45.2_Linux_x86_64.tar.gz
+          tar -xzf nfpm_2.45.2_Linux_x86_64.tar.gz nfpm
+          sudo mv nfpm /usr/local/bin/
+
+      - name: Build .deb Package
+        run: nfpm package --config packaging/nfpm.yaml --target dist/ --packager deb
+        env:
+          VERSION: "0.9.5-beta.2-TEST"
+
+      - name: Build .rpm Package
+        run: nfpm package --config packaging/nfpm.yaml --target dist/ --packager rpm
+        env:
+          VERSION: "0.9.5-beta.2-TEST"
+
+      # --- AppImage Build ---
+      - name: Build AppImage (Native Wrap)
+        run: |
+          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/scalable/apps
+          cp dist/shotx AppDir/usr/bin/shotx
+          cp packaging/shotx.desktop AppDir/usr/share/applications/io.github.vedeshpadal.ShotX.desktop
+          cp packaging/shotx.desktop AppDir/shotx.desktop
+          cp src/shotx/assets/shotx.svg AppDir/usr/share/icons/hicolor/scalable/apps/io.github.vedeshpadal.ShotX.svg
+          cp src/shotx/assets/shotx.svg AppDir/shotx.svg
+          ln -s usr/bin/shotx AppDir/AppRun
+          
+          # Download official C appimagetool
+          wget -qO appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          
+          # Build AppImage natively
+          ./appimagetool --appimage-extract-and-run AppDir dist/ShotX-TEST-x86_64.AppImage
+
+      - name: Upload Test Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: shotx-test-binaries
+          path: |
+            dist/*.deb
+            dist/*.rpm
+            dist/*.AppImage
