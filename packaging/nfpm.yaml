@@ -1,0 +1,31 @@
+# nfpm.yaml
+name: "shotx"
+arch: "amd64"
+platform: "linux"
+version: "${VERSION}"
+section: "utils"
+priority: "optional"
+maintainer: "Vedesh Padal <shotx@vedeshpadal.me>"
+description: "A free, open-source screenshot and screen capture tool for Linux — inspired by ShareX."
+vendor: "ShotX"
+homepage: "https://shotx.vedeshpadal.me"
+license: "GPL-3.0-only"
+
+contents:
+  # The PyInstaller standalone binary goes directly to /usr/bin/
+  - src: "../dist/shotx"
+    dst: "/usr/bin/shotx"
+    file_info:
+      mode: 0755
+
+  # Desktop Entry for application menus
+  - src: "shotx.desktop"
+    dst: "/usr/share/applications/shotx.desktop"
+
+  # SVG Icon for the desktop entry
+  - src: "../src/shotx/assets/shotx.svg"
+    dst: "/usr/share/icons/hicolor/scalable/apps/shotx.svg"
+
+# We intentionally do NOT define `depends:` for python3 or pyside6
+# because the PyInstaller binary contains its own isolated Python environment,
+# making this package 100% portable across different Ubuntu/Fedora versions.

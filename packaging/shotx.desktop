@@ -1,0 +1,23 @@
+[Desktop Entry]
+Name=ShotX
+GenericName=Screenshot Tool
+Comment=Screenshot and screen capture tool
+Exec=shotx --tray
+Icon=shotx
+Terminal=false
+Type=Application
+Categories=Graphics;Utility;
+Keywords=screenshot;capture;
+Actions=CaptureRegion;CaptureWindow;CaptureScreen;
+
+[Desktop Action CaptureRegion]
+Name=Capture Region
+Exec=shotx --capture-region
+
+[Desktop Action CaptureWindow]
+Name=Capture Window
+Exec=shotx --capture-window
+
+[Desktop Action CaptureScreen]
+Name=Capture Fullscreen
+Exec=shotx --capture-fullscreen
