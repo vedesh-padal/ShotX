@@ -13,17 +13,17 @@ license: "GPL-3.0-only"
 
 contents:
   # The PyInstaller standalone binary goes directly to /usr/bin/
-  - src: "../dist/shotx"
+  - src: "dist/shotx"
     dst: "/usr/bin/shotx"
     file_info:
       mode: 0755
 
   # Desktop Entry for application menus
-  - src: "shotx.desktop"
+  - src: "packaging/shotx.desktop"
     dst: "/usr/share/applications/shotx.desktop"
 
   # SVG Icon for the desktop entry
-  - src: "../src/shotx/assets/shotx.svg"
+  - src: "src/shotx/assets/shotx.svg"
     dst: "/usr/share/icons/hicolor/scalable/apps/shotx.svg"
 
 # We intentionally do NOT define `depends:` for python3 or pyside6

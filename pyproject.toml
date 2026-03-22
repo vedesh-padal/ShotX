@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "shotx"
-version = "0.9.5-beta.2"
+version = "0.9.5-beta.3"
 description = "A free, open-source screenshot and screen capture tool for Linux — inspired by ShareX."
 readme = "README.md"
 license = "GPL-3.0-only"
@@ -62,12 +62,7 @@ Changelog = "https://github.com/vedesh-padal/ShotX/releases"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/shotx"]
-exclude = [
-    "tests",
-    ".github",
-    "docs",
-    "*.sh",
-]
+exclude = ["tests", ".github", "docs", "*.sh"]
 
 [tool.ruff]
 target-version = "py310"
@@ -85,7 +80,9 @@ python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
-disable_error_code = ["import-untyped"] # Common for local dev libs without stubs
+disable_error_code = [
+    "import-untyped",
+] # Common for local dev libs without stubs
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
