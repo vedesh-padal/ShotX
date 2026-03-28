@@ -1578,7 +1578,7 @@ wheels = [
 
 [[package]]
 name = "shotx"
-version = "0.9.5b0"
+version = "0.9.5b3"
 source = { editable = "." }
 dependencies = [
     { name = "dbus-next" },
