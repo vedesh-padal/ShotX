@@ -26,6 +26,8 @@ shotx --capture-fullscreen
 
 Capture a user-selected rectangular area with an interactive overlay.
 
+![ShotX Region Capture](../assets/screenshots/region-capture.png)
+
 ```bash
 shotx --capture-region
 ```

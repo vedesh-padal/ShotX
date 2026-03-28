@@ -7,6 +7,8 @@ description: Use ShotX's built-in annotation tools to highlight, blur, add step 
 
 ShotX provides a full suite of annotation tools, available both in the **capture overlay** (annotate during region capture) and the **standalone image editor**.
 
+![Annotation Tools](../assets/screenshots/annotation.png)
+
 ## Available Tools
 
 | Tool            | Description                                                        | Shortcut |

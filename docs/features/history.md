@@ -27,6 +27,8 @@ The central area of the ShotX Main Window features a responsive thumbnail grid. 
 
 For advanced management and batch operations, ShotX includes a standalone **History** dialog. This is accessible via the "History..." button in the Main Window or from the System Tray.
 
+![History Viewer](../assets/screenshots/history.png)
+
 - **Split-View Layout**: A spreadsheet-style table on the left with a live image preview on the right.
 - **Search Bar**: Quickly filter history by filename, extension, or uploaded URL.
 - **Multi-select**: Use `Ctrl+Click` or `Shift+Click` to select multiple rows for batch operations.

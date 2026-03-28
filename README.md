@@ -3,7 +3,7 @@
   <br>
   <b>ShotX</b>
   <br>
-  <i>Advanced Screenshot & Screen Capture Utility for Linux</i>
+  <i>Advanced Screenshot &amp; Screen Capture Utility for Linux</i>
   <br><br>
   <a href="https://shotx.vedeshpadal.me/">
     <img src="https://img.shields.io/badge/Documentation-ShotX-blueviolet?style=for-the-badge&logo=readthedocs&logoColor=white" alt="Documentation">
@@ -14,6 +14,12 @@
   </a>
   <a href="https://github.com/vedesh-padal/ShotX/actions/workflows/docs.yml">
     <img src="https://github.com/vedesh-padal/ShotX/actions/workflows/docs.yml/badge.svg" alt="Documentation Build">
+  </a>
+  <a href="https://pypi.org/project/shotx/">
+    <img src="https://img.shields.io/pypi/v/shotx?color=blueviolet" alt="PyPI version">
+  </a>
+  <a href="https://github.com/vedesh-padal/ShotX/releases/latest">
+    <img src="https://img.shields.io/github/v/release/vedesh-padal/ShotX?include_prereleases&label=release" alt="GitHub release">
   </a>
   <img src="https://img.shields.io/github/license/vedesh-padal/ShotX" alt="License">
   <img src="https://img.shields.io/badge/Status-Beta-purple" alt="Status">
@@ -26,7 +32,9 @@
 
 ShotX brings the power of ShareX to the Linux desktop: instant screen capture, region selection with auto-detect, annotation tools, screen recording, image editing, OCR, and upload to multiple destinations — all from a single hotkey press or system tray.
 
-> **Status: Beta** — Core features complete, under active development.
+> **Status: Beta** — Core features complete, actively maintained.
+
+![ShotX Main Window](docs/assets/screenshots/main-window.png)
 
 ## Features
 
@@ -117,26 +125,47 @@ ShotX is a Python application, but some features require system packages:
 curl -sSL https://shotx.vedeshpadal.me/install.sh | sh
 ```
 
-### From Source
+This installs all system dependencies, including OCR, QR scanning, and screen recording.
+
+### Native Packages (Ubuntu/Fedora)
+
+Download the latest `.deb`, `.rpm`, or `AppImage` from the [GitHub Releases](https://github.com/vedesh-padal/ShotX/releases/latest) page.
 
 ```bash
-# Clone the repository
-git clone https://github.com/vedesh-padal/ShotX.git
-cd ShotX
+# Ubuntu / Debian
+sudo dpkg -i shotx_*.deb
 
-# Set up with uv (recommended)
-uv venv --python 3.12
-uv pip install -e ".[all,dev]"
+# Fedora / RHEL
+sudo rpm -i shotx-*.rpm
 
-# Run
-uv run shotx          # Launch system tray
-uv run shotx --help   # See all options
+# AppImage (any distro)
+chmod +x ShotX-*.AppImage && ./ShotX-*.AppImage
 ```
 
-### PyPI (Coming Soon)
+> The `.deb` and `.rpm` packages bundle a private Python runtime — no system Python or library conflicts.
+
+### Homebrew (Linux)
+
+```bash
+brew tap vedesh-padal/tap
+brew install shotx
+```
+
+### PyPI
 
 ```bash
 pip install shotx
+# or with uv:
+uv tool install shotx
+```
+
+### From Source
+
+```bash
+git clone https://github.com/vedesh-padal/ShotX.git
+cd ShotX
+uv sync
+uv run shotx
 ```
 
 ## Usage
@@ -208,11 +237,11 @@ main.py (CLI)
 - [x] **Phase 6** — Productivity tools (OCR, color picker, ruler, QR, etc.)
 - [x] **Phase 7** — Image editor (effects, beautifier, combiner)
 - [x] **Phase 8** — Main Window, history, settings, architecture refactoring
-- [x] **Phase 9** — Documentation site, initial PyPI packaging, testing, auto-start
-- [x] **Phase 10** — Image History grid (1:1 parity) & enhanced History viewer
-- [ ] **Phase 11** — Automated release pipeline (CI/CD)
-- [ ] **Phase 12** — System packaging (.deb, AppImage, Flatpak)
-- [ ] **Future** — Wayland global hotkeys, active window capture, PipeWire recording
+- [x] **Phase 9** — Documentation site, PyPI packaging, testing, auto-start
+- [x] **Phase 10** — Image History grid & enhanced History viewer
+- [x] **Phase 11** — Automated release pipeline (CI/CD)
+- [x] **Phase 12** — Native packaging (.deb, .rpm, AppImage, Homebrew)
+- [ ] **Future** — Wayland global hotkeys, active window capture on Wayland, watch folders
 
 ## Tech Stack
 

@@ -21,7 +21,7 @@ This automatically:
 6. Adds an XDG autostart entry so ShotX launches on login
 
 !!! note
-`~/.local/bin` must be in your `PATH`. If it isn't, add this to your shell config and restart:
+    `~/.local/bin` must be in your `PATH`. If it isn't, add this to your shell config and restart:
 
     ```bash
     export PATH="$HOME/.local/bin:$PATH"
@@ -64,7 +64,7 @@ uv run shotx --help    # See all CLI options
 ```
 
 !!! tip
-You can also use the inclusive `Justfile` or `Makefile` in the root for automated setup and development tasks (e.g., `just setup-deps-debian`, `just sync`).
+    You can also use the inclusive `Justfile` or `Makefile` in the root for automated setup and development tasks (e.g., `just setup-deps-debian`, `just sync`).
 
 ### With pip
 
@@ -108,7 +108,7 @@ Some features require system packages. ShotX works without them but with reduced
 <a name="at-spi2-sub-region-auto-detection"></a>
 
 !!! note
-PyGObject is automatically downloaded as a core Python dependency for native DBus notifications. However, if you are building from source, you may need to install the system headers. The exact package name depends on your Ubuntu/Debian version:
+    PyGObject is automatically downloaded as a core Python dependency for native DBus notifications. However, if you are building from source, you may need to install the system headers. The exact package name depends on your Ubuntu/Debian version:
 
     - **Ubuntu 22.04 / Debian 11**: `sudo apt install libcairo2-dev libgirepository1.0-dev pkg-config`
     - **Ubuntu 24.04+ / Debian 12+**: `sudo apt install libcairo2-dev libgirepository-2.0-dev pkg-config`
