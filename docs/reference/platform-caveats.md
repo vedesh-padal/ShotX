@@ -51,7 +51,7 @@ Known platform-specific behaviors, workarounds, and limitations discovered durin
 - **X11:** Uses `ffmpeg -f x11grab`. Works flawlessly for both region and fullscreen recording.
 - **Wayland (wlroots):** Uses `wf-recorder` (which uses the `wlr-screencopy` protocol). Works flawlessly on Sway, Hyprland, etc.
 - **Wayland (GNOME):** GNOME heavily restricts programmatic region recording (`wf-recorder` relies on `wlr-screencopy` which GNOME Mutter refuses to implement). The only way to record on GNOME is via the XDG Desktop Portal and PipeWire. However, GNOME's portal forces a disruptive security popup ("Share this screen with ShotX?") on _every single recording_, breaking the "instant capture" UX goal.
-    - **Decision:** Because of the massive architectural complexity (GStreamer/PipeWire in Python) and the poor resultant UX, this feature is pushed to **Phase 9**. For now, GNOME Wayland users receive a helpful warning advising them to use GNOME's built-in recorder (`Ctrl+Shift+Alt+R`) or switch to an X11 session.
+    - **Note:** Because of the architectural complexity of PipeWire on GNOME, GNOME Wayland users are advised to use the built-in recorder (++ctrl+shift+alt+r++) or switch to an X11 session for full ShotX recording support.
 
 ### GIF Recording
 
@@ -118,7 +118,7 @@ Known platform-specific behaviors, workarounds, and limitations discovered durin
 
 ---
 
-## Packaging (Future)
+## Packaging
 
 ### Distribution Formats
 
@@ -161,9 +161,7 @@ Known platform-specific behaviors, workarounds, and limitations discovered durin
 
 ## "Always on Top" (Pinned Snippets)
 
-- **The Issue:** On GNOME Wayland, applications are strictly forbidden from programmatically forcing themselves above other windows. This is a security measure to prevent "UI hijacking."
-- **Behavior in ShotX:** The **Pin to Screen** feature uses the `Qt.WindowStaysOnTopHint`. On most compositors (KDE Plasma, Sway), this works as expected. On GNOME, it is "best effort"—the compositor may push the snippet to the background if you focus a full-screen window.
-- **Future Fix:** We are exploring a dedicated GNOME Shell Extension (Phase 10+) to handle pinning at the compositor level.
+- **Note:** The **Pin to Screen** feature uses the `Qt.WindowStaysOnTopHint`. On most compositors (KDE Plasma, Sway), this works as expected. On GNOME, it is "best effort"—the compositor may push the snippet to the background if you focus a full-screen window.
 
 ## Global Hotkeys
 

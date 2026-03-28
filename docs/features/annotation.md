@@ -30,7 +30,7 @@ ShotX provides a full suite of annotation tools, available both in the **capture
 | Action       | Control                     |
 | ------------ | --------------------------- |
 | Undo         | ++ctrl+z++                  |
-| Redo         | ++ctrl+shift+z++            |
+| Redo         | ++ctrl+y++                  |
 | Cancel       | ++escape++                  |
 | Confirm      | ++enter++ or ++ctrl+enter++ |
 | Change Color | Color picker in toolbar     |

@@ -16,6 +16,8 @@ social:
 
 ShotX brings the power of ShareX to the Linux desktop: instant screen capture, region selection with auto-detect, annotation tools, screen recording, image editing, OCR, and upload to multiple destinations — all from a single hotkey press or system tray.
 
+![ShotX Main Window](assets/screenshots/main-window.png)
+
 ## What Can ShotX Do?
 
 | Category     | Features                                                                                                                                                  |
@@ -51,5 +53,5 @@ ShotX is **Wayland-first** with full X11 fallback:
 - **Wayland**: xdg-desktop-portal D-Bus API (GNOME, KDE, Sway, Hyprland)
 - **X11**: XCB/Xlib capture backend
 
-!!! note "Beta Status"
-    ShotX v0.9.5 is officially released and actively maintained. Core features are stable — documentation and packaging are being continuously improved.
+!!! note "v1.0.0-beta.1 — Public Beta"
+    ShotX v1.0.0-beta.1 is the first official public beta release. Core features are stable and actively maintained. Native packages (.deb, .rpm, AppImage) and Homebrew tap are available. Help us improve by [filing issues](https://github.com/vedesh-padal/ShotX/issues).

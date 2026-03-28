@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/logo.png" width="100" alt="ShotX Logo">
+  <img src="https://raw.githubusercontent.com/vedesh-padal/ShotX/main/docs/assets/logo.png" width="100" alt="ShotX Logo">
   <br>
   <b>ShotX</b>
   <br>
@@ -34,7 +34,7 @@ ShotX brings the power of ShareX to the Linux desktop: instant screen capture, r
 
 > **Status: Beta** — Core features complete, actively maintained.
 
-![ShotX Main Window](docs/assets/screenshots/main-window.png)
+![ShotX Main Window](https://raw.githubusercontent.com/vedesh-padal/ShotX/main/docs/assets/screenshots/main-window.png)
 
 ## Features
 

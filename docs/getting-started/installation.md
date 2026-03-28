@@ -39,6 +39,37 @@ SKIP_AUTOSTART=1 sh install.sh
 
 ---
 
+## Native Packages
+
+Download the latest `.deb`, `.rpm`, or `AppImage` from the [GitHub Releases](https://github.com/vedesh-padal/ShotX/releases/latest) page.
+
+```bash
+# Ubuntu / Debian
+sudo dpkg -i shotx_*.deb
+
+# Fedora / RHEL
+sudo rpm -i shotx-*.rpm
+
+# AppImage (any distro)
+chmod +x ShotX-*.AppImage && ./ShotX-*.AppImage
+```
+
+> The `.deb` and `.rpm` packages bundle a private Python runtime — no system Python or library conflicts.
+
+---
+
+## Homebrew (Linux)
+
+```bash
+brew tap vedesh-padal/tap
+brew install shotx
+```
+
+!!! note
+    After install, run `shotx` to start. The Welcome dialog will guide you through desktop integration on first launch.
+
+---
+
 ## From Source (Manual)
 
 ### Prerequisites
@@ -55,8 +86,7 @@ git clone https://github.com/vedesh-padal/ShotX.git
 cd ShotX
 
 # Set up with uv
-uv venv --python 3.12
-uv pip install -e ".[all,dev]"
+uv sync --all-groups
 
 # Launch
 uv run shotx           # System tray mode
