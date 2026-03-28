@@ -333,10 +333,20 @@ class EditorGraphicsView(QGraphicsView):
 class ImageEditorWindow(QMainWindow):
     """Main window for the ShotX Image Editor."""
 
-    def __init__(self, parent=None, initial_image: QImage | None = None) -> None:
+    # Emitted with hex color string when user picks a new annotation color.
+    # Connect this to settings persistence (same pattern as RegionOverlay).
+    annotation_color_changed = Signal(str)
+
+    def __init__(
+        self,
+        parent=None,
+        initial_image: QImage | None = None,
+        last_annotation_color: str = "#ff0000",
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle("ShotX — Image Editor")
         self.resize(1024, 768)
+        self._last_annotation_color = last_annotation_color
 
         # Setup Scene and View
         self.scene = AnnotationScene(self)
@@ -464,7 +474,10 @@ class ImageEditorWindow(QMainWindow):
 
     def _setup_annotation_toolbar(self, parent_layout) -> None:
         from PySide6.QtGui import QColor
-        self.annotation_toolbar = AnnotationToolbar(initial_color=QColor(255, 0, 0), parent=self.centralWidget())
+        self.annotation_toolbar = AnnotationToolbar(
+            initial_color=QColor(self._last_annotation_color),
+            parent=self.centralWidget(),
+        )
 
         parent_layout.addWidget(self.annotation_toolbar, alignment=Qt.AlignmentFlag.AlignHCenter)
 
@@ -472,7 +485,7 @@ class ImageEditorWindow(QMainWindow):
         self.scene.crop_requested.connect(self.apply_crop)
         self.annotation_toolbar.undo_requested.connect(self.scene.undo_stack.undo)
         self.annotation_toolbar.redo_requested.connect(self.scene.undo_stack.redo)
-        self.annotation_toolbar.color_changed.connect(lambda c: setattr(self.scene, 'current_color', c))
+        self.annotation_toolbar.color_changed.connect(self._on_color_changed)
         self.annotation_toolbar.thickness_changed.connect(lambda t: setattr(self.scene, 'current_thickness', t))
 
         self.annotation_toolbar.cancel_requested.connect(self.close)
@@ -546,12 +559,27 @@ class ImageEditorWindow(QMainWindow):
         self.view.zoom_changed.connect(lambda z: self.zoom_label.setText(f"{z}%"))
 
     def _on_tool_selected(self, tool: AnnotationTool) -> None:
+        # Abort any in-progress draw (e.g. user hit a key shortcut mid-drag).
+        # This prevents orphaned semi-drawn items from being left on the scene.
+        if self.scene._active_item is not None:
+            self.scene.removeItem(self.scene._active_item)
+            self.scene._active_item = None
+
         self.scene.current_tool = tool
-        # Allow panning canvas when SELECT tool is active
+
         if tool == AnnotationTool.SELECT:
             self.view.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
         else:
+            # Clear selection so the dashed item border disappears when the
+            # user switches tools via keyboard (mouse clicks do this implicitly
+            # by moving focus away from the scene).
+            self.scene.clearSelection()
             self.view.setDragMode(QGraphicsView.DragMode.NoDrag)
+
+    def _on_color_changed(self, color) -> None:
+        """Update the scene color and emit signal for settings persistence."""
+        self.scene.current_color = color
+        self.annotation_color_changed.emit(color.name())
 
     def _apply_theme(self) -> None:
         """Apply a modern dark theme to the Image Editor."""

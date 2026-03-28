@@ -124,7 +124,17 @@ class ToolController(QObject):
         if initial_image_path:
             initial_image = QImage(initial_image_path)
 
-        self._image_editor = ImageEditorWindow(initial_image=initial_image)
+        last_color = self.settings.capture.last_annotation_color
+        self._image_editor = ImageEditorWindow(
+            initial_image=initial_image,
+            last_annotation_color=last_color,
+        )
+
+        def _save_color(hex_color: str) -> None:
+            self.settings.capture.last_annotation_color = hex_color
+            self._settings.save()
+
+        self._image_editor.annotation_color_changed.connect(_save_color)
         self._image_editor.show()
 
         if exec_loop:

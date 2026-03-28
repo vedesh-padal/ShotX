@@ -281,41 +281,60 @@ class RegionOverlay(QWidget):
     def keyPressEvent(self, event) -> None:
         """Handle keyboard shortcuts."""
         key = event.key()
+        mods = event.modifiers()
+        ctrl = Qt.KeyboardModifier.ControlModifier
 
         if key == Qt.Key.Key_Escape:
             if self._state == OverlayState.ANNOTATING:
-                # Cancel annotation — destroy view, toolbar, scene
                 self._cancel_annotation()
             else:
                 self._cancel()
-        elif key == Qt.Key.Key_Return or key == Qt.Key.Key_Enter:
+        elif key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             if not self._selection_rect.isNull() and self._selection_rect.isValid():
                 if self._state == OverlayState.ANNOTATING:
-                    # Finishing annotation — burn vectors onto backdrop
                     self._finish_annotation()
                 elif self._state != OverlayState.DONE:
                     self._state = OverlayState.DONE
                     self._confirm_selection()
-        elif key == Qt.Key.Key_A and event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+        elif key == Qt.Key.Key_A and mods & ctrl:
             if self._state != OverlayState.ANNOTATING:
                 # Ctrl+A: select entire screen
                 self._selection_rect = QRect(0, 0, self.width(), self.height())
-
-                # Check for shift modifier here too
                 action = self._after_capture_action
-                if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
+                if mods & Qt.KeyboardModifier.ShiftModifier:
                     action = "edit"
-
                 if action == "edit":
                     self._state = OverlayState.ANNOTATING
                     self._start_annotation()
                 else:
                     self._state = OverlayState.DONE
                     self._confirm_selection()
-        elif key == Qt.Key.Key_Z and event.modifiers() & Qt.KeyboardModifier.ControlModifier and self._state == OverlayState.ANNOTATING and self._scene:
+        elif key == Qt.Key.Key_Z and mods & ctrl and self._state == OverlayState.ANNOTATING and self._scene:
             self._scene.undo_stack.undo()
-        elif key == Qt.Key.Key_Y and event.modifiers() & Qt.KeyboardModifier.ControlModifier and self._state == OverlayState.ANNOTATING and self._scene:
+        elif key == Qt.Key.Key_Y and mods & ctrl and self._state == OverlayState.ANNOTATING and self._scene:
             self._scene.undo_stack.redo()
+        elif self._state == OverlayState.ANNOTATING and self._toolbar and not (mods & ctrl):
+            # Single-key tool shortcuts — only in annotation mode, no modifier
+            tool_keys = {
+                Qt.Key.Key_V: "SELECT",
+                Qt.Key.Key_A: "ARROW",
+                Qt.Key.Key_R: "RECTANGLE",
+                Qt.Key.Key_E: "ELLIPSE",
+                Qt.Key.Key_T: "TEXT",
+                Qt.Key.Key_F: "FREEHAND",
+                Qt.Key.Key_C: "CROP",
+                Qt.Key.Key_B: "BLUR",
+                Qt.Key.Key_H: "HIGHLIGHT",
+                Qt.Key.Key_S: "STEP_NUMBER",
+                Qt.Key.Key_X: "ERASER",
+            }
+            if key in tool_keys:
+                from .annotations.scene import AnnotationTool
+                self._toolbar.select_tool(AnnotationTool[tool_keys[key]])
+                # Also clear scene selection when switching to a draw tool
+                if tool_keys[key] != "SELECT" and self._scene:
+                    self._scene.clearSelection()
+                event.accept()
 
     # --- Private painting methods ---
 
