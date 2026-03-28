@@ -6,6 +6,11 @@
 #           openSUSE (zypper), Alpine (apk)
 # Requires: bash, git, Python 3.10+, internet connection
 #
+# Environment variables:
+#   SKIP_SYSTEM_DEPS=1    Skip mandatory system dependency installation
+#   SKIP_OPTIONAL_DEPS=1  Skip optional feature deps (OCR, QR scan, recording)
+#   SKIP_AUTOSTART=1      Skip XDG autostart entry creation
+#
 # After install, run: shotx
 
 set -euo pipefail
@@ -181,6 +186,73 @@ install_system_deps() {
     success "System dependencies installed."
 }
 
+install_optional_system_deps() {
+    local pm="$1"
+    if [ -n "${SKIP_OPTIONAL_DEPS:-}" ]; then
+        warn "SKIP_OPTIONAL_DEPS set — skipping optional feature dependencies."
+        return
+    fi
+    step "Installing optional feature dependencies (OCR, QR scan, recording)"
+    info "These enable: OCR text extraction, QR code scanning, screen recording."
+    info "Skip with: SKIP_OPTIONAL_DEPS=1"
+
+    case "$pm" in
+        apt)
+            sudo apt-get install -y --no-install-recommends \
+                tesseract-ocr \
+                libzbar0 \
+                ffmpeg \
+                wf-recorder \
+                || true
+            ;;
+        dnf)
+            sudo dnf install -y --setopt=install_weak_deps=False \
+                tesseract tesseract-osd \
+                zbar \
+                ffmpeg \
+                wf-recorder \
+                || true
+            ;;
+        yum)
+            sudo yum install -y \
+                tesseract \
+                ffmpeg \
+                || true
+            ;;
+        pacman)
+            sudo pacman -Sy --noconfirm --needed \
+                tesseract tesseract-data-eng \
+                zbar \
+                ffmpeg \
+                wf-recorder \
+                || true
+            ;;
+        zypper)
+            sudo zypper install -y --no-recommends \
+                tesseract-ocr \
+                libzbar0 \
+                ffmpeg \
+                wf-recorder \
+                || true
+            ;;
+        apk)
+            sudo apk add --no-cache \
+                tesseract-ocr \
+                zbar \
+                ffmpeg \
+                || true
+            ;;
+        *)
+            warn "Cannot install optional deps: unknown package manager."
+            warn "For OCR: install 'tesseract-ocr' manually."
+            warn "For QR:  install 'libzbar0' or 'zbar' manually."
+            warn "For recording: install 'ffmpeg' and 'wf-recorder' manually."
+            ;;
+    esac
+
+    success "Optional feature dependencies installed."
+}
+
 # ---------------------------------------------------------------------------
 # uv installation
 # ---------------------------------------------------------------------------
@@ -306,6 +378,9 @@ main() {
     else
         install_system_deps "${PM}"
     fi
+
+    # 2b. Install optional feature deps (OCR, QR, recording)
+    install_optional_system_deps "${PM}"
 
     # 3. Verify Python 3.10+
     step "Checking Python version"
