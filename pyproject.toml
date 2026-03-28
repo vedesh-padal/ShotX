@@ -64,6 +64,16 @@ Changelog = "https://github.com/vedesh-padal/ShotX/releases"
 packages = ["src/shotx"]
 exclude = ["tests", ".github", "docs", "*.sh"]
 
+[tool.hatch.build.targets.sdist]
+# Only include what is needed to build and install the package.
+# Everything else (docs, CI, packaging, dev tooling) is excluded.
+include = [
+    "src/shotx",
+    "README.md",
+    "LICENSE",
+    "pyproject.toml",
+]
+
 [tool.ruff]
 target-version = "py310"
 line-length = 100
