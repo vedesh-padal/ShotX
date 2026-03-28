@@ -140,4 +140,4 @@ shotx --history
 - Async thumbnail loading
 - Infinite scroll
 - Context menu: open, upload, edit, delete
-- Search and filter (coming soon)
+- Search and filter by filename, extension, or URL

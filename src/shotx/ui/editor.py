@@ -440,12 +440,27 @@ class ImageEditorWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+Y"), self).activated.connect(self.scene.undo_stack.redo)
 
         # Copy / Paste
-        # We also support Ctrl+Shift+C just in case, though standard Ctrl+C works fine
         QShortcut(QKeySequence("Ctrl+C"), self).activated.connect(self._on_copy_to_clipboard)
         QShortcut(QKeySequence("Ctrl+Shift+C"), self).activated.connect(self._on_copy_to_clipboard)
-
         QShortcut(QKeySequence("Ctrl+V"), self).activated.connect(self._on_paste_clipboard)
         QShortcut(QKeySequence("Ctrl+S"), self).activated.connect(self._on_save_as)
+
+        # --- Tool selection shortcuts (single key, matches docs) ---
+        def _select(tool):
+            return lambda: self.annotation_toolbar.select_tool(tool)
+
+        QShortcut(QKeySequence("A"), self).activated.connect(_select(AnnotationTool.ARROW))
+        QShortcut(QKeySequence("R"), self).activated.connect(_select(AnnotationTool.RECTANGLE))
+        QShortcut(QKeySequence("E"), self).activated.connect(_select(AnnotationTool.ELLIPSE))
+        QShortcut(QKeySequence("T"), self).activated.connect(_select(AnnotationTool.TEXT))
+        QShortcut(QKeySequence("F"), self).activated.connect(_select(AnnotationTool.FREEHAND))
+        QShortcut(QKeySequence("C"), self).activated.connect(_select(AnnotationTool.CROP))
+        QShortcut(QKeySequence("B"), self).activated.connect(_select(AnnotationTool.BLUR))
+        QShortcut(QKeySequence("H"), self).activated.connect(_select(AnnotationTool.HIGHLIGHT))
+        QShortcut(QKeySequence("S"), self).activated.connect(_select(AnnotationTool.STEP_NUMBER))
+        QShortcut(QKeySequence("X"), self).activated.connect(_select(AnnotationTool.ERASER))
+        QShortcut(QKeySequence("V"), self).activated.connect(_select(AnnotationTool.SELECT))
+
 
     def _setup_annotation_toolbar(self, parent_layout) -> None:
         from PySide6.QtGui import QColor

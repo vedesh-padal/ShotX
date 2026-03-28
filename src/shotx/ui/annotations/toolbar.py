@@ -108,22 +108,22 @@ class AnnotationToolbar(QWidget):
         self.tool_group.setExclusive(True)
 
         # Tool buttons
-        self._add_tool_btn("👆", "Select (Move/Resize)", AnnotationTool.SELECT, btn_layout)
-        self._add_tool_btn("⬛", "Rectangle", AnnotationTool.RECTANGLE, btn_layout, checked=True)
-        self._add_tool_btn("⬭", "Ellipse", AnnotationTool.ELLIPSE, btn_layout)
-        self._add_tool_btn("↗", "Arrow", AnnotationTool.ARROW, btn_layout)
-        self._add_tool_btn("T", "Text", AnnotationTool.TEXT, btn_layout)
-        self._add_tool_btn("✎", "Freehand", AnnotationTool.FREEHAND, btn_layout)
-        self._add_tool_btn("✂", "Crop (Drag box, hit Enter)", AnnotationTool.CROP, btn_layout)
-        self._add_tool_btn("▓", "Blur / Pixelate", AnnotationTool.BLUR, btn_layout)
-        self._add_tool_btn("🖍", "Highlight", AnnotationTool.HIGHLIGHT, btn_layout)
+        self._add_tool_btn("👆", "Select / Move  [V]",             AnnotationTool.SELECT,      btn_layout)
+        self._add_tool_btn("⬛", "Rectangle  [R]",                  AnnotationTool.RECTANGLE,   btn_layout, checked=True)
+        self._add_tool_btn("⬭", "Ellipse  [E]",                    AnnotationTool.ELLIPSE,     btn_layout)
+        self._add_tool_btn("↗", "Arrow  [A]",                      AnnotationTool.ARROW,       btn_layout)
+        self._add_tool_btn("T",  "Text  [T]",                      AnnotationTool.TEXT,        btn_layout)
+        self._add_tool_btn("✎", "Freehand  [F]",                   AnnotationTool.FREEHAND,    btn_layout)
+        self._add_tool_btn("✂", "Crop (drag box, hit Enter)  [C]", AnnotationTool.CROP,        btn_layout)
+        self._add_tool_btn("▓", "Blur / Pixelate  [B]",            AnnotationTool.BLUR,        btn_layout)
+        self._add_tool_btn("🖍", "Highlight  [H]",                  AnnotationTool.HIGHLIGHT,   btn_layout)
 
         from .items import StepNumberItem
         self._add_tool_btn(
-            "#", "Step Number (Right-Click to reset)", AnnotationTool.STEP_NUMBER,
+            "#", "Step Number (right-click to reset)  [S]", AnnotationTool.STEP_NUMBER,
             btn_layout, right_click_callback=StepNumberItem.reset_counter
         )
-        self._add_tool_btn("🗑", "Erase", AnnotationTool.ERASER, btn_layout)
+        self._add_tool_btn("🗑", "Erase annotation  [X]", AnnotationTool.ERASER, btn_layout)
 
         self.tool_group.idClicked.connect(self._on_tool_clicked)
 
@@ -229,6 +229,13 @@ class AnnotationToolbar(QWidget):
 
     def _on_tool_clicked(self, tool_id: int) -> None:
         self.tool_selected.emit(AnnotationTool(tool_id))
+
+    def select_tool(self, tool: AnnotationTool) -> None:
+        """Programmatically select a tool, updating button state and emitting signal."""
+        btn = self.tool_group.button(tool.value)
+        if btn is not None:
+            btn.setChecked(True)
+        self.tool_selected.emit(tool)
 
     def _add_separator(self, layout: QHBoxLayout) -> None:
         sep = QWidget(self.bg_widget)

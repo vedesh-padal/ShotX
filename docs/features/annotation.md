@@ -11,14 +11,16 @@ ShotX provides a full suite of annotation tools, available both in the **capture
 
 | Tool            | Description                                                        | Shortcut |
 | --------------- | ------------------------------------------------------------------ | -------- |
+| **Select**      | Move or resize existing annotations                                | ++v++    |
 | **Arrow**       | Draw arrows with proportional heads                                | ++a++    |
 | **Rectangle**   | Draw rectangles (outlined)                                         | ++r++    |
 | **Ellipse**     | Draw ellipses (outlined)                                           | ++e++    |
 | **Text**        | Add text labels (resizable with ++ctrl+shift+"+"++ / ++ctrl+"-"++) | ++t++    |
 | **Freehand**    | Free-form drawing                                                  | ++f++    |
+| **Crop**        | Drag a box, then press ++enter++ to apply                          | ++c++    |
 | **Blur**        | Pixelate/blur a rectangular area                                   | ++b++    |
 | **Highlight**   | Semi-transparent highlight marker                                  | ++h++    |
-| **Step Number** | Auto-incrementing numbered circles                                 | ++s++    |
+| **Step Number** | Auto-incrementing numbered circles (right-click toolbar to reset)  | ++s++    |
 | **Eraser**      | Remove annotations by clicking                                     | ++x++    |
 
 ## Controls

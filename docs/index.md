@@ -41,7 +41,7 @@ shotx --ocr
 
 ## Get Started
 
-- [Installation Guide](getting-started/installation.md): Set up ShotX from source or PyPI
+- [Installation Guide](getting-started/installation.md): Install via one-liner, native packages (.deb/.rpm/AppImage), Homebrew, or PyPI
 - [Quick Start](getting-started/quickstart.md): Start capturing in under a minute
 
 ## Platform Support
@@ -52,4 +52,4 @@ ShotX is **Wayland-first** with full X11 fallback:
 - **X11**: XCB/Xlib capture backend
 
 !!! note "Beta Status"
-    ShotX is under active development. Core features are complete and stable, with documentation and packaging improvements ongoing.
+    ShotX v0.9.5 is officially released and actively maintained. Core features are stable — documentation and packaging are being continuously improved.
