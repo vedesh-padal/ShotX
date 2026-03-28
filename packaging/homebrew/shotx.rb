@@ -16,7 +16,7 @@ class Shotx < Formula
   homepage "https://shotx.vedeshpadal.me"
 
   # Update url and sha256 on every release.
-  # PyPI naming: hyphens become underscores, 0.9.5-beta.3 becomes 0.9.5b3
+  # PyPI naming: hyphens become underscores, 1.0.0-beta.1 becomes 1.0.0b1
   url "https://files.pythonhosted.org/packages/source/s/shotx/shotx-<VERSION>.tar.gz"
   sha256 "<SHA256_OF_TARBALL>"
   license "GPL-3.0-only"

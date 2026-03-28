@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "shotx"
-version = "0.9.5-beta.3"
+version = "1.0.0-beta.1"
 description = "A free, open-source screenshot and screen capture tool for Linux — inspired by ShareX."
 readme = "README.md"
 license = "GPL-3.0-only"
